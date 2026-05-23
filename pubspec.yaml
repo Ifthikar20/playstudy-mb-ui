@@ -1,0 +1,64 @@
+name: playstudy_app
+description: PlayStudy — turn your study notes into interactive games. Snap a picture of your notes and we'll generate quizzes, flashcards, and matching games to make learning fun.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_bloc: ^8.1.3
+  equatable: ^2.0.5
+
+  # Navigation
+  go_router: ^12.1.3
+
+  # Storage
+  shared_preferences: ^2.2.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # UI
+  google_fonts: ^6.1.0
+  cached_network_image: ^3.3.0
+  flutter_svg: ^2.0.9
+
+  # Utilities
+  intl: ^0.18.1
+  uuid: ^4.2.2
+  flutter_dotenv: ^5.1.0
+
+  # Network & API
+  dio: ^5.4.0
+  http: ^1.2.0
+  logger: ^2.6.2
+
+  # Icons
+  cupertino_icons: ^1.0.6
+
+  # Camera / Image — capture study notes
+  image_picker: ^1.0.7
+  camera: ^0.10.5+9
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  image: ^4.1.3
+
+  # AI — generate games from notes (text/vision)
+  google_generative_ai: ^0.4.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
