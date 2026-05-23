@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../data/models/learning_models.dart';
-import '../widgets/guess_word_game.dart';
+import '../widgets/games_grid.dart';
 import '../widgets/quiz_view.dart';
 import '../widgets/summary_view.dart';
 
-/// Result page: tabs for Summary, Quiz, and Guess the Word game.
+/// Result page: tabs for Summary, Quiz, and Games (registered via GameRegistry).
 class MaterialPage extends StatelessWidget {
   final LearningMaterial material;
   const MaterialPage({super.key, required this.material});
@@ -20,7 +20,7 @@ class MaterialPage extends StatelessWidget {
             tabs: [
               Tab(icon: Icon(Icons.menu_book_outlined), text: 'Summary'),
               Tab(icon: Icon(Icons.quiz_outlined), text: 'Quiz'),
-              Tab(icon: Icon(Icons.videogame_asset_outlined), text: 'Game'),
+              Tab(icon: Icon(Icons.videogame_asset_outlined), text: 'Games'),
             ],
           ),
         ),
@@ -28,7 +28,7 @@ class MaterialPage extends StatelessWidget {
           children: [
             SummaryView(material: material),
             QuizView(questions: material.quiz),
-            GuessWordGame(challenges: material.wordGame),
+            GamesGrid(material: material),
           ],
         ),
       ),

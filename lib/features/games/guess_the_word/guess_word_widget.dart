@@ -2,20 +2,20 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/material.dart';
-import '../../data/models/learning_models.dart';
+import '../../learning/data/models/learning_models.dart';
 
 /// Guess the Word — a flame-powered minigame.
 /// Flame renders an animated stage with the revealed letters; Flutter renders
 /// the keyboard / controls on top.
-class GuessWordGame extends StatefulWidget {
+class GuessWordWidget extends StatefulWidget {
   final List<WordChallenge> challenges;
-  const GuessWordGame({super.key, required this.challenges});
+  const GuessWordWidget({super.key, required this.challenges});
 
   @override
-  State<GuessWordGame> createState() => _GuessWordGameState();
+  State<GuessWordWidget> createState() => _GuessWordWidgetState();
 }
 
-class _GuessWordGameState extends State<GuessWordGame> {
+class _GuessWordWidgetState extends State<GuessWordWidget> {
   late _GuessWordEngine _engine;
   int _round = 0;
   int _score = 0;

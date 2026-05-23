@@ -1,0 +1,70 @@
+// =============================================================================
+// HOW TO ADD A NEW GAME — copy this file, rename, drop it in, register it.
+// =============================================================================
+//
+// Plug-and-play model:
+//   1. Create a folder under  lib/features/games/<your_game>/
+//   2. Write the playable widget (any Flutter / Flame / custom-canvas code).
+//   3. Wrap it with a class that extends LearningGame (this file).
+//   4. Register it once in  lib/main.dart:
+//          GameRegistry.instance.register(YourGame());
+//   5. Done. It shows up automatically on the Games tab of every study set
+//      where  canPlay()  returns true.
+//
+// The registry never has to be updated when you add a game — only main.dart's
+// one-line registration call.
+// =============================================================================
+
+import 'package:flutter/material.dart';
+import '../../core/games/learning_game.dart';
+import '../learning/data/models/learning_models.dart';
+
+class ExampleNewGame extends LearningGame {
+  // --- Required metadata --------------------------------------------------
+
+  @override
+  String get id => 'example_new_game'; // stable, unique
+
+  @override
+  String get name => 'Example Game';
+
+  @override
+  String get emoji => '🎲'; // shown on the game card
+
+  @override
+  IconData? get icon => Icons.casino_outlined; // optional, beats emoji if set
+
+  @override
+  String get description => 'A one-line pitch for what the player does.';
+
+  // --- Gating -------------------------------------------------------------
+  // Return false if the material doesn't have what you need.
+  // e.g. a flashcard game requires non-empty flashcards.
+
+  @override
+  bool canPlay(LearningMaterial material) {
+    return material.quiz.isNotEmpty; // example: needs quiz questions
+  }
+
+  // --- The actual game widget --------------------------------------------
+  // You receive the whole material — pull whatever fields you want.
+  // The returned widget is mounted full-screen-ish inside the study set's
+  // game page, so you control the whole canvas from here.
+
+  @override
+  Widget build(BuildContext context, LearningMaterial material) {
+    return _ExampleGameView(material: material);
+  }
+}
+
+class _ExampleGameView extends StatelessWidget {
+  final LearningMaterial material;
+  const _ExampleGameView({required this.material});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text('Play ${material.title} here'),
+    );
+  }
+}

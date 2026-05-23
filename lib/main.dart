@@ -4,9 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/config/app_config.dart';
+import 'core/games/game_registry.dart';
 import 'core/navigation/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_bloc.dart';
+import 'features/games/guess_the_word/guess_the_word_game.dart';
 import 'features/learning/data/repositories/learning_repository.dart';
 import 'features/learning/presentation/bloc/learning_bloc.dart';
 
@@ -17,6 +19,11 @@ void main() async {
   PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024;
 
   AppConfig.initialize();
+
+  // Register all built-in games. To add a new game, write a class that
+  // extends LearningGame and add one line here. The UI picks it up
+  // automatically via GameRegistry — no other files need changing.
+  GameRegistry.instance.register(GuessTheWordGame());
 
   await Hive.initFlutter();
 
