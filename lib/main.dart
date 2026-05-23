@@ -7,8 +7,8 @@ import 'core/config/app_config.dart';
 import 'core/navigation/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_bloc.dart';
-import 'features/games/data/repositories/game_repository.dart';
-import 'features/games/presentation/bloc/games_bloc.dart';
+import 'features/learning/data/repositories/learning_repository.dart';
+import 'features/learning/presentation/bloc/learning_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,14 +38,14 @@ class PlayStudyApp extends StatelessWidget {
     final config = AppConfig.instance;
     return MultiRepositoryProvider(
       providers: [
-        RepositoryProvider(create: (_) => GameRepository()),
+        RepositoryProvider(create: (_) => LearningRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => ThemeBloc()..add(LoadTheme())),
           BlocProvider(
-            create: (context) => GamesBloc(
-              repository: context.read<GameRepository>(),
+            create: (context) => LearningBloc(
+              repository: context.read<LearningRepository>(),
             )..add(LoadLibrary()),
           ),
         ],

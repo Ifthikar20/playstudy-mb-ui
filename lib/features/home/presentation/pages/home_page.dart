@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../games/data/models/game_models.dart';
-import '../../../games/presentation/bloc/games_bloc.dart';
+import '../../../learning/data/models/learning_models.dart';
+import '../../../learning/presentation/bloc/learning_bloc.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -17,29 +17,31 @@ class HomePage extends StatelessWidget {
           children: [
             Text('Hi there 👋', style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
-            Text('Ready to turn your notes into games?',
+            Text('What do you want to learn today?',
                 style: theme.textTheme.displaySmall),
             const SizedBox(height: 24),
-            _ScanCta(onTap: () => context.go('/scan')),
+            _PrimaryCta(
+              icon: Icons.add_link,
+              title: 'New study set',
+              subtitle: 'Paste a link, upload a file, or paste text',
+              onTap: () => context.go('/new'),
+            ),
             const SizedBox(height: 24),
-            Text('Recent games', style: theme.textTheme.titleLarge),
+            Text('Recent', style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
-            BlocBuilder<GamesBloc, GamesState>(
+            BlocBuilder<LearningBloc, LearningState>(
               builder: (context, state) {
-                final library = state is GamesLoaded
-                    ? state.library
-                    : state is GameGenerated
-                        ? state.library
-                        : <Game>[];
+                final library = state.library;
                 if (library.isEmpty) {
-                  return _EmptyRecent(onTap: () => context.go('/scan'));
+                  return _EmptyState(onTap: () => context.go('/new'));
                 }
                 return Column(
                   children: library
                       .take(5)
-                      .map((g) => _GameTile(
-                            game: g,
-                            onTap: () => context.go('/game/${g.id}', extra: g),
+                      .map((m) => _MaterialTile(
+                            material: m,
+                            onTap: () =>
+                                context.go('/material/${m.id}', extra: m),
                           ))
                       .toList(),
                 );
@@ -52,49 +54,58 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _ScanCta extends StatelessWidget {
+class _PrimaryCta extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
-  const _ScanCta({required this.onTap});
+  const _PrimaryCta({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       color: scheme.primary,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(children: [
             Container(
-              height: 56,
-              width: 56,
+              height: 52,
+              width: 52,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.camera_alt_outlined,
-                  color: Colors.white, size: 28),
+              child: Icon(icon, color: Colors.white, size: 26),
             ),
             const SizedBox(width: 16),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Scan a note',
-                      style: TextStyle(
+                  Text(title,
+                      style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700)),
-                  SizedBox(height: 4),
-                  Text('Snap a photo — get a game in seconds',
-                      style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.85),
+                          fontSize: 13)),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
           ]),
         ),
       ),
@@ -102,9 +113,9 @@ class _ScanCta extends StatelessWidget {
   }
 }
 
-class _EmptyRecent extends StatelessWidget {
+class _EmptyState extends StatelessWidget {
   final VoidCallback onTap;
-  const _EmptyRecent({required this.onTap});
+  const _EmptyState({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -114,23 +125,34 @@ class _EmptyRecent extends StatelessWidget {
         child: Column(children: [
           const Text('📚', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 12),
-          Text('No games yet',
+          Text('No study sets yet',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text('Scan your first study note to begin.',
+          Text('Add a link or upload to get started.',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
-          OutlinedButton(onPressed: onTap, child: const Text('Scan now')),
+          OutlinedButton(onPressed: onTap, child: const Text('Get started')),
         ]),
       ),
     );
   }
 }
 
-class _GameTile extends StatelessWidget {
-  final Game game;
+class _MaterialTile extends StatelessWidget {
+  final LearningMaterial material;
   final VoidCallback onTap;
-  const _GameTile({required this.game, required this.onTap});
+  const _MaterialTile({required this.material, required this.onTap});
+
+  IconData get _icon {
+    switch (material.sourceKind) {
+      case SourceKind.link:
+        return Icons.link;
+      case SourceKind.file:
+        return Icons.description_outlined;
+      case SourceKind.text:
+        return Icons.text_snippet_outlined;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,10 +161,16 @@ class _GameTile extends StatelessWidget {
       child: Card(
         child: ListTile(
           onTap: onTap,
-          leading: Text(game.type.emoji,
-              style: const TextStyle(fontSize: 28)),
-          title: Text(game.title),
-          subtitle: Text('${game.subject} • ${game.type.label}'),
+          leading: CircleAvatar(
+            backgroundColor:
+                Theme.of(context).colorScheme.primary.withOpacity(0.12),
+            child: Icon(_icon, color: Theme.of(context).colorScheme.primary),
+          ),
+          title: Text(material.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            'Summary • Quiz • Guess the Word',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           trailing: const Icon(Icons.chevron_right),
         ),
       ),

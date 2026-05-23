@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../games/data/models/game_models.dart';
-import '../../../games/presentation/bloc/games_bloc.dart';
+import '../../../learning/data/models/learning_models.dart';
+import '../../../learning/presentation/bloc/learning_bloc.dart';
 
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
@@ -11,13 +11,9 @@ class LibraryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Library')),
-      body: BlocBuilder<GamesBloc, GamesState>(
+      body: BlocBuilder<LearningBloc, LearningState>(
         builder: (context, state) {
-          final library = state is GamesLoaded
-              ? state.library
-              : state is GameGenerated
-                  ? state.library
-                  : <Game>[];
+          final library = state.library;
           if (library.isEmpty) {
             return Center(
               child: Padding(
@@ -30,7 +26,7 @@ class LibraryPage extends StatelessWidget {
                     Text('Your library is empty',
                         style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 4),
-                    Text('Generated games will show up here.',
+                    Text('Study sets you create will appear here.',
                         style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
@@ -41,20 +37,30 @@ class LibraryPage extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             itemCount: library.length,
             itemBuilder: (context, i) {
-              final g = library[i];
+              final m = library[i];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Card(
                   child: ListTile(
-                    onTap: () => context.go('/game/${g.id}', extra: g),
-                    leading: Text(g.type.emoji,
-                        style: const TextStyle(fontSize: 28)),
-                    title: Text(g.title),
-                    subtitle: Text('${g.subject} • ${g.type.label}'),
+                    onTap: () => context.go('/material/${m.id}', extra: m),
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.12),
+                      child: Icon(
+                        _iconFor(m.sourceKind),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    title: Text(m.title,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(m.sourceRef,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () =>
-                          context.read<GamesBloc>().add(DeleteGame(g.id)),
+                          context.read<LearningBloc>().add(DeleteMaterial(m.id)),
                     ),
                   ),
                 ),
@@ -64,5 +70,16 @@ class LibraryPage extends StatelessWidget {
         },
       ),
     );
+  }
+
+  IconData _iconFor(SourceKind k) {
+    switch (k) {
+      case SourceKind.link:
+        return Icons.link;
+      case SourceKind.file:
+        return Icons.description_outlined;
+      case SourceKind.text:
+        return Icons.text_snippet_outlined;
+    }
   }
 }

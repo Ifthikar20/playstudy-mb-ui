@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Bottom-nav shell that wraps the main tab routes.
+/// Bottom-nav shell wrapping the main tab routes.
 class AppShell extends StatelessWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
 
   static const _tabs = [
     _Tab(path: '/', icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
-    _Tab(path: '/scan', icon: Icons.camera_alt_outlined, activeIcon: Icons.camera_alt, label: 'Scan'),
+    _Tab(path: '/new', icon: Icons.add_circle_outline, activeIcon: Icons.add_circle, label: 'New'),
     _Tab(path: '/library', icon: Icons.library_books_outlined, activeIcon: Icons.library_books, label: 'Library'),
     _Tab(path: '/profile', icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
   ];
 
   int _indexFor(String location) {
     for (var i = _tabs.length - 1; i >= 0; i--) {
-      if (location.startsWith(_tabs[i].path) && _tabs[i].path != '/') return i;
+      if (_tabs[i].path == '/' && location == '/') return i;
+      if (_tabs[i].path != '/' && location.startsWith(_tabs[i].path)) return i;
     }
     return 0;
   }
