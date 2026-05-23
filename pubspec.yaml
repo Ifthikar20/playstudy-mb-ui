@@ -48,8 +48,11 @@ dependencies:
   # AI — generate summary / quiz / game from text or link
   google_generative_ai: ^0.4.6
 
-  # Game library — for the Guess the Word minigame
+  # Game library — for Guess the Word + Super Dash mini-games
   flame: ^1.18.0
+
+  # Calendar — exam prep schedule view
+  table_calendar: ^3.0.9
 
 dev_dependencies:
   flutter_test:

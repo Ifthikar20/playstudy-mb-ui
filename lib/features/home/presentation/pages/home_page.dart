@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/auth/auth_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/widgets/airbnb_card.dart';
+import '../../../exam_prep/data/models/exam_plan.dart';
+import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
 
@@ -22,6 +24,16 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 20),
             _HeroCta(onTap: () => context.go('/new')),
             const SizedBox(height: 20),
+            BlocBuilder<ExamPrepBloc, ExamPrepState>(
+              builder: (context, state) {
+                final today = state.plans.where((p) => p.isToday).toList();
+                if (today.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: _TodayPrepStrip(plan: today.first),
+                );
+              },
+            ),
             BlocBuilder<SubscriptionBloc, SubscriptionState>(
               builder: (context, sub) {
                 if (sub.isPremium || !sub.loaded) return const SizedBox.shrink();
@@ -149,6 +161,51 @@ class _HeroCta extends StatelessWidget {
           ]),
         ),
       ),
+    );
+  }
+}
+
+class _TodayPrepStrip extends StatelessWidget {
+  final ExamPlan plan;
+  const _TodayPrepStrip({required this.plan});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final done = plan.resultFor(DateTime.now())?.completed ?? false;
+    return AirbnbCard(
+      onTap: () => context.go('/exam/${plan.id}/today'),
+      child: Row(children: [
+        Container(
+          height: 44,
+          width: 44,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.tertiary.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(Icons.event_available,
+              color: theme.colorScheme.tertiary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                done
+                    ? "Today's session done"
+                    : '${plan.questionsPerDay} questions for ${plan.examTitle}',
+                style: theme.textTheme.labelLarge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text('${plan.daysUntilExam}d to exam',
+                  style: theme.textTheme.bodySmall),
+            ],
+          ),
+        ),
+        const Icon(Icons.chevron_right),
+      ]),
     );
   }
 }

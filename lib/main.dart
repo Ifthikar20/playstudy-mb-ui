@@ -10,7 +10,10 @@ import 'core/navigation/app_router.dart';
 import 'core/subscription/subscription_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_bloc.dart';
+import 'features/exam_prep/data/repositories/exam_prep_repository.dart';
+import 'features/exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import 'features/games/guess_the_word/guess_the_word_game.dart';
+import 'features/games/super_dash/super_dash_game.dart';
 import 'features/learning/data/repositories/learning_repository.dart';
 import 'features/learning/presentation/bloc/learning_bloc.dart';
 
@@ -26,6 +29,7 @@ void main() async {
   // extends LearningGame and add one line here. The UI picks it up
   // automatically via GameRegistry — no other files need changing.
   GameRegistry.instance.register(GuessTheWordGame());
+  GameRegistry.instance.register(SuperDashGame());
 
   await Hive.initFlutter();
 
@@ -48,6 +52,7 @@ class PlayStudyApp extends StatelessWidget {
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider(create: (_) => LearningRepository()),
+        RepositoryProvider(create: (_) => ExamPrepRepository()),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -58,6 +63,11 @@ class PlayStudyApp extends StatelessWidget {
             create: (context) => LearningBloc(
               repository: context.read<LearningRepository>(),
             )..add(LoadLibrary()),
+          ),
+          BlocProvider(
+            create: (context) => ExamPrepBloc(
+              repository: context.read<ExamPrepRepository>(),
+            )..add(LoadPlans()),
           ),
         ],
         // Build the router once with the AuthBloc so redirects work.

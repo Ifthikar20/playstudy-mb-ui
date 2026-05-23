@@ -6,6 +6,7 @@ class QuizQuestion extends Equatable {
   final List<String> choices;
   final int correctIndex;
   final String? explanation;
+  final String topic;
 
   const QuizQuestion({
     required this.id,
@@ -13,10 +14,12 @@ class QuizQuestion extends Equatable {
     required this.choices,
     required this.correctIndex,
     this.explanation,
+    this.topic = 'General',
   });
 
   @override
-  List<Object?> get props => [id, prompt, choices, correctIndex, explanation];
+  List<Object?> get props =>
+      [id, prompt, choices, correctIndex, explanation, topic];
 }
 
 /// A single round of Guess the Word.
@@ -43,6 +46,7 @@ class LearningMaterial extends Equatable {
   final List<String> keyPoints;
   final List<QuizQuestion> quiz;
   final List<WordChallenge> wordGame;
+  final List<String> topics;
   final DateTime createdAt;
 
   const LearningMaterial({
@@ -54,10 +58,18 @@ class LearningMaterial extends Equatable {
     required this.keyPoints,
     required this.quiz,
     required this.wordGame,
+    required this.topics,
     required this.createdAt,
   });
 
+  /// Quiz questions filtered to the given topics (or all if empty).
+  List<QuizQuestion> quizForTopics(List<String> filter) {
+    if (filter.isEmpty) return quiz;
+    final set = filter.toSet();
+    return quiz.where((q) => set.contains(q.topic)).toList();
+  }
+
   @override
   List<Object?> get props =>
-      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, createdAt];
+      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, createdAt];
 }

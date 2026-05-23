@@ -39,6 +39,7 @@ class LearningRepository {
       keyPoints: _mockKeyPoints,
       quiz: _mockQuiz(),
       wordGame: _mockWordGame,
+      topics: const ['Cellular Biology', 'Light Reactions', 'Calvin Cycle'],
       createdAt: DateTime.now(),
     );
 
@@ -82,18 +83,42 @@ class LearningRepository {
           choices: const ['Nucleus', 'Mitochondria', 'Chloroplast', 'Ribosome'],
           correctIndex: 2,
           explanation: 'Chloroplasts contain chlorophyll, which absorbs light.',
+          topic: 'Cellular Biology',
         ),
         QuizQuestion(
           id: _uuid.v4(),
           prompt: 'Which gas is released as a by-product of photosynthesis?',
           choices: const ['Carbon dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen'],
           correctIndex: 1,
+          topic: 'Light Reactions',
         ),
         QuizQuestion(
           id: _uuid.v4(),
           prompt: 'What is the main sugar produced by photosynthesis?',
           choices: const ['Fructose', 'Sucrose', 'Glucose', 'Lactose'],
           correctIndex: 2,
+          topic: 'Calvin Cycle',
+        ),
+        QuizQuestion(
+          id: _uuid.v4(),
+          prompt: 'What pigment absorbs sunlight in plants?',
+          choices: const ['Hemoglobin', 'Chlorophyll', 'Melanin', 'Carotene'],
+          correctIndex: 1,
+          topic: 'Cellular Biology',
+        ),
+        QuizQuestion(
+          id: _uuid.v4(),
+          prompt: 'In which stage is ATP produced from light energy?',
+          choices: const ['Calvin cycle', 'Light reactions', 'Glycolysis', 'Krebs cycle'],
+          correctIndex: 1,
+          topic: 'Light Reactions',
+        ),
+        QuizQuestion(
+          id: _uuid.v4(),
+          prompt: 'What does the Calvin cycle fix into sugars?',
+          choices: const ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Water'],
+          correctIndex: 2,
+          topic: 'Calvin Cycle',
         ),
       ];
 

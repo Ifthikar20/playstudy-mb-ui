@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/exam_prep/presentation/pages/create_plan_page.dart';
+import '../../features/exam_prep/presentation/pages/daily_session_page.dart';
+import '../../features/exam_prep/presentation/pages/exam_prep_home_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/learning/data/models/learning_models.dart';
 import '../../features/learning/data/repositories/learning_repository.dart';
@@ -40,9 +43,19 @@ class AppRouter {
           routes: [
             GoRoute(path: '/', builder: (_, __) => const HomePage()),
             GoRoute(path: '/new', builder: (_, __) => const InputPage()),
+            GoRoute(path: '/exam', builder: (_, __) => const ExamPrepHomePage()),
             GoRoute(path: '/library', builder: (_, __) => const LibraryPage()),
             GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
           ],
+        ),
+        GoRoute(
+          path: '/exam/new',
+          builder: (_, __) => const CreatePlanPage(),
+        ),
+        GoRoute(
+          path: '/exam/:id/today',
+          builder: (context, state) =>
+              DailySessionPage(planId: state.pathParameters['id']!),
         ),
         GoRoute(
           path: '/material/:id',
