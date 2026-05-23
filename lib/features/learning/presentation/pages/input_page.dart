@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/subscription/subscription_bloc.dart';
 import '../../data/models/learning_models.dart';
 import '../bloc/learning_bloc.dart';
 
@@ -46,6 +47,11 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
   }
 
   void _generate() {
+    final sub = context.read<SubscriptionBloc>().state;
+    if (!sub.canGenerate) {
+      context.push('/paywall');
+      return;
+    }
     final bloc = context.read<LearningBloc>();
     switch (_tab.index) {
       case 0:
@@ -78,6 +84,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     return BlocListener<LearningBloc, LearningState>(
       listener: (context, state) {
         if (state is GenerateSuccess) {
+          context.read<SubscriptionBloc>().add(RecordUsage());
           context.go('/material/${state.material.id}', extra: state.material);
         } else if (state is LearningError) {
           _toast(state.message);

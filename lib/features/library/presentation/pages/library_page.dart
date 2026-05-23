@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../learning/data/models/learning_models.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
 
 class LibraryPage extends StatelessWidget {
@@ -34,34 +34,30 @@ class LibraryPage extends StatelessWidget {
             );
           }
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
             itemCount: library.length,
             itemBuilder: (context, i) {
               final m = library[i];
               return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Card(
-                  child: ListTile(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Dismissible(
+                  key: ValueKey(m.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.error,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.delete_outline, color: Colors.white),
+                  ),
+                  onDismissed: (_) => context
+                      .read<LearningBloc>()
+                      .add(DeleteMaterial(m.id)),
+                  child: StudySetCard(
+                    material: m,
                     onTap: () => context.go('/material/${m.id}', extra: m),
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.12),
-                      child: Icon(
-                        _iconFor(m.sourceKind),
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                    title: Text(m.title,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(m.sourceRef,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () =>
-                          context.read<LearningBloc>().add(DeleteMaterial(m.id)),
-                    ),
                   ),
                 ),
               );
@@ -70,16 +66,5 @@ class LibraryPage extends StatelessWidget {
         },
       ),
     );
-  }
-
-  IconData _iconFor(SourceKind k) {
-    switch (k) {
-      case SourceKind.link:
-        return Icons.link;
-      case SourceKind.file:
-        return Icons.description_outlined;
-      case SourceKind.text:
-        return Icons.text_snippet_outlined;
-    }
   }
 }

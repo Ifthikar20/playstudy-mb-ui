@@ -126,9 +126,9 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         color: surface,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(cardRadius),
-          side: BorderSide(color: border, width: 1),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

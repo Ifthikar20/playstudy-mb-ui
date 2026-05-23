@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'core/auth/auth_bloc.dart';
 import 'core/config/app_config.dart';
 import 'core/games/game_registry.dart';
 import 'core/navigation/app_router.dart';
+import 'core/subscription/subscription_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_bloc.dart';
 import 'features/games/guess_the_word/guess_the_word_game.dart';
@@ -50,21 +52,32 @@ class PlayStudyApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => ThemeBloc()..add(LoadTheme())),
+          BlocProvider(create: (_) => AuthBloc()..add(AuthCheckRequested())),
+          BlocProvider(create: (_) => SubscriptionBloc()..add(LoadSubscription())),
           BlocProvider(
             create: (context) => LearningBloc(
               repository: context.read<LearningRepository>(),
             )..add(LoadLibrary()),
           ),
         ],
-        child: BlocBuilder<ThemeBloc, ThemeState>(
-          builder: (context, themeState) {
-            return MaterialApp.router(
-              title: config.appName,
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: themeState.isLight ? ThemeMode.light : ThemeMode.dark,
-              routerConfig: AppRouter.create(),
+        // Build the router once with the AuthBloc so redirects work.
+        // Keep it outside BlocBuilder so theme changes don't recreate it
+        // (which would reset navigation state).
+        child: Builder(
+          builder: (context) {
+            final router = AppRouter.create(context.read<AuthBloc>());
+            return BlocBuilder<ThemeBloc, ThemeState>(
+              builder: (context, themeState) {
+                return MaterialApp.router(
+                  title: config.appName,
+                  debugShowCheckedModeBanner: false,
+                  theme: AppTheme.lightTheme,
+                  darkTheme: AppTheme.darkTheme,
+                  themeMode:
+                      themeState.isLight ? ThemeMode.light : ThemeMode.dark,
+                  routerConfig: router,
+                );
+              },
             );
           },
         ),
