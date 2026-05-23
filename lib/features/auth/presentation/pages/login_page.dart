@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/auth/auth_bloc.dart';
+import '../../../../core/widgets/app_logo.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -52,18 +53,7 @@ class _LoginPageState extends State<LoginPage> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             children: [
               const SizedBox(height: 24),
-              Center(
-                child: Container(
-                  height: 72,
-                  width: 72,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(Icons.school_outlined,
-                      color: Colors.white, size: 36),
-                ),
-              ),
+              const Center(child: AppLogo(size: 88, radius: 24)),
               const SizedBox(height: 24),
               Text('Welcome to PlayStudy',
                   textAlign: TextAlign.center,
