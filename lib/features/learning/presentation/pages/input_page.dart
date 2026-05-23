@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../data/models/learning_models.dart';
 import '../bloc/learning_bloc.dart';
@@ -85,6 +86,8 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
       listener: (context, state) {
         if (state is GenerateSuccess) {
           context.read<SubscriptionBloc>().add(RecordUsage());
+          context.read<RewardsBloc>().add(
+              const RecordActivity(points: 20, reason: 'Created a study set'));
           context.go('/material/${state.material.id}', extra: state.material);
         } else if (state is LearningError) {
           _toast(state.message);

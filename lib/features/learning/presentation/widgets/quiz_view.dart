@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/rewards/rewards_bloc.dart';
 import '../../data/models/learning_models.dart';
 
 class QuizView extends StatefulWidget {
@@ -36,6 +38,10 @@ class _QuizViewState extends State<QuizView> {
       });
     } else {
       setState(() => _done = true);
+      context.read<RewardsBloc>().add(RecordActivity(
+            points: 5 + _score * 5,
+            reason: 'Finished a quiz',
+          ));
     }
   }
 

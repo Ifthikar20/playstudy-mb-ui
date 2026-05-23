@@ -2,6 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
 
 /// Guess the Word — a flame-powered minigame.
@@ -51,6 +53,10 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
         _won = true;
         _score++;
         _engine.celebrate();
+        context.read<RewardsBloc>().add(RecordActivity(
+              points: 15 - _mistakes * 2,
+              reason: 'Guessed a word',
+            ));
       } else if (_mistakes >= _maxMistakes) {
         _lost = true;
         _engine.revealAll(_current.word);

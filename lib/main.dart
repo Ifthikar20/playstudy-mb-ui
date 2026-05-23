@@ -7,6 +7,7 @@ import 'core/auth/auth_bloc.dart';
 import 'core/config/app_config.dart';
 import 'core/games/game_registry.dart';
 import 'core/navigation/app_router.dart';
+import 'core/rewards/rewards_bloc.dart';
 import 'core/subscription/subscription_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_bloc.dart';
@@ -59,6 +60,7 @@ class PlayStudyApp extends StatelessWidget {
           BlocProvider(create: (_) => ThemeBloc()..add(LoadTheme())),
           BlocProvider(create: (_) => AuthBloc()..add(AuthCheckRequested())),
           BlocProvider(create: (_) => SubscriptionBloc()..add(LoadSubscription())),
+          BlocProvider(create: (_) => RewardsBloc()..add(LoadRewards())),
           BlocProvider(
             create: (context) => LearningBloc(
               repository: context.read<LearningRepository>(),

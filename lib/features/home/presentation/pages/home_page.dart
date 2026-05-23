@@ -8,6 +8,7 @@ import '../../../exam_prep/data/models/exam_plan.dart';
 import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
+import '../../../rewards/presentation/widgets/streak_card.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -21,6 +22,8 @@ class HomePage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
             _Greeting(),
+            const SizedBox(height: 20),
+            const StreakCard(),
             const SizedBox(height: 20),
             _HeroCta(onTap: () => context.go('/new')),
             const SizedBox(height: 20),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/data/repositories/learning_repository.dart';
 import '../../data/models/exam_plan.dart';
@@ -69,6 +70,10 @@ class _DailySessionPageState extends State<DailySessionPage> {
             day: DateTime.now(),
             correct: _correct,
             total: _questions.length,
+          ));
+      context.read<RewardsBloc>().add(RecordActivity(
+            points: 10 + _correct * 5,
+            reason: 'Daily exam session',
           ));
     }
   }

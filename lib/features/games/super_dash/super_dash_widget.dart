@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
 import 'super_dash_engine.dart';
 
@@ -48,7 +50,11 @@ class _SuperDashWidgetState extends State<SuperDashWidget> {
   void _answerCheckpoint(int index) {
     final q = _activeQuestion!;
     final correct = index == q.correctIndex;
-    if (correct) _correctAtCheckpoint++;
+    if (correct) {
+      _correctAtCheckpoint++;
+      context.read<RewardsBloc>().add(
+          const RecordActivity(points: 5, reason: 'Super Dash checkpoint'));
+    }
     if (!correct) _engine.loseLife();
     setState(() {
       _showingQuiz = false;
