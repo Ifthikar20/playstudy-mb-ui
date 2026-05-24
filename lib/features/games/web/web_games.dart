@@ -54,3 +54,32 @@ class SpaceShooterWebGame extends LearningGame {
     );
   }
 }
+
+/// Crossword built from the study set's word game (word + clue), hosted on the
+/// web and embedded via WebView. Clues are listed as Across/Down hints.
+class CrosswordWebGame extends LearningGame {
+  @override
+  String get id => 'crossword_web';
+
+  @override
+  String get name => 'Crossword';
+
+  @override
+  IconData get icon => Icons.grid_on;
+
+  @override
+  String get description =>
+      'Fill the grid from the clues built on this set\'s key terms.';
+
+  @override
+  bool canPlay(LearningMaterial material) => material.wordGame.length >= 2;
+
+  @override
+  Widget build(BuildContext context, LearningMaterial material) {
+    return WebGameView(
+      slug: 'crossword',
+      title: 'Crossword',
+      words: material.wordGame,
+    );
+  }
+}

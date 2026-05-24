@@ -15,15 +15,17 @@ import '../../learning/data/models/learning_models.dart';
 /// Keeping the game code on the web means it can be updated without shipping
 /// an app release, and the same build runs on iOS, Android, and web.
 class WebGameView extends StatefulWidget {
-  final String slug; // 'flappy' | 'shooter'
+  final String slug; // 'flappy' | 'shooter' | 'crossword'
   final String title;
   final List<QuizQuestion> quiz;
+  final List<WordChallenge> words;
 
   const WebGameView({
     super.key,
     required this.slug,
     required this.title,
-    required this.quiz,
+    this.quiz = const [],
+    this.words = const [],
   });
 
   @override
@@ -42,15 +44,23 @@ class _WebGameViewState extends State<WebGameView> {
           })
       .toList();
 
-  // Pass the quiz in the URL (base64 of the JSON array) so it's available the
+  List<Map<String, dynamic>> get _wordList =>
+      widget.words.map((w) => {'word': w.word, 'clue': w.clue}).toList();
+
+  String _b64(Object data) => base64Url.encode(utf8.encode(jsonEncode(data)));
+
+  // Pass quiz + words in the URL (base64url JSON) so they're available the
   // instant the game loads — no dependency on the JS-channel round-trip timing.
   String get _url {
-    final b64 = base64Url.encode(utf8.encode(jsonEncode(_quizList)));
-    return '${AppConfig.instance.gamesBaseUrl}/games/${widget.slug}/index.html'
-        '?quiz=$b64';
+    final params = <String>[];
+    if (_quizList.isNotEmpty) params.add('quiz=${_b64(_quizList)}');
+    if (_wordList.isNotEmpty) params.add('words=${_b64(_wordList)}');
+    final query = params.isEmpty ? '' : '?${params.join('&')}';
+    return '${AppConfig.instance.gamesBaseUrl}/games/${widget.slug}/index.html$query';
   }
 
-  String get _quizJson => jsonEncode({'quiz': _quizList});
+  String get _payloadJson =>
+      jsonEncode({'quiz': _quizList, 'words': _wordList});
 
   @override
   void initState() {
@@ -62,7 +72,7 @@ class _WebGameViewState extends State<WebGameView> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
-            _injectQuiz();
+            _injectPayload();
             if (mounted) setState(() => _loading = false);
           },
         ),
@@ -70,10 +80,10 @@ class _WebGameViewState extends State<WebGameView> {
       ..loadRequest(Uri.parse(_url));
   }
 
-  void _injectQuiz() {
+  void _injectPayload() {
     // The game defines window.PlayStudyInit; safe to call once loaded.
     _controller.runJavaScript(
-      'if(window.PlayStudyInit){window.PlayStudyInit($_quizJson);}',
+      'if(window.PlayStudyInit){window.PlayStudyInit($_payloadJson);}',
     );
   }
 
@@ -86,7 +96,7 @@ class _WebGameViewState extends State<WebGameView> {
     }
     switch (data['type']) {
       case 'ready':
-        _injectQuiz(); // re-inject once the game signals it's initialized
+        _injectPayload(); // re-inject once the game signals it's initialized
         break;
       case 'reward':
         final reason = data['reason'] as String? ?? 'Super Dash checkpoint';

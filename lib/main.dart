@@ -37,6 +37,7 @@ void main() async {
   GameRegistry.instance.register(SuperDashGame());
   GameRegistry.instance.register(FlappyWebGame());
   GameRegistry.instance.register(SpaceShooterWebGame());
+  GameRegistry.instance.register(CrosswordWebGame());
 
   await Hive.initFlutter();
 
