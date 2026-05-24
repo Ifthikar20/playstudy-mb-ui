@@ -84,9 +84,9 @@ if [[ -f "$PLIST" ]]; then
 fi
 
 SIM_NAME="${SIM_NAME:-iPhone 15}"
-# Set DEVICE to a physical device id/name (or 'auto') to run on a real iPhone
-# instead of the simulator, e.g.  DEVICE=auto ./run-dev.sh
-DEVICE="${DEVICE:-}"
+# Physical device by name (wireless). Set DEVICE='' to use the simulator
+# instead, or DEVICE=auto to auto-detect, or DEVICE='Some iPhone' by name.
+DEVICE="${DEVICE-AliIphone2024}"
 
 TARGET_ID=""
 if [[ -n "$DEVICE" ]]; then
@@ -115,6 +115,11 @@ print(ios[0]['id'] if ios else '')" 2>/dev/null || true)"
     fi
   fi
   echo "==> Target: physical device '$TARGET_ID' (API_BASE_URL=$API_BASE_URL)"
+  # Pre-warm Xcode so the wireless debug-attach handshake doesn't time out
+  # (the "AppleEvent timed out" failure happens when Xcode is cold).
+  echo "    warming up Xcode for wireless debugging…"
+  open -g ios/Runner.xcworkspace 2>/dev/null || true
+  sleep 8
 else
   # --- Simulator path (default) --------------------------------------------
   echo "==> Booting iOS Simulator ($SIM_NAME)"
