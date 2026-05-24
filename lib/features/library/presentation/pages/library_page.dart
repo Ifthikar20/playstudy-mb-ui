@@ -57,7 +57,7 @@ class LibraryPage extends StatelessWidget {
                       .add(DeleteMaterial(m.id)),
                   child: StudySetCard(
                     material: m,
-                    onTap: () => context.go('/material/${m.id}', extra: m),
+                    onTap: () => context.push('/material/${m.id}', extra: m),
                   ),
                 ),
               );

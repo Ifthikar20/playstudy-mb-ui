@@ -69,7 +69,7 @@ class HomePage extends StatelessWidget {
                             child: StudySetCard(
                               material: m,
                               onTap: () =>
-                                  context.go('/material/${m.id}', extra: m),
+                                  context.push('/material/${m.id}', extra: m),
                             ),
                           ))
                       .toList(),
@@ -177,7 +177,7 @@ class _TodayPrepStrip extends StatelessWidget {
     final theme = Theme.of(context);
     final done = plan.resultFor(DateTime.now())?.completed ?? false;
     return AirbnbCard(
-      onTap: () => context.go('/exam/${plan.id}/today'),
+      onTap: () => context.push('/exam/${plan.id}/today'),
       child: Row(children: [
         Container(
           height: 44,

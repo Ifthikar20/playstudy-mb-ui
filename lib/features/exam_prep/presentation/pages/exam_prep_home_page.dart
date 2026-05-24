@@ -20,7 +20,7 @@ class ExamPrepHomePage extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => context.go('/exam/new'),
+            onPressed: () => context.push('/exam/new'),
           ),
         ],
       ),
@@ -30,7 +30,7 @@ class ExamPrepHomePage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (state.plans.isEmpty) {
-            return _Empty(onTap: () => context.go('/exam/new'));
+            return _Empty(onTap: () => context.push('/exam/new'));
           }
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
@@ -103,7 +103,7 @@ class _TodayCard extends StatelessWidget {
       color: theme.colorScheme.primary,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => context.go('/exam/${plan.id}/today'),
+        onTap: () => context.push('/exam/${plan.id}/today'),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(

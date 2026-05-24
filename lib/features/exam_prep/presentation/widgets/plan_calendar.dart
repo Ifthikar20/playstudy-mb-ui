@@ -53,7 +53,7 @@ class _PlanCalendarState extends State<PlanCalendar> {
           _focusedDay = focused;
         });
         if (isSameDay(sel, DateTime.now())) {
-          context.go('/exam/${plan.id}/today');
+          context.push('/exam/${plan.id}/today');
         }
       },
       calendarBuilders: CalendarBuilders(

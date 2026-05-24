@@ -90,7 +90,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
           // re-read both rather than reporting points from the client.
           context.read<SubscriptionBloc>().add(LoadSubscription());
           context.read<RewardsBloc>().add(LoadRewards());
-          context.go('/material/${state.material.id}', extra: state.material);
+          context.push('/material/${state.material.id}', extra: state.material);
         } else if (state is LearningError) {
           _toast(state.message);
         }
