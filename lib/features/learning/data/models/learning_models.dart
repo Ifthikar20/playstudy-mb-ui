@@ -50,6 +50,34 @@ class WordChallenge extends Equatable {
 /// Source of the uploaded content.
 enum SourceKind { link, file, text }
 
+/// One readable chunk of the study material: condensed content, a real-world
+/// example, and its own quiz (count scales with the section's complexity).
+class StudySection extends Equatable {
+  final String title;
+  final String content;
+  final String example;
+  final List<QuizQuestion> quiz;
+
+  const StudySection({
+    required this.title,
+    required this.content,
+    required this.example,
+    required this.quiz,
+  });
+
+  @override
+  List<Object?> get props => [title, content, example, quiz];
+
+  static StudySection fromJson(Map<String, dynamic> j) => StudySection(
+        title: j['title'] as String? ?? 'Section',
+        content: j['content'] as String? ?? '',
+        example: j['example'] as String? ?? '',
+        quiz: (j['quiz'] as List? ?? const [])
+            .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 /// Generated learning bundle from a piece of content.
 class LearningMaterial extends Equatable {
   final String id;
@@ -61,6 +89,7 @@ class LearningMaterial extends Equatable {
   final List<QuizQuestion> quiz;
   final List<WordChallenge> wordGame;
   final List<String> topics;
+  final List<StudySection> sections;
   final DateTime createdAt;
 
   const LearningMaterial({
@@ -73,6 +102,7 @@ class LearningMaterial extends Equatable {
     required this.quiz,
     required this.wordGame,
     required this.topics,
+    required this.sections,
     required this.createdAt,
   });
 
@@ -85,7 +115,7 @@ class LearningMaterial extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, createdAt];
+      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, sections, createdAt];
 
   static SourceKind _kindFrom(String? raw) {
     switch (raw) {
@@ -114,6 +144,9 @@ class LearningMaterial extends Equatable {
             .map((e) => WordChallenge.fromJson(e as Map<String, dynamic>))
             .toList(),
         topics: (j['topics'] as List? ?? const []).cast<String>(),
+        sections: (j['sections'] as List? ?? const [])
+            .map((e) => StudySection.fromJson(e as Map<String, dynamic>))
+            .toList(),
         createdAt:
             DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
       );

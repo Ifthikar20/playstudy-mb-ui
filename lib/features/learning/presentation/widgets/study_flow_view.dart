@@ -26,12 +26,16 @@ const _emojis = ['📘', '🧠', '💡', '🔬', '🧩', '📐', '🌍', '⚗️
 class _Section {
   final String title;
   final String emoji;
-  final List<String> notes;
+  final List<String> notes; // fallback bullets (old study sets)
+  final String content; // readable chunk (new sectioned content)
+  final String example; // real-world example ("Explain further")
   final List<QuizQuestion> questions;
   const _Section({
     required this.title,
     required this.emoji,
     required this.notes,
+    this.content = '',
+    this.example = '',
     required this.questions,
   });
 }
@@ -53,7 +57,22 @@ class _StudyFlowViewState extends State<StudyFlowView> {
   List<_Section> _build() {
     final m = widget.material;
 
-    // Group questions by their topic tag, preserving first-seen order.
+    // Preferred: server-provided sections (fuller content + example + quiz).
+    if (m.sections.isNotEmpty) {
+      return [
+        for (var i = 0; i < m.sections.length; i++)
+          _Section(
+            title: m.sections[i].title,
+            emoji: _emojis[i % _emojis.length],
+            notes: const [],
+            content: m.sections[i].content,
+            example: m.sections[i].example,
+            questions: m.sections[i].quiz,
+          ),
+      ];
+    }
+
+    // Fallback (older study sets without sections): group by quiz topic.
     final order = <String>[];
     final byTopic = <String, List<QuizQuestion>>{};
     for (final q in m.quiz) {
@@ -273,6 +292,18 @@ class _NotesPane extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
             children: [
+              // Preferred: the section's readable content chunk.
+              if (section.content.trim().isNotEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      section.content,
+                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.55),
+                    ),
+                  ),
+                ),
+              // Fallback bullets for older sets without section content.
               for (final note in section.notes)
                 Card(
                   child: Padding(
@@ -292,24 +323,43 @@ class _NotesPane extends StatelessWidget {
                     ),
                   ),
                 ),
-              // Elaborative prompt (tap to reveal) — encode by self-explaining.
-              Card(
-                color: theme.colorScheme.primary.withOpacity(0.06),
-                child: ExpansionTile(
-                  leading: Icon(Icons.psychology_outlined,
-                      color: theme.colorScheme.primary),
-                  title: const Text('Explain it back'),
-                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  children: [
-                    Text(
-                      'Before the quiz, say each point out loud in your own '
-                      'words and connect it to something you already know. '
-                      'Elaborating like this makes it stick.',
-                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+              // "Explain further" — a small, real-world example for the section.
+              if (section.example.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.lightbulb_outline,
+                            size: 16, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(height: 1.4),
+                              children: [
+                                TextSpan(
+                                  text: 'Explain further  ',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: theme.colorScheme.primary),
+                                ),
+                                TextSpan(text: section.example),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
