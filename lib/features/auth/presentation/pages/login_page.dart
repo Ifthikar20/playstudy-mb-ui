@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/auth/auth_bloc.dart';
 import '../../../../core/widgets/airbnb_button.dart';
+import '../../../../core/widgets/airbnb_card.dart';
 import '../../../../core/widgets/app_logo.dart';
 
 class LoginPage extends StatefulWidget {
@@ -69,32 +70,39 @@ class _LoginPageState extends State<LoginPage> {
                     ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
               ),
               const SizedBox(height: 32),
-              TextField(
-                controller: _email,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.mail_outline),
+              AirbnbCard(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.mail_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _password,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    BlocBuilder<AuthBloc, AuthState>(
+                      builder: (context, state) {
+                        return AirbnbButton(
+                          label: _signUp ? 'Create account' : 'Sign in',
+                          loading: state is AuthLoading,
+                          onPressed: _submit,
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _password,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                ),
-              ),
-              const SizedBox(height: 20),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  return AirbnbButton(
-                    label: _signUp ? 'Create account' : 'Sign in',
-                    loading: state is AuthLoading,
-                    onPressed: _submit,
-                  );
-                },
               ),
               const SizedBox(height: 24),
               Row(children: [

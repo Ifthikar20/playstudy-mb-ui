@@ -147,6 +147,9 @@ class AppTheme {
       ),
       appBarTheme: AppBarTheme(
         elevation: 0,
+        scrolledUnderElevation: 0,
+        // Keep app bars clean white — stop M3 from tinting them red on scroll.
+        surfaceTintColor: Colors.transparent,
         backgroundColor: bg,
         foregroundColor: textPrimary,
         centerTitle: false,
@@ -155,6 +158,8 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         color: surface,
+        // No M3 primary tint on cards — keep them neutral, Airbnb-style.
+        surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(cardRadius),

@@ -26,18 +26,38 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _indexFor(location);
+    final theme = Theme.of(context);
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: index,
-        onTap: (i) => context.go(_tabs[i].path),
-        items: _tabs
-            .map((t) => BottomNavigationBarItem(
-                  icon: Icon(t.icon),
-                  activeIcon: Icon(t.activeIcon),
-                  label: t.label,
-                ))
-            .toList(),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          border: Border(top: BorderSide(color: theme.dividerColor)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(
+                  theme.brightness == Brightness.dark ? 0.3 : 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: index,
+            onTap: (i) => context.go(_tabs[i].path),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            items: _tabs
+                .map((t) => BottomNavigationBarItem(
+                      icon: Icon(t.icon),
+                      activeIcon: Icon(t.activeIcon),
+                      label: t.label,
+                    ))
+                .toList(),
+          ),
+        ),
       ),
     );
   }
