@@ -28,6 +28,7 @@ class SuperDashEngine extends FlameGame {
   bool _paused = false;
   bool _gameOver = false;
   double _nextObstacleAt = 4;
+  bool _loaded = false; // onGameResize can fire before onLoad — guard with this
   final _rand = Random();
 
   SuperDashEngine({
@@ -52,16 +53,22 @@ class SuperDashEngine extends FlameGame {
     add(_player);
     add(_Cloud(seed: 1));
     add(_Cloud(seed: 2));
+    _loaded = true;
+    // Position now that components exist (size is known by onLoad).
+    if (size.x > 0) _layout(size);
+  }
+
+  void _layout(Vector2 s) {
+    _player.position = Vector2(80, s.y - groundHeight - 30);
+    _ground.size = Vector2(s.x, groundHeight);
+    _ground.position = Vector2(0, s.y - groundHeight);
   }
 
   @override
   void onGameResize(Vector2 newSize) {
     super.onGameResize(newSize);
-    if (newSize.x > 0) {
-      _player.position = Vector2(80, newSize.y - groundHeight - 30);
-      _ground.size = Vector2(newSize.x, groundHeight);
-      _ground.position = Vector2(0, newSize.y - groundHeight);
-    }
+    // Flame may call this before onLoad creates the components.
+    if (_loaded && newSize.x > 0) _layout(newSize);
   }
 
   void jump() {
