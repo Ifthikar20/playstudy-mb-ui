@@ -5,6 +5,8 @@ import '../../../../core/auth/auth_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/theme/theme_bloc.dart';
 import '../../../../core/widgets/airbnb_card.dart';
+import '../widgets/badges_section.dart';
+import '../widgets/stats_grid.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -53,6 +55,12 @@ class ProfilePage extends StatelessWidget {
               );
             },
           ),
+          const SizedBox(height: 20),
+          Text('Your stats', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 12),
+          const StatsGrid(),
+          const SizedBox(height: 20),
+          const BadgesSection(),
           const SizedBox(height: 16),
           BlocBuilder<SubscriptionBloc, SubscriptionState>(
             builder: (context, sub) {

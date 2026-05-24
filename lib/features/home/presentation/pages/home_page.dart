@@ -8,6 +8,7 @@ import '../../../exam_prep/data/models/exam_plan.dart';
 import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
+import '../../../rewards/presentation/widgets/badges_strip.dart';
 import '../../../rewards/presentation/widgets/streak_card.dart';
 
 class HomePage extends StatelessWidget {
@@ -45,6 +46,10 @@ class HomePage extends StatelessWidget {
                   child: _UsageStrip(remaining: sub.remainingFree),
                 );
               },
+            ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 20),
+              child: BadgesStrip(),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
