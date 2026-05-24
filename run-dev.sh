@@ -82,23 +82,37 @@ if [[ -f "$PLIST" ]]; then
 fi
 
 echo "==> Booting iOS Simulator"
+# Use an already-booted simulator, else boot an available iPhone. We pin to a
+# simulator UDID so Flutter never falls back to a physical device (which would
+# require Apple code-signing).
+UDID="$(xcrun simctl list devices booted 2>/dev/null | grep -Eo '[0-9A-Fa-f-]{36}' | head -1 || true)"
+if [[ -z "$UDID" ]]; then
+  UDID="$(xcrun simctl list devices available 2>/dev/null \
+            | grep -E 'iPhone' | grep -Eo '[0-9A-Fa-f-]{36}' | head -1 || true)"
+  if [[ -n "$UDID" ]]; then
+    echo "    booting simulator $UDID"
+    xcrun simctl boot "$UDID" 2>/dev/null || true
+  fi
+fi
 open -a Simulator || true
-UDID=""
-for _ in $(seq 1 30); do
-  UDID="$(xcrun simctl list devices booted 2>/dev/null | grep -Eo '[0-9A-Fa-f-]{36}' | head -1 || true)"
-  [[ -n "$UDID" ]] && break
+
+if [[ -z "$UDID" ]]; then
+  cat >&2 <<'MSG'
+    ERROR: no iOS Simulator available. Install one in Xcode:
+        Xcode > Settings > Components (or Platforms) > iOS Simulator
+    Then re-run ./run-dev.sh
+MSG
+  exit 1
+fi
+
+# Wait until the chosen simulator is actually Booted.
+for _ in $(seq 1 60); do
+  if xcrun simctl list devices | grep "$UDID" | grep -q 'Booted'; then break; fi
   sleep 1
 done
 
-echo "==> Launching app (API_BASE_URL=$API_BASE_URL, auto-login $DEV_EMAIL). Backend logs stream above; Ctrl+C stops everything."
-DEFINES=(
-  --dart-define=API_BASE_URL="$API_BASE_URL"
-  --dart-define=DEV_EMAIL="$DEV_EMAIL"
+echo "==> Launching app on simulator $UDID (API_BASE_URL=$API_BASE_URL, auto-login $DEV_EMAIL). Ctrl+C stops everything."
+flutter run -d "$UDID" \
+  --dart-define=API_BASE_URL="$API_BASE_URL" \
+  --dart-define=DEV_EMAIL="$DEV_EMAIL" \
   --dart-define=DEV_PASSWORD="$DEV_PASSWORD"
-)
-if [[ -n "$UDID" ]]; then
-  flutter run -d "$UDID" "${DEFINES[@]}"
-else
-  echo "    (no booted simulator detected — letting Flutter pick a device)"
-  flutter run "${DEFINES[@]}"
-fi
