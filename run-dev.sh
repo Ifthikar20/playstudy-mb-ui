@@ -50,8 +50,10 @@ done
 # --- 2. Flutter app on the iOS Simulator.
 echo "==> Preparing Flutter app"
 flutter pub get
-if [[ ! -d ios ]]; then
-  echo "    no ios/ platform folder — generating with 'flutter create .'"
+# Check for the actual Xcode project, not just the ios/ folder — a partial
+# ios/ (e.g. only Info.plist) still needs regeneration.
+if [[ ! -f ios/Runner.xcodeproj/project.pbxproj ]]; then
+  echo "    iOS project missing/incomplete — running 'flutter create .'"
   flutter create --platforms=ios,android .
 fi
 
