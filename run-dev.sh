@@ -53,8 +53,8 @@ flutter pub get
 # Check for the actual Xcode project, not just the ios/ folder — a partial
 # ios/ (e.g. only Info.plist) still needs regeneration.
 if [[ ! -f ios/Runner.xcodeproj/project.pbxproj ]]; then
-  echo "    iOS project missing/incomplete — running 'flutter create .'"
-  flutter create --platforms=ios,android .
+  echo "    iOS project missing/incomplete — running 'flutter create --platforms=ios .'"
+  flutter create --platforms=ios .
 fi
 
 # Debug-only App Transport Security exception so the simulator can talk to the
