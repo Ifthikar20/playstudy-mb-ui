@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+// Hide Flutter's MaterialPage: this app defines its own MaterialPage widget
+// (the learning-material screen) used by the routes below.
+import 'package:flutter/material.dart' hide MaterialPage;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
