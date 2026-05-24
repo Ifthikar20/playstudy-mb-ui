@@ -34,18 +34,23 @@ class _WebGameViewState extends State<WebGameView> {
   late final WebViewController _controller;
   bool _loading = true;
 
-  String get _url =>
-      '${AppConfig.instance.gamesBaseUrl}/games/${widget.slug}/index.html';
+  List<Map<String, dynamic>> get _quizList => widget.quiz
+      .map((q) => {
+            'prompt': q.prompt,
+            'choices': q.choices,
+            'correctIndex': q.correctIndex,
+          })
+      .toList();
 
-  String get _quizJson => jsonEncode({
-        'quiz': widget.quiz
-            .map((q) => {
-                  'prompt': q.prompt,
-                  'choices': q.choices,
-                  'correctIndex': q.correctIndex,
-                })
-            .toList(),
-      });
+  // Pass the quiz in the URL (base64 of the JSON array) so it's available the
+  // instant the game loads — no dependency on the JS-channel round-trip timing.
+  String get _url {
+    final b64 = base64Url.encode(utf8.encode(jsonEncode(_quizList)));
+    return '${AppConfig.instance.gamesBaseUrl}/games/${widget.slug}/index.html'
+        '?quiz=$b64';
+  }
+
+  String get _quizJson => jsonEncode({'quiz': _quizList});
 
   @override
   void initState() {
