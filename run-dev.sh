@@ -32,6 +32,11 @@ echo "==> Starting backend (verbose) on 0.0.0.0:8000"
   cd "$BACKEND_DIR"
   # shellcheck disable=SC1091
   source .venv/bin/activate
+  # Make .env the single source of truth: clear any stale LLM vars inherited
+  # from the shell, since python-decouple reads os.environ before .env (a
+  # leftover exported key would otherwise shadow the corrected .env value).
+  unset ANTHROPIC_API_KEY ANTHROPIC_MODEL LLM_PROVIDER \
+        DEEPSEEK_API_KEY GEMINI_API_KEY LOCAL_LLM_API_KEY 2>/dev/null || true
   # --noreload keeps it a single process so cleanup kills it cleanly.
   exec env LOG_LEVEL=DEBUG python manage.py runserver 0.0.0.0:8000 --noreload
 ) > >(awk '{ print "[backend] " $0; fflush() }') 2>&1 &
