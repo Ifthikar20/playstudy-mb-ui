@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../widgets/learning_insights.dart';
 
 /// The "adventure" — a vertical path of ranks. The player climbs it by
 /// earning points from studying. The current rank glows; future ranks are
@@ -20,6 +22,10 @@ class AdventurePage extends StatelessWidget {
             children: [
               _Header(state: state),
               const SizedBox(height: 24),
+              LearningInsights(state: state),
+              const SizedBox(height: 28),
+              Text('Your journey', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 12),
               // Render the path top-down: highest rank first.
               for (var i = kRanks.length - 1; i >= 0; i--)
                 _RankStep(
@@ -48,7 +54,7 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF007AFF), Color(0xFF5856D6)],
+          colors: ThemeColors.brandGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

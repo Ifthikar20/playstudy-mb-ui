@@ -54,6 +54,9 @@ dependencies:
   # Calendar — exam prep schedule view
   table_calendar: ^3.0.9
 
+  # Charts — interactive learning-progress visualizations
+  fl_chart: ^0.69.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
