@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../network/api_client.dart';
 
 String _ymd(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -26,66 +27,58 @@ const kRanks = <Rank>[
 /// Tracks daily streak, lifetime points, and adventure rank. Points are
 /// awarded for studying activity; the streak increments once per day the
 /// user does anything and resets if a day is missed.
+/// Server-authoritative rewards. Points + streak are owned by the backend;
+/// the client posts an activity *reason* (+ context) and the server decides
+/// the points. If the network is unavailable we fall back to an optimistic
+/// local update using the reason's known formula so the UI stays responsive.
 class RewardsBloc extends Bloc<RewardsEvent, RewardsState> {
-  static const _pointsKey = 'rewards_points';
-  static const _streakKey = 'rewards_streak';
-  static const _lastActiveKey = 'rewards_last_active';
+  final ApiClient api;
 
-  RewardsBloc() : super(const RewardsState.initial()) {
+  RewardsBloc({required this.api}) : super(const RewardsState.initial()) {
     on<LoadRewards>(_load);
     on<RecordActivity>(_record);
   }
 
   Future<void> _load(LoadRewards e, Emitter<RewardsState> emit) async {
-    final prefs = await SharedPreferences.getInstance();
-    var streak = prefs.getInt(_streakKey) ?? 0;
-    final last = prefs.getString(_lastActiveKey);
-    // If the last active day was before yesterday, the streak is broken.
-    if (last != null) {
-      final today = DateTime.now();
-      final yesterday = _ymd(today.subtract(const Duration(days: 1)));
-      final todayKey = _ymd(today);
-      if (last != todayKey && last != yesterday) {
-        streak = 0;
-      }
+    try {
+      final response = await api.dio.get('rewards/');
+      final d = response.data as Map<String, dynamic>;
+      emit(RewardsState(
+        points: d['points'] as int? ?? 0,
+        streak: d['streak'] as int? ?? 0,
+        lastActiveYmd: null,
+        loaded: true,
+        lastAward: d['lastAward'] as int? ?? 0,
+        lastReason: d['lastReason'] as String?,
+      ));
+    } catch (_) {
+      // Unauthenticated or offline — show a clean zero state.
+      emit(const RewardsState(
+          points: 0, streak: 0, lastActiveYmd: null, loaded: true));
     }
-    emit(RewardsState(
-      points: prefs.getInt(_pointsKey) ?? 0,
-      streak: streak,
-      lastActiveYmd: last,
-      loaded: true,
-    ));
   }
 
   Future<void> _record(RecordActivity e, Emitter<RewardsState> emit) async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now();
-    final todayKey = _ymd(today);
-    final yesterday = _ymd(today.subtract(const Duration(days: 1)));
-
-    var streak = state.streak;
-    final last = state.lastActiveYmd;
-    if (last == todayKey) {
-      // already counted today
-    } else if (last == yesterday) {
-      streak += 1;
-    } else {
-      streak = 1; // first activity today after a gap (or ever)
+    try {
+      final response = await api.dio.post(
+        'rewards/activity/',
+        data: {'reason': e.reason, 'context': e.context},
+      );
+      final d = response.data as Map<String, dynamic>;
+      emit(state.copyWith(
+        points: d['points'] as int?,
+        streak: d['streak'] as int?,
+        lastAward: d['lastAward'] as int?,
+        lastReason: d['lastReason'] as String?,
+      ));
+    } catch (_) {
+      // Offline fallback: optimistic local update using the provided points.
+      emit(state.copyWith(
+        points: state.points + e.points,
+        lastAward: e.points,
+        lastReason: e.reason,
+      ));
     }
-
-    final points = state.points + e.points;
-
-    await prefs.setInt(_pointsKey, points);
-    await prefs.setInt(_streakKey, streak);
-    await prefs.setString(_lastActiveKey, todayKey);
-
-    emit(state.copyWith(
-      points: points,
-      streak: streak,
-      lastActiveYmd: todayKey,
-      lastAward: e.points,
-      lastReason: e.reason,
-    ));
   }
 }
 
@@ -98,11 +91,18 @@ abstract class RewardsEvent extends Equatable {
 class LoadRewards extends RewardsEvent {}
 
 class RecordActivity extends RewardsEvent {
+  /// Offline fallback amount. The server recomputes points from [reason] +
+  /// [context], so this is only used when the request can't reach the backend.
   final int points;
   final String reason;
-  const RecordActivity({required this.points, required this.reason});
+  final Map<String, dynamic> context;
+  const RecordActivity({
+    required this.points,
+    required this.reason,
+    this.context = const {},
+  });
   @override
-  List<Object?> get props => [points, reason];
+  List<Object?> get props => [points, reason, context];
 }
 
 class RewardsState extends Equatable {

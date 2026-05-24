@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/network/api_client.dart';
 import '../../data/models/learning_models.dart';
 import '../../data/repositories/learning_repository.dart';
 
@@ -70,8 +71,13 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
   final LearningRepository repository;
 
   LearningBloc({required this.repository}) : super(const LearningInitial()) {
-    on<LoadLibrary>((event, emit) {
-      emit(LibraryReady(repository.library));
+    on<LoadLibrary>((event, emit) async {
+      try {
+        await repository.loadLibrary();
+        emit(LibraryReady(repository.library));
+      } catch (e) {
+        emit(LearningError(apiErrorMessage(e), repository.library));
+      }
     });
 
     on<GenerateMaterial>((event, emit) async {
@@ -84,12 +90,16 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
         );
         emit(GenerateSuccess(material: m, library: repository.library));
       } catch (e) {
-        emit(LearningError('Could not generate: $e', repository.library));
+        emit(LearningError(apiErrorMessage(e), repository.library));
       }
     });
 
-    on<DeleteMaterial>((event, emit) {
-      repository.delete(event.id);
+    on<DeleteMaterial>((event, emit) async {
+      try {
+        await repository.delete(event.id);
+      } catch (_) {
+        // best-effort; fall through to re-emit current library
+      }
       emit(LibraryReady(repository.library));
     });
   }

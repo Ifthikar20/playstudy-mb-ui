@@ -20,6 +20,15 @@ class QuizQuestion extends Equatable {
   @override
   List<Object?> get props =>
       [id, prompt, choices, correctIndex, explanation, topic];
+
+  static QuizQuestion fromJson(Map<String, dynamic> j) => QuizQuestion(
+        id: (j['id'] ?? '').toString(),
+        prompt: j['prompt'] as String? ?? '',
+        choices: (j['choices'] as List? ?? const []).cast<String>(),
+        correctIndex: j['correctIndex'] as int? ?? 0,
+        explanation: j['explanation'] as String?,
+        topic: j['topic'] as String? ?? 'General',
+      );
 }
 
 /// A single round of Guess the Word.
@@ -31,6 +40,11 @@ class WordChallenge extends Equatable {
 
   @override
   List<Object?> get props => [word, clue];
+
+  static WordChallenge fromJson(Map<String, dynamic> j) => WordChallenge(
+        word: j['word'] as String? ?? '',
+        clue: j['clue'] as String? ?? '',
+      );
 }
 
 /// Source of the uploaded content.
@@ -72,4 +86,35 @@ class LearningMaterial extends Equatable {
   @override
   List<Object?> get props =>
       [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, createdAt];
+
+  static SourceKind _kindFrom(String? raw) {
+    switch (raw) {
+      case 'link':
+        return SourceKind.link;
+      case 'file':
+        return SourceKind.file;
+      default:
+        return SourceKind.text;
+    }
+  }
+
+  /// Parses the API shape. `quiz`/`wordGame` are absent on lightweight library
+  /// rows and default to empty until the detail endpoint is fetched.
+  static LearningMaterial fromJson(Map<String, dynamic> j) => LearningMaterial(
+        id: (j['id'] ?? '').toString(),
+        title: j['title'] as String? ?? '',
+        sourceKind: _kindFrom(j['sourceKind'] as String?),
+        sourceRef: j['sourceRef'] as String? ?? '',
+        summary: j['summary'] as String? ?? '',
+        keyPoints: (j['keyPoints'] as List? ?? const []).cast<String>(),
+        quiz: (j['quiz'] as List? ?? const [])
+            .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        wordGame: (j['wordGame'] as List? ?? const [])
+            .map((e) => WordChallenge.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        topics: (j['topics'] as List? ?? const []).cast<String>(),
+        createdAt:
+            DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+      );
 }

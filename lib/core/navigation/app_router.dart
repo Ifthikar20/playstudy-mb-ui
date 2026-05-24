@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/exam_prep/presentation/pages/create_plan_page.dart';
@@ -66,14 +67,30 @@ class AppRouter {
           path: '/material/:id',
           builder: (context, state) {
             final fromExtra = state.extra as LearningMaterial?;
-            final material = fromExtra ??
-                LearningRepository().byId(state.pathParameters['id'] ?? '');
-            if (material == null) {
-              return const Scaffold(
-                body: Center(child: Text('Study set not found')),
-              );
+            // A full object (with quiz) passed via `extra` is used directly.
+            // Otherwise (e.g. opened from a lightweight library row) fetch the
+            // full set from the backend.
+            if (fromExtra != null && fromExtra.quiz.isNotEmpty) {
+              return MaterialPage(material: fromExtra);
             }
-            return MaterialPage(material: material);
+            final id = state.pathParameters['id'] ?? '';
+            final repo = context.read<LearningRepository>();
+            return FutureBuilder<LearningMaterial>(
+              future: repo.fetch(id),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return MaterialPage(material: snapshot.data!);
+                }
+                if (snapshot.hasError) {
+                  return const Scaffold(
+                    body: Center(child: Text('Study set not found')),
+                  );
+                }
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              },
+            );
           },
         ),
       ],

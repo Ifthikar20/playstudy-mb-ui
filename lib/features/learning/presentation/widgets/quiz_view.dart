@@ -41,6 +41,7 @@ class _QuizViewState extends State<QuizView> {
       context.read<RewardsBloc>().add(RecordActivity(
             points: 5 + _score * 5,
             reason: 'Finished a quiz',
+            context: {'score': _score, 'total': widget.questions.length},
           ));
     }
   }

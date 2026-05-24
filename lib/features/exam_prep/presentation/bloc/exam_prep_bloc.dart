@@ -94,13 +94,12 @@ class ExamPrepBloc extends Bloc<ExamPrepEvent, ExamPrepState> {
     });
 
     on<CompleteSession>((e, emit) async {
-      final plan = state.plans.firstWhere((p) => p.id == e.planId);
-      final updated = plan.markCompleted(
+      await repository.recordSession(
+        planId: e.planId,
         day: e.day,
         correct: e.correct,
         total: e.total,
       );
-      await repository.update(updated);
       final plans = await repository.all();
       emit(ExamPrepState(plans: plans));
     });

@@ -1,49 +1,55 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-/// Tracks subscription tier + free-tier usage.
+import '../network/api_client.dart';
+
+/// Tracks subscription tier + free-tier usage from the server.
 ///
-/// Free users get [freeLimit] generations before the paywall blocks more.
-/// Premium users are unlimited. Usage count and premium flag are persisted
-/// in SharedPreferences. Replace with a real IAP / backend check later.
+/// `usageCount` is owned by the backend (incremented only on a successful
+/// generation), so the client reads it rather than counting locally.
+/// [freeLimit] mirrors the server's FREE_GENERATION_LIMIT.
 class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
   static const freeLimit = 2;
-  static const _premiumKey = 'sub_premium';
-  static const _usageKey = 'sub_usage_count';
 
-  SubscriptionBloc() : super(const SubscriptionState.unknown()) {
+  final ApiClient api;
+
+  SubscriptionBloc({required this.api})
+      : super(const SubscriptionState.unknown()) {
     on<LoadSubscription>(_load);
-    on<RecordUsage>(_record);
+    on<RecordUsage>(_load); // usage changes live server-side; just re-read
     on<UpgradeToPremium>(_upgrade);
     on<CancelPremium>(_cancel);
   }
 
-  Future<void> _load(LoadSubscription e, Emitter<SubscriptionState> emit) async {
-    final prefs = await SharedPreferences.getInstance();
-    emit(SubscriptionState(
-      isPremium: prefs.getBool(_premiumKey) ?? false,
-      usageCount: prefs.getInt(_usageKey) ?? 0,
-    ));
+  Future<void> _load(
+      SubscriptionEvent e, Emitter<SubscriptionState> emit) async {
+    try {
+      final response = await api.dio.get('subscription/');
+      final d = response.data as Map<String, dynamic>;
+      emit(SubscriptionState(
+        isPremium: d['isPremium'] as bool? ?? false,
+        usageCount: d['usageCount'] as int? ?? 0,
+      ));
+    } catch (_) {
+      emit(const SubscriptionState(isPremium: false, usageCount: 0));
+    }
   }
 
-  Future<void> _record(RecordUsage e, Emitter<SubscriptionState> emit) async {
-    if (state.isPremium) return;
-    final prefs = await SharedPreferences.getInstance();
-    final next = state.usageCount + 1;
-    await prefs.setInt(_usageKey, next);
-    emit(state.copyWith(usageCount: next));
-  }
-
-  Future<void> _upgrade(UpgradeToPremium e, Emitter<SubscriptionState> emit) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_premiumKey, true);
+  Future<void> _upgrade(
+      UpgradeToPremium e, Emitter<SubscriptionState> emit) async {
+    // IAP receipt validation (POST /subscription/validate) is wired on the
+    // backend but needs the native store receipt. Until the IAP SDK is added,
+    // optimistically reflect premium locally so the paywall flow is testable.
     emit(state.copyWith(isPremium: true));
   }
 
-  Future<void> _cancel(CancelPremium e, Emitter<SubscriptionState> emit) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_premiumKey, false);
+  Future<void> _cancel(
+      CancelPremium e, Emitter<SubscriptionState> emit) async {
+    try {
+      await api.dio.post('subscription/cancel/');
+    } catch (_) {
+      // dev/testing endpoint; ignore failures (prod uses store webhooks)
+    }
     emit(state.copyWith(isPremium: false));
   }
 }

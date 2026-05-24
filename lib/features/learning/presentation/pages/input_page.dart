@@ -85,7 +85,8 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     return BlocListener<LearningBloc, LearningState>(
       listener: (context, state) {
         if (state is GenerateSuccess) {
-          context.read<SubscriptionBloc>().add(RecordUsage());
+          // Usage is incremented server-side on success — re-read it.
+          context.read<SubscriptionBloc>().add(LoadSubscription());
           context.read<RewardsBloc>().add(
               const RecordActivity(points: 20, reason: 'Created a study set'));
           context.go('/material/${state.material.id}', extra: state.material);

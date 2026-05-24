@@ -7,6 +7,8 @@ import 'core/auth/auth_bloc.dart';
 import 'core/config/app_config.dart';
 import 'core/games/game_registry.dart';
 import 'core/navigation/app_router.dart';
+import 'core/network/api_client.dart';
+import 'core/network/token_store.dart';
 import 'core/rewards/rewards_bloc.dart';
 import 'core/subscription/subscription_bloc.dart';
 import 'core/theme/app_theme.dart';
@@ -50,26 +52,31 @@ class PlayStudyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = AppConfig.instance;
+    final tokens = TokenStore();
+    final api = ApiClient(baseUrl: config.apiBaseUrl, tokens: tokens);
+
     return MultiRepositoryProvider(
       providers: [
-        RepositoryProvider(create: (_) => LearningRepository()),
-        RepositoryProvider(create: (_) => ExamPrepRepository()),
+        RepositoryProvider<ApiClient>.value(value: api),
+        RepositoryProvider(create: (_) => LearningRepository(api)),
+        RepositoryProvider(create: (_) => ExamPrepRepository(api)),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => ThemeBloc()..add(LoadTheme())),
-          BlocProvider(create: (_) => AuthBloc()..add(AuthCheckRequested())),
-          BlocProvider(create: (_) => SubscriptionBloc()..add(LoadSubscription())),
-          BlocProvider(create: (_) => RewardsBloc()..add(LoadRewards())),
           BlocProvider(
-            create: (context) => LearningBloc(
-              repository: context.read<LearningRepository>(),
-            )..add(LoadLibrary()),
+            create: (_) =>
+                AuthBloc(api: api, tokens: tokens)..add(AuthCheckRequested()),
+          ),
+          BlocProvider(create: (_) => SubscriptionBloc(api: api)),
+          BlocProvider(create: (_) => RewardsBloc(api: api)),
+          BlocProvider(
+            create: (context) =>
+                LearningBloc(repository: context.read<LearningRepository>()),
           ),
           BlocProvider(
-            create: (context) => ExamPrepBloc(
-              repository: context.read<ExamPrepRepository>(),
-            )..add(LoadPlans()),
+            create: (context) =>
+                ExamPrepBloc(repository: context.read<ExamPrepRepository>()),
           ),
         ],
         // Build the router once with the AuthBloc so redirects work.
@@ -78,18 +85,33 @@ class PlayStudyApp extends StatelessWidget {
         child: Builder(
           builder: (context) {
             final router = AppRouter.create(context.read<AuthBloc>());
-            return BlocBuilder<ThemeBloc, ThemeState>(
-              builder: (context, themeState) {
-                return MaterialApp.router(
-                  title: config.appName,
-                  debugShowCheckedModeBanner: false,
-                  theme: AppTheme.lightTheme,
-                  darkTheme: AppTheme.darkTheme,
-                  themeMode:
-                      themeState.isLight ? ThemeMode.light : ThemeMode.dark,
-                  routerConfig: router,
-                );
+            // Hydrate per-user data whenever auth state flips to signed-in,
+            // and reset it on sign-out. Centralizing this here keeps the
+            // individual blocs unaware of each other.
+            return BlocListener<AuthBloc, AuthState>(
+              listenWhen: (prev, next) =>
+                  prev.runtimeType != next.runtimeType,
+              listener: (context, authState) {
+                if (authState is Authenticated) {
+                  context.read<SubscriptionBloc>().add(LoadSubscription());
+                  context.read<RewardsBloc>().add(LoadRewards());
+                  context.read<LearningBloc>().add(LoadLibrary());
+                  context.read<ExamPrepBloc>().add(LoadPlans());
+                }
               },
+              child: BlocBuilder<ThemeBloc, ThemeState>(
+                builder: (context, themeState) {
+                  return MaterialApp.router(
+                    title: config.appName,
+                    debugShowCheckedModeBanner: false,
+                    theme: AppTheme.lightTheme,
+                    darkTheme: AppTheme.darkTheme,
+                    themeMode:
+                        themeState.isLight ? ThemeMode.light : ThemeMode.dark,
+                    routerConfig: router,
+                  );
+                },
+              ),
             );
           },
         ),

@@ -1,22 +1,20 @@
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
+import '../../../../core/network/api_client.dart';
 import '../models/exam_plan.dart';
 
-/// Stores [ExamPlan]s in SharedPreferences as JSON. Swap for a backend
-/// repository when the Django API is ready — keep the same surface.
-class ExamPrepRepository {
-  static final ExamPrepRepository _i = ExamPrepRepository._();
-  factory ExamPrepRepository() => _i;
-  ExamPrepRepository._();
+String _ymd(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  static const _key = 'exam_plans_v1';
-  List<ExamPlan> _plans = [];
-  bool _loaded = false;
-  final _uuid = const Uuid();
+/// Backend-backed exam plans. The server stores the plan + recorded daily
+/// results; the client derives the schedule/progress from those fields.
+class ExamPrepRepository {
+  final ApiClient api;
+  ExamPrepRepository(this.api);
 
   Future<List<ExamPlan>> all() async {
-    if (!_loaded) await _load();
-    return List.unmodifiable(_plans);
+    final response = await api.dio.get('examplans/');
+    final results =
+        (response.data['results'] as List).cast<Map<String, dynamic>>();
+    return results.map(ExamPlan.fromJson).toList();
   }
 
   Future<ExamPlan> create({
@@ -27,43 +25,32 @@ class ExamPrepRepository {
     required int questionsPerDay,
     required List<String> topics,
   }) async {
-    if (!_loaded) await _load();
-    final plan = ExamPlan(
-      id: _uuid.v4(),
-      materialId: materialId,
-      materialTitle: materialTitle,
-      examTitle: examTitle,
-      examDate: examDate,
-      questionsPerDay: questionsPerDay,
-      topics: topics,
-      createdAt: DateTime.now(),
-    );
-    _plans = [plan, ..._plans];
-    await _save();
-    return plan;
-  }
-
-  Future<void> update(ExamPlan plan) async {
-    if (!_loaded) await _load();
-    _plans = _plans.map((p) => p.id == plan.id ? plan : p).toList();
-    await _save();
+    final response = await api.dio.post('examplans/', data: {
+      'materialId': materialId,
+      'examTitle': examTitle,
+      'examDate': _ymd(examDate),
+      'questionsPerDay': questionsPerDay,
+      'topics': topics,
+    });
+    return ExamPlan.fromJson(response.data as Map<String, dynamic>);
   }
 
   Future<void> delete(String id) async {
-    if (!_loaded) await _load();
-    _plans = _plans.where((p) => p.id != id).toList();
-    await _save();
+    await api.dio.delete('examplans/$id/');
   }
 
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    _plans = raw == null ? <ExamPlan>[] : ExamPlan.decodeList(raw);
-    _loaded = true;
-  }
-
-  Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, ExamPlan.encodeList(_plans));
+  /// Records a completed daily session (upsert) and returns the updated plan.
+  Future<ExamPlan> recordSession({
+    required String planId,
+    required DateTime day,
+    required int correct,
+    required int total,
+  }) async {
+    final response = await api.dio.post('examplans/$planId/sessions/', data: {
+      'day': _ymd(day),
+      'correct': correct,
+      'total': total,
+    });
+    return ExamPlan.fromJson(response.data as Map<String, dynamic>);
   }
 }

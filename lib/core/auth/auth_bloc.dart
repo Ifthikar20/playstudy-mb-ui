@@ -1,7 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
+
+import '../network/api_client.dart';
+import '../network/token_store.dart';
 import 'user.dart';
 
 abstract class AuthEvent extends Equatable {
@@ -22,9 +24,10 @@ class AuthSignInWithEmail extends AuthEvent {
 
 class AuthSignInWithProvider extends AuthEvent {
   final String provider; // 'apple', 'google'
-  const AuthSignInWithProvider(this.provider);
+  final String? idToken; // signed token from the native SDK
+  const AuthSignInWithProvider(this.provider, {this.idToken});
   @override
-  List<Object?> get props => [provider];
+  List<Object?> get props => [provider, idToken];
 }
 
 class AuthSignOut extends AuthEvent {}
@@ -54,74 +57,93 @@ class Unauthenticated extends AuthState {
 }
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  static const _idKey = 'auth_user_id';
-  static const _emailKey = 'auth_user_email';
-  static const _nameKey = 'auth_user_name';
+  final ApiClient api;
+  final TokenStore tokens;
 
-  AuthBloc() : super(AuthInitial()) {
+  AuthBloc({required this.api, required this.tokens}) : super(AuthInitial()) {
     on<AuthCheckRequested>(_check);
     on<AuthSignInWithEmail>(_signInEmail);
     on<AuthSignInWithProvider>(_signInProvider);
     on<AuthSignOut>(_signOut);
   }
 
+  User _userFrom(Map<String, dynamic> j) => User(
+        id: (j['id'] ?? '').toString(),
+        email: j['email'] as String? ?? '',
+        name: j['name'] as String? ?? 'Student',
+        avatarUrl: j['avatarUrl'] as String?,
+      );
+
   Future<void> _check(AuthCheckRequested e, Emitter<AuthState> emit) async {
     emit(AuthLoading());
-    final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getString(_idKey);
-    if (id == null) {
+    if (!await tokens.hasTokens()) {
       emit(const Unauthenticated());
       return;
     }
-    emit(Authenticated(User(
-      id: id,
-      email: prefs.getString(_emailKey) ?? '',
-      name: prefs.getString(_nameKey) ?? 'Student',
-    )));
+    try {
+      final response = await api.dio.get('me/');
+      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+    } catch (_) {
+      await tokens.clear();
+      emit(const Unauthenticated());
+    }
   }
 
   Future<void> _signInEmail(
       AuthSignInWithEmail e, Emitter<AuthState> emit) async {
     emit(AuthLoading());
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!e.email.contains('@') || e.password.length < 4) {
-      emit(const Unauthenticated(message: 'Check your email and password.'));
-      return;
+    try {
+      final response = await api.dio.post(
+        'auth/email/',
+        data: {'email': e.email, 'password': e.password},
+        options: Options(extra: {'noAuth': true}),
+      );
+      await tokens.setTokens(
+        response.data['accessToken'] as String,
+        response.data['refreshToken'] as String,
+      );
+      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+    } catch (err) {
+      emit(Unauthenticated(message: apiErrorMessage(err)));
     }
-    final user = User(
-      id: const Uuid().v4(),
-      email: e.email,
-      name: e.email.split('@').first,
-    );
-    await _persist(user);
-    emit(Authenticated(user));
   }
 
   Future<void> _signInProvider(
       AuthSignInWithProvider e, Emitter<AuthState> emit) async {
     emit(AuthLoading());
-    await Future.delayed(const Duration(milliseconds: 500));
-    final user = User(
-      id: const Uuid().v4(),
-      email: '${e.provider}@playstudy.app',
-      name: e.provider == 'apple' ? 'Apple User' : 'Google User',
-    );
-    await _persist(user);
-    emit(Authenticated(user));
+    if (e.idToken == null) {
+      // The native Apple/Google SDK isn't wired yet, so there's no ID token to
+      // verify server-side. Use email sign-in for now.
+      emit(const Unauthenticated(
+          message: 'Social sign-in is coming soon — use email for now.'));
+      return;
+    }
+    try {
+      final response = await api.dio.post(
+        'auth/provider/',
+        data: {'provider': e.provider, 'idToken': e.idToken},
+        options: Options(extra: {'noAuth': true}),
+      );
+      await tokens.setTokens(
+        response.data['accessToken'] as String,
+        response.data['refreshToken'] as String,
+      );
+      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+    } catch (err) {
+      emit(Unauthenticated(message: apiErrorMessage(err)));
+    }
   }
 
   Future<void> _signOut(AuthSignOut e, Emitter<AuthState> emit) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_idKey);
-    await prefs.remove(_emailKey);
-    await prefs.remove(_nameKey);
+    final refresh = await tokens.refreshToken();
+    try {
+      if (refresh != null) {
+        await api.dio.post('auth/signout/', data: {'refreshToken': refresh});
+      }
+    } catch (_) {
+      // Signing out is best-effort + idempotent.
+    }
+    await tokens.clear();
     emit(const Unauthenticated());
-  }
-
-  Future<void> _persist(User u) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_idKey, u.id);
-    await prefs.setString(_emailKey, u.email);
-    await prefs.setString(_nameKey, u.name);
   }
 }

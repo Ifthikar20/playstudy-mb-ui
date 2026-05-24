@@ -1,13 +1,18 @@
+import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
+
+import '../../../../core/network/api_client.dart';
 import '../models/learning_models.dart';
 
-/// Generates learning materials (summary + quiz + word game) from a piece of
-/// content. Currently returns mocked content so the UI flow is runnable
-/// before the AI backend is wired up.
+/// Talks to the PlayStudy backend for study-set generation and the library.
+///
+/// Generation is async on the server: POST returns 202 + an id, then we poll
+/// the status endpoint and fetch the full set when it is ready. The public
+/// surface (`generate`, `library`, `byId`, `delete`) is unchanged from the
+/// original mock so the bloc/UI are untouched apart from awaiting loads.
 class LearningRepository {
-  static final LearningRepository _i = LearningRepository._();
-  factory LearningRepository() => _i;
-  LearningRepository._();
+  final ApiClient api;
+  LearningRepository(this.api);
 
   final List<LearningMaterial> _library = [];
   final _uuid = const Uuid();
@@ -21,123 +26,73 @@ class LearningRepository {
     return null;
   }
 
+  /// Refreshes the cached library from the server (lightweight rows).
+  Future<void> loadLibrary() async {
+    final response = await api.dio.get('studysets/');
+    final results =
+        (response.data['results'] as List).cast<Map<String, dynamic>>();
+    _library
+      ..clear()
+      ..addAll(results.map(LearningMaterial.fromJson));
+  }
+
+  /// Fetches one full study set (with quiz + word game) by id.
+  Future<LearningMaterial> fetch(String id) async {
+    final response = await api.dio.get('studysets/$id/');
+    return LearningMaterial.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<LearningMaterial> generate({
     required SourceKind sourceKind,
     required String sourceRef,
     String? titleHint,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 1400));
+    var ref = sourceRef;
+    if (sourceKind == SourceKind.file) {
+      ref = await _upload(sourceRef);
+    }
 
-    final material = LearningMaterial(
-      id: _uuid.v4(),
-      title: titleHint?.trim().isNotEmpty == true
-          ? titleHint!.trim()
-          : _titleFor(sourceKind, sourceRef),
-      sourceKind: sourceKind,
-      sourceRef: sourceRef,
-      summary: _mockSummary,
-      keyPoints: _mockKeyPoints,
-      quiz: _mockQuiz(),
-      wordGame: _mockWordGame,
-      topics: const ['Cellular Biology', 'Light Reactions', 'Calvin Cycle'],
-      createdAt: DateTime.now(),
+    final create = await api.dio.post(
+      'studysets/',
+      data: {
+        'sourceKind': sourceKind.name, // link | file | text
+        'sourceRef': ref,
+        if (titleHint != null && titleHint.trim().isNotEmpty)
+          'title': titleHint.trim(),
+      },
+      // Guards against duplicate sets if the request is retried on a flaky link.
+      options: Options(headers: {'Idempotency-Key': _uuid.v4()}),
     );
 
+    final id = create.data['id'] as String;
+    final material = await _pollUntilReady(id);
     _library.insert(0, material);
     return material;
   }
 
-  void delete(String id) => _library.removeWhere((m) => m.id == id);
-
-  String _titleFor(SourceKind kind, String ref) {
-    switch (kind) {
-      case SourceKind.link:
-        final uri = Uri.tryParse(ref);
-        return uri?.host.isNotEmpty == true ? uri!.host : 'Linked article';
-      case SourceKind.file:
-        return ref.split('/').last;
-      case SourceKind.text:
-        return 'Pasted notes';
-    }
+  Future<void> delete(String id) async {
+    await api.dio.delete('studysets/$id/');
+    _library.removeWhere((m) => m.id == id);
   }
 
-  static const _mockSummary =
-      'Photosynthesis is the process plants use to convert light energy '
-      'into chemical energy stored as glucose. It happens in the chloroplasts '
-      'of plant cells and uses carbon dioxide and water as inputs, producing '
-      'oxygen as a by-product. The two main stages are the light-dependent '
-      'reactions and the Calvin cycle.';
+  Future<LearningMaterial> _pollUntilReady(String id) async {
+    // ~2 minutes max (60 * 2s) — generation is typically 10-40s.
+    for (var i = 0; i < 60; i++) {
+      final status = await api.dio.get('studysets/$id/status/');
+      final value = status.data['status'] as String;
+      if (value == 'ready') return fetch(id);
+      if (value == 'failed') {
+        throw Exception(
+            (status.data['error'] ?? 'Generation failed').toString());
+      }
+      await Future.delayed(const Duration(seconds: 2));
+    }
+    throw Exception('Generation timed out. Please try again.');
+  }
 
-  static const _mockKeyPoints = [
-    'Photosynthesis converts light energy into chemical energy.',
-    'It occurs in chloroplasts, primarily in plant leaves.',
-    'Inputs: carbon dioxide, water, and sunlight.',
-    'Outputs: glucose and oxygen.',
-    'Two stages: light reactions and the Calvin cycle.',
-  ];
-
-  List<QuizQuestion> _mockQuiz() => [
-        QuizQuestion(
-          id: _uuid.v4(),
-          prompt: 'Where does photosynthesis take place in a plant cell?',
-          choices: const ['Nucleus', 'Mitochondria', 'Chloroplast', 'Ribosome'],
-          correctIndex: 2,
-          explanation: 'Chloroplasts contain chlorophyll, which absorbs light.',
-          topic: 'Cellular Biology',
-        ),
-        QuizQuestion(
-          id: _uuid.v4(),
-          prompt: 'Which gas is released as a by-product of photosynthesis?',
-          choices: const ['Carbon dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen'],
-          correctIndex: 1,
-          topic: 'Light Reactions',
-        ),
-        QuizQuestion(
-          id: _uuid.v4(),
-          prompt: 'What is the main sugar produced by photosynthesis?',
-          choices: const ['Fructose', 'Sucrose', 'Glucose', 'Lactose'],
-          correctIndex: 2,
-          topic: 'Calvin Cycle',
-        ),
-        QuizQuestion(
-          id: _uuid.v4(),
-          prompt: 'What pigment absorbs sunlight in plants?',
-          choices: const ['Hemoglobin', 'Chlorophyll', 'Melanin', 'Carotene'],
-          correctIndex: 1,
-          topic: 'Cellular Biology',
-        ),
-        QuizQuestion(
-          id: _uuid.v4(),
-          prompt: 'In which stage is ATP produced from light energy?',
-          choices: const ['Calvin cycle', 'Light reactions', 'Glycolysis', 'Krebs cycle'],
-          correctIndex: 1,
-          topic: 'Light Reactions',
-        ),
-        QuizQuestion(
-          id: _uuid.v4(),
-          prompt: 'What does the Calvin cycle fix into sugars?',
-          choices: const ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Water'],
-          correctIndex: 2,
-          topic: 'Calvin Cycle',
-        ),
-      ];
-
-  static const _mockWordGame = [
-    WordChallenge(
-      word: 'CHLOROPLAST',
-      clue: 'Organelle in plant cells where photosynthesis happens.',
-    ),
-    WordChallenge(
-      word: 'GLUCOSE',
-      clue: 'The simple sugar produced as the main output.',
-    ),
-    WordChallenge(
-      word: 'OXYGEN',
-      clue: 'The gas released into the atmosphere as a by-product.',
-    ),
-    WordChallenge(
-      word: 'SUNLIGHT',
-      clue: 'The energy source that drives the whole process.',
-    ),
-  ];
+  Future<String> _upload(String path) async {
+    final form = FormData.fromMap({'file': await MultipartFile.fromFile(path)});
+    final response = await api.dio.post('uploads/', data: form);
+    return response.data['key'] as String;
+  }
 }

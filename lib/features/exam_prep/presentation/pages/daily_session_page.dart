@@ -23,12 +23,31 @@ class _DailySessionPageState extends State<DailySessionPage> {
   int? _selected;
   bool _revealed = false;
   bool _done = false;
+  bool _loading = true;
+  LearningMaterial? _material;
 
-  ExamPlan get _plan =>
-      context.read<ExamPrepBloc>().state.plans.firstWhere((p) => p.id == widget.planId);
+  @override
+  void initState() {
+    super.initState();
+    _loadMaterial();
+  }
 
-  LearningMaterial? get _material =>
-      LearningRepository().byId(_plan.materialId);
+  Future<void> _loadMaterial() async {
+    try {
+      final m = await context.read<LearningRepository>().fetch(_plan.materialId);
+      if (mounted) setState(() => _material = m);
+    } catch (_) {
+      // leave _material null -> "No questions" state
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  ExamPlan get _plan => context
+      .read<ExamPrepBloc>()
+      .state
+      .plans
+      .firstWhere((p) => p.id == widget.planId);
 
   /// Deterministic per-day question selection: take the plan's topic-filtered
   /// quiz, shuffle with a seed derived from today's date so the same set
@@ -74,6 +93,7 @@ class _DailySessionPageState extends State<DailySessionPage> {
       context.read<RewardsBloc>().add(RecordActivity(
             points: 10 + _correct * 5,
             reason: 'Daily exam session',
+            context: {'correct': _correct, 'total': _questions.length},
           ));
     }
   }
@@ -92,7 +112,9 @@ class _DailySessionPageState extends State<DailySessionPage> {
         ),
       ),
       body: SafeArea(
-        child: questions.isEmpty
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : questions.isEmpty
             ? const Center(child: Text('No questions for today.'))
             : _done
                 ? _Done(

@@ -56,6 +56,7 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
         context.read<RewardsBloc>().add(RecordActivity(
               points: 15 - _mistakes * 2,
               reason: 'Guessed a word',
+              context: {'mistakes': _mistakes},
             ));
       } else if (_mistakes >= _maxMistakes) {
         _lost = true;
