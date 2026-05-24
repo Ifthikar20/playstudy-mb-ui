@@ -28,6 +28,7 @@ class SuperDashEngine extends FlameGame {
   bool _paused = false;
   bool _gameOver = false;
   double _nextObstacleAt = 4;
+  bool _ready = false;
   final _rand = Random();
 
   SuperDashEngine({
@@ -46,18 +47,25 @@ class SuperDashEngine extends FlameGame {
 
   @override
   Future<void> onLoad() async {
-    _ground = _Ground();
+    // `onGameResize` runs before `onLoad` in Flame, so set the initial
+    // layout here where `size` is already available and the components exist.
+    _ground = _Ground()
+      ..size = Vector2(size.x, groundHeight)
+      ..position = Vector2(0, size.y - groundHeight);
     add(_ground);
-    _player = _Player();
+    _player = _Player()
+      ..position = Vector2(80, size.y - groundHeight - 30);
     add(_player);
     add(_Cloud(seed: 1));
     add(_Cloud(seed: 2));
+    _ready = true;
   }
 
   @override
   void onGameResize(Vector2 newSize) {
     super.onGameResize(newSize);
-    if (newSize.x > 0) {
+    // Skip until onLoad has created the components (avoids LateInitError).
+    if (_ready && newSize.x > 0) {
       _player.position = Vector2(80, newSize.y - groundHeight - 30);
       _ground.size = Vector2(newSize.x, groundHeight);
       _ground.position = Vector2(0, newSize.y - groundHeight);

@@ -8,7 +8,7 @@ import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/learning/data/models/learning_models.dart';
 import '../../features/learning/data/repositories/learning_repository.dart';
 import '../../features/learning/presentation/pages/input_page.dart';
-import '../../features/learning/presentation/pages/material_page.dart';
+import '../../features/learning/presentation/pages/material_page.dart' as material_page;
 import '../../features/library/presentation/pages/library_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/rewards/presentation/pages/adventure_page.dart';
@@ -73,7 +73,7 @@ class AppRouter {
                 body: Center(child: Text('Study set not found')),
               );
             }
-            return MaterialPage(material: material);
+            return material_page.MaterialPage(material: material);
           },
         ),
       ],
