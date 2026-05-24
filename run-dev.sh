@@ -11,6 +11,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 UI_DIR="$PWD"
 BACKEND_DIR="${BACKEND_DIR:-$UI_DIR/../ps-bk-dj}"
+# Landing repo hosts the embedded HTML5 games under public/games/. We serve it
+# locally so the WebView games actually load in dev.
+LANDING_DIR="${LANDING_DIR:-$UI_DIR/../playstudy-mb-landing}"
+GAMES_PORT="${GAMES_PORT:-8080}"
 API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:8000}"
 # Dev account the app auto-logs-in with (override via env).
 DEV_EMAIL="${DEV_EMAIL:-dev@playstudy.app}"
@@ -42,11 +46,16 @@ echo "==> Starting backend (verbose) on 0.0.0.0:8000"
 ) > >(awk '{ print "[backend] " $0; fflush() }') 2>&1 &
 BACKEND_PID=$!
 
+GAMES_PID=""
 cleanup() {
   echo
   echo "==> Stopping backend (pid $BACKEND_PID)"
   kill "$BACKEND_PID" 2>/dev/null || true
   wait "$BACKEND_PID" 2>/dev/null || true
+  if [[ -n "$GAMES_PID" ]]; then
+    kill "$GAMES_PID" 2>/dev/null || true
+    wait "$GAMES_PID" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT INT TERM
 
@@ -56,6 +65,17 @@ for _ in $(seq 1 30); do
   if ! kill -0 "$BACKEND_PID" 2>/dev/null; then echo "ERROR: backend exited during startup" >&2; exit 1; fi
   sleep 1
 done
+
+# --- 1c. Serve the embedded games (landing/public) so the WebView can load them.
+if [[ -d "$LANDING_DIR/public/games" ]]; then
+  echo "==> Serving games from $LANDING_DIR/public on :$GAMES_PORT"
+  ( cd "$LANDING_DIR/public" && exec python3 -m http.server "$GAMES_PORT" --bind 0.0.0.0 ) \
+    > >(awk '{ print "[games] " $0; fflush() }') 2>&1 &
+  GAMES_PID=$!
+else
+  echo "WARNING: no games found at $LANDING_DIR/public/games — WebView games will be blank." >&2
+  echo "         Set LANDING_DIR=/path/to/playstudy-mb-landing if it's elsewhere." >&2
+fi
 
 # --- 1b. Ensure the dev account exists (auth/email registers-or-logs-in).
 echo "==> Ensuring dev login ($DEV_EMAIL)"
@@ -146,8 +166,13 @@ else
   done
 fi
 
-echo "==> Launching app on $TARGET_ID (auto-login $DEV_EMAIL). Ctrl+C stops everything."
+# Games are served on the same host as the API, on GAMES_PORT.
+HOST="${API_BASE_URL#http://}"; HOST="${HOST%%:*}"
+GAMES_BASE_URL="http://$HOST:$GAMES_PORT"
+
+echo "==> Launching app on $TARGET_ID (auto-login $DEV_EMAIL, games $GAMES_BASE_URL). Ctrl+C stops everything."
 flutter run -d "$TARGET_ID" \
   --dart-define=API_BASE_URL="$API_BASE_URL" \
+  --dart-define=GAMES_BASE_URL="$GAMES_BASE_URL" \
   --dart-define=DEV_EMAIL="$DEV_EMAIL" \
   --dart-define=DEV_PASSWORD="$DEV_PASSWORD"
