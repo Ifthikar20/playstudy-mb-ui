@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
+import '../../../../core/widgets/airbnb_button.dart';
 import '../../data/models/learning_models.dart';
 import '../bloc/learning_bloc.dart';
 
@@ -85,10 +86,10 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     return BlocListener<LearningBloc, LearningState>(
       listener: (context, state) {
         if (state is GenerateSuccess) {
-          // Usage is incremented server-side on success — re-read it.
+          // Usage + the creation reward are applied server-side on success —
+          // re-read both rather than reporting points from the client.
           context.read<SubscriptionBloc>().add(LoadSubscription());
-          context.read<RewardsBloc>().add(
-              const RecordActivity(points: 20, reason: 'Created a study set'));
+          context.read<RewardsBloc>().add(LoadRewards());
           context.go('/material/${state.material.id}', extra: state.material);
         } else if (state is LearningError) {
           _toast(state.message);
@@ -123,20 +124,11 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                 padding: const EdgeInsets.all(20),
                 child: BlocBuilder<LearningBloc, LearningState>(
                   builder: (context, state) {
-                    final loading = state is Generating;
-                    return SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: loading ? null : _generate,
-                        child: loading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2.5, color: Colors.white),
-                              )
-                            : const Text('Generate learning material'),
-                      ),
+                    return AirbnbButton(
+                      label: 'Generate learning material',
+                      icon: Icons.auto_awesome,
+                      loading: state is Generating,
+                      onPressed: _generate,
                     );
                   },
                 ),

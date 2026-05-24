@@ -2,32 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'theme_bloc.dart';
 
-/// Clean, minimal design system — Apple-inspired.
-/// Light: pure white, gray surfaces, black text, iOS blue accent.
-/// Dark: near-black, dark gray surfaces, white text.
-/// Font: Inter everywhere.
+/// Airbnb-inspired design system.
+/// Light: white background, soft gray surfaces, near-black text, "Rausch"
+/// (#FF385C) brand accent. Dark: near-black surfaces, lifted Rausch.
+/// Primary CTAs use the Airbnb brand gradient. Font: Inter everywhere.
 class ThemeColors {
   // Light
   static const Color lightBackground = Color(0xFFFFFFFF);
-  static const Color lightSurface = Color(0xFFF5F5F5);
-  static const Color lightPrimary = Color(0xFF007AFF); // iOS blue
-  static const Color lightSecondary = Color(0xFF5856D6); // iOS purple
-  static const Color lightAccent = Color(0xFF22C55E); // green
-  static const Color lightTextPrimary = Color(0xFF000000);
-  static const Color lightTextSecondary = Color(0xFF6B7280);
-  static const Color lightBorder = Color(0xFFE5E7EB);
-  static const Color lightError = Color(0xFFEF4444);
+  static const Color lightSurface = Color(0xFFF7F7F7);
+  static const Color lightPrimary = Color(0xFFFF385C); // Airbnb Rausch
+  static const Color lightSecondary = Color(0xFFE61E4D); // deep rausch
+  static const Color lightAccent = Color(0xFF008489); // Airbnb teal
+  static const Color lightTextPrimary = Color(0xFF222222); // Airbnb Hof
+  static const Color lightTextSecondary = Color(0xFF717171); // Airbnb Foggy
+  static const Color lightBorder = Color(0xFFDDDDDD); // Airbnb hairline
+  static const Color lightError = Color(0xFFC13515);
 
   // Dark
-  static const Color darkBackground = Color(0xFF0A0A0A);
+  static const Color darkBackground = Color(0xFF0E0E10);
   static const Color darkSurface = Color(0xFF1C1C1E);
-  static const Color darkPrimary = Color(0xFF0A84FF);
-  static const Color darkSecondary = Color(0xFF7C3AED);
-  static const Color darkAccent = Color(0xFF22C55E);
+  static const Color darkPrimary = Color(0xFFFF5A6E); // lifted rausch
+  static const Color darkSecondary = Color(0xFFFF385C);
+  static const Color darkAccent = Color(0xFF00A699);
   static const Color darkTextPrimary = Color(0xFFFFFFFF);
-  static const Color darkTextSecondary = Color(0xFF9CA3AF);
+  static const Color darkTextSecondary = Color(0xFFB0B0B0);
   static const Color darkBorder = Color(0xFF2C2C2E);
-  static const Color darkError = Color(0xFFFF453A);
+  static const Color darkError = Color(0xFFFF6B4A);
+
+  /// Airbnb's signature primary-CTA gradient.
+  static const List<Color> brandGradient = [
+    Color(0xFFE61E4D),
+    Color(0xFFE31C5F),
+    Color(0xFFD70466),
+  ];
 
   static Color background(AppThemeMode m) =>
       m == AppThemeMode.light ? lightBackground : darkBackground;

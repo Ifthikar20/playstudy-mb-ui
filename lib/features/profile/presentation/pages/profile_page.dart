@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/auth/auth_bloc.dart';
+import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
-import '../../../../core/theme/theme_bloc.dart';
 import '../../../../core/widgets/airbnb_card.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -13,15 +13,28 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
+          // Identity — tap to edit display name.
           BlocBuilder<AuthBloc, AuthState>(
             builder: (context, state) {
               final user = state is Authenticated ? state.user : null;
               return AirbnbCard(
                 padding: const EdgeInsets.all(20),
+                onTap: user == null
+                    ? null
+                    : () => _editName(context, user.name),
                 child: Row(children: [
                   CircleAvatar(
                     radius: 32,
@@ -49,100 +62,83 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                   ),
+                  Icon(Icons.edit_outlined,
+                      size: 20,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5)),
                 ]),
               );
             },
           ),
           const SizedBox(height: 16),
+          // Rewards snapshot.
+          BlocBuilder<RewardsBloc, RewardsState>(
+            builder: (context, rewards) => AirbnbCard(
+              onTap: () => context.push('/adventure'),
+              child: Row(children: [
+                _StatPill(
+                    icon: Icons.stars_rounded,
+                    label: '${rewards.points} pts',
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                _StatPill(
+                    icon: Icons.local_fire_department_rounded,
+                    label: '${rewards.streak} day streak',
+                    color: theme.colorScheme.tertiary),
+                const Spacer(),
+                const Icon(Icons.chevron_right),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Premium.
           BlocBuilder<SubscriptionBloc, SubscriptionState>(
             builder: (context, sub) {
-              if (sub.isPremium) {
-                return AirbnbCard(
-                  child: Row(children: [
-                    Container(
-                      height: 44,
-                      width: 44,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.workspace_premium,
-                          color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Premium',
-                              style: theme.textTheme.titleLarge),
-                          Text('Unlimited study sets',
-                              style: theme.textTheme.bodySmall),
-                        ],
-                      ),
-                    ),
-                  ]),
-                );
-              }
               return AirbnbCard(
-                onTap: () => context.push('/paywall'),
+                onTap: sub.isPremium ? null : () => context.push('/paywall'),
                 child: Row(children: [
                   Container(
                     height: 44,
                     width: 44,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.12),
+                      color: sub.isPremium
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(Icons.workspace_premium,
-                        color: theme.colorScheme.primary),
+                        color: sub.isPremium
+                            ? Colors.white
+                            : theme.colorScheme.primary),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Upgrade to Premium',
+                        Text(sub.isPremium ? 'Premium' : 'Upgrade to Premium',
                             style: theme.textTheme.titleLarge),
                         Text(
-                            '${sub.remainingFree} of ${SubscriptionBloc.freeLimit} free sets left',
+                            sub.isPremium
+                                ? 'Unlimited study sets'
+                                : '${sub.remainingFree} of ${SubscriptionBloc.freeLimit} free sets left',
                             style: theme.textTheme.bodySmall),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right),
+                  if (!sub.isPremium) const Icon(Icons.chevron_right),
                 ]),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          BlocBuilder<ThemeBloc, ThemeState>(
-            builder: (context, state) {
-              return AirbnbCard(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: SwitchListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 8),
-                  title: const Text('Dark mode'),
-                  value: !state.isLight,
-                  onChanged: (_) =>
-                      context.read<ThemeBloc>().add(ToggleTheme()),
-                ),
               );
             },
           ),
           const SizedBox(height: 16),
           AirbnbCard(
             padding: EdgeInsets.zero,
-            child: Column(children: [
-              const _RowItem(icon: Icons.help_outline, title: 'Help & FAQ'),
-              Divider(height: 1, color: theme.dividerColor),
-              const _RowItem(
-                  icon: Icons.privacy_tip_outlined, title: 'Privacy'),
-              Divider(height: 1, color: theme.dividerColor),
-              const _RowItem(
-                  icon: Icons.info_outline, title: 'About PlayStudy'),
-            ]),
+            child: ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('Settings'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/settings'),
+            ),
           ),
           const SizedBox(height: 16),
           AirbnbCard(
@@ -161,20 +157,54 @@ class ProfilePage extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _editName(BuildContext context, String current) async {
+    final controller = TextEditingController(text: current);
+    final authBloc = context.read<AuthBloc>();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Display name'),
+          onSubmitted: (v) => Navigator.of(dialogContext).pop(v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty && name != current) {
+      authBloc.add(UpdateProfile(name: name));
+    }
+  }
 }
 
-class _RowItem extends StatelessWidget {
+class _StatPill extends StatelessWidget {
   final IconData icon;
-  final String title;
-  const _RowItem({required this.icon, required this.title});
+  final String label;
+  final Color color;
+  const _StatPill(
+      {required this.icon, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () {},
-    );
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 20, color: color),
+      const SizedBox(width: 6),
+      Text(label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+    ]);
   }
 }

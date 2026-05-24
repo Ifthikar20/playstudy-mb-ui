@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
+import '../../../../core/widgets/airbnb_button.dart';
 
 class PaywallPage extends StatefulWidget {
   const PaywallPage({super.key});
@@ -122,21 +123,16 @@ class _PaywallPageState extends State<PaywallPage> {
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
               child: Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        context
-                            .read<SubscriptionBloc>()
-                            .add(UpgradeToPremium());
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go('/');
-                        }
-                      },
-                      child: Text('Start ${_plans[_selected].label}'),
-                    ),
+                  AirbnbButton(
+                    label: 'Start ${_plans[_selected].label}',
+                    onPressed: () {
+                      context.read<SubscriptionBloc>().add(UpgradeToPremium());
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/');
+                      }
+                    },
                   ),
                   const SizedBox(height: 8),
                   Text('Cancel anytime. Restores instantly.',

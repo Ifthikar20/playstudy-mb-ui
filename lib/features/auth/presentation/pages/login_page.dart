@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/auth/auth_bloc.dart';
+import '../../../../core/widgets/airbnb_button.dart';
 import '../../../../core/widgets/app_logo.dart';
 
 class LoginPage extends StatefulWidget {
@@ -88,20 +89,10 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 20),
               BlocBuilder<AuthBloc, AuthState>(
                 builder: (context, state) {
-                  final loading = state is AuthLoading;
-                  return SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: loading ? null : _submit,
-                      child: loading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white),
-                            )
-                          : Text(_signUp ? 'Create account' : 'Sign in'),
-                    ),
+                  return AirbnbButton(
+                    label: _signUp ? 'Create account' : 'Sign in',
+                    loading: state is AuthLoading,
+                    onPressed: _submit,
                   );
                 },
               ),

@@ -13,6 +13,7 @@ import '../../features/learning/presentation/pages/material_page.dart';
 import '../../features/library/presentation/pages/library_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/rewards/presentation/pages/adventure_page.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/subscription/presentation/pages/paywall_page.dart';
 import '../auth/auth_bloc.dart';
 import 'app_shell.dart';
@@ -43,6 +44,10 @@ class AppRouter {
         GoRoute(
           path: '/adventure',
           builder: (_, __) => const AdventurePage(),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (_, __) => const SettingsPage(),
         ),
         ShellRoute(
           builder: (context, state, child) => AppShell(child: child),

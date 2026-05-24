@@ -90,11 +90,9 @@ class _DailySessionPageState extends State<DailySessionPage> {
             correct: _correct,
             total: _questions.length,
           ));
-      context.read<RewardsBloc>().add(RecordActivity(
-            points: 10 + _correct * 5,
-            reason: 'Daily exam session',
-            context: {'correct': _correct, 'total': _questions.length},
-          ));
+      // The daily-session reward is granted server-side by the sessions
+      // endpoint (idempotent per day); just refresh the local rewards state.
+      context.read<RewardsBloc>().add(LoadRewards());
     }
   }
 

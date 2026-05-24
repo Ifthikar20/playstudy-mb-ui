@@ -32,6 +32,15 @@ class AuthSignInWithProvider extends AuthEvent {
 
 class AuthSignOut extends AuthEvent {}
 
+class UpdateProfile extends AuthEvent {
+  final String? name;
+  final String? avatarUrl;
+  final String? timezone;
+  const UpdateProfile({this.name, this.avatarUrl, this.timezone});
+  @override
+  List<Object?> get props => [name, avatarUrl, timezone];
+}
+
 abstract class AuthState extends Equatable {
   const AuthState();
   @override
@@ -65,6 +74,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInWithEmail>(_signInEmail);
     on<AuthSignInWithProvider>(_signInProvider);
     on<AuthSignOut>(_signOut);
+    on<UpdateProfile>(_updateProfile);
   }
 
   User _userFrom(Map<String, dynamic> j) => User(
@@ -131,6 +141,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
     } catch (err) {
       emit(Unauthenticated(message: apiErrorMessage(err)));
+    }
+  }
+
+  Future<void> _updateProfile(
+      UpdateProfile e, Emitter<AuthState> emit) async {
+    if (state is! Authenticated) return;
+    final body = <String, dynamic>{};
+    if (e.name != null) body['name'] = e.name;
+    if (e.avatarUrl != null) body['avatarUrl'] = e.avatarUrl;
+    if (e.timezone != null) body['timezone'] = e.timezone;
+    if (body.isEmpty) return;
+    try {
+      final response = await api.dio.patch('me/', data: body);
+      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+    } catch (_) {
+      // keep the current user on failure
     }
   }
 
