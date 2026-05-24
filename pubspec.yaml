@@ -57,6 +57,9 @@ dependencies:
   # Charts — interactive learning-progress visualizations
   fl_chart: ^0.69.0
 
+  # Embedded web games — hosted HTML5 games loaded in a WebView
+  webview_flutter: ^4.10.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

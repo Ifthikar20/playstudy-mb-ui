@@ -17,6 +17,7 @@ import 'features/exam_prep/data/repositories/exam_prep_repository.dart';
 import 'features/exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import 'features/games/guess_the_word/guess_the_word_game.dart';
 import 'features/games/super_dash/super_dash_game.dart';
+import 'features/games/web/web_games.dart';
 import 'features/learning/data/repositories/learning_repository.dart';
 import 'features/learning/presentation/bloc/learning_bloc.dart';
 
@@ -33,6 +34,8 @@ void main() async {
   // automatically via GameRegistry — no other files need changing.
   GameRegistry.instance.register(GuessTheWordGame());
   GameRegistry.instance.register(SuperDashGame());
+  GameRegistry.instance.register(FlappyWebGame());
+  GameRegistry.instance.register(SpaceShooterWebGame());
 
   await Hive.initFlutter();
 
