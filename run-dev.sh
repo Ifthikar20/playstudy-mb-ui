@@ -26,13 +26,15 @@ echo "==> Preparing backend ($BACKEND_DIR)"
 ( cd "$BACKEND_DIR" && ./setup.sh --no-run )
 
 echo "==> Starting backend (verbose) on 0.0.0.0:8000"
+# Prefix every backend line with [backend] so it's distinguishable from the
+# Flutter app logs in the shared terminal (awk fflush = line-buffered).
 (
   cd "$BACKEND_DIR"
   # shellcheck disable=SC1091
   source .venv/bin/activate
   # --noreload keeps it a single process so cleanup kills it cleanly.
   exec env LOG_LEVEL=DEBUG python manage.py runserver 0.0.0.0:8000 --noreload
-) &
+) > >(awk '{ print "[backend] " $0; fflush() }') 2>&1 &
 BACKEND_PID=$!
 
 cleanup() {
