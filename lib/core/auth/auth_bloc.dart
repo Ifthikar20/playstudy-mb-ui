@@ -6,6 +6,12 @@ import '../network/api_client.dart';
 import '../network/token_store.dart';
 import 'user.dart';
 
+// Dev-only auto-login: when the app is launched with these dart-defines
+// (run-dev.sh sets them), an unauthenticated start signs in with the dev
+// account instead of showing the login screen. Empty in production builds.
+const _devEmail = String.fromEnvironment('DEV_EMAIL');
+const _devPassword = String.fromEnvironment('DEV_PASSWORD');
+
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
   @override
@@ -87,6 +93,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _check(AuthCheckRequested e, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     if (!await tokens.hasTokens()) {
+      if (_devEmail.isNotEmpty && _devPassword.isNotEmpty) {
+        add(const AuthSignInWithEmail(email: _devEmail, password: _devPassword));
+        return; // stays in AuthLoading until the sign-in resolves
+      }
       emit(const Unauthenticated());
       return;
     }

@@ -12,6 +12,9 @@ cd "$(dirname "$0")"
 UI_DIR="$PWD"
 BACKEND_DIR="${BACKEND_DIR:-$UI_DIR/../ps-bk-dj}"
 API_BASE_URL="${API_BASE_URL:-http://127.0.0.1:8000}"
+# Dev account the app auto-logs-in with (override via env).
+DEV_EMAIL="${DEV_EMAIL:-dev@playstudy.app}"
+DEV_PASSWORD="${DEV_PASSWORD:-Devpass123!}"
 
 if [[ ! -x "$BACKEND_DIR/setup.sh" ]]; then
   echo "ERROR: backend not found at $BACKEND_DIR — set BACKEND_DIR=/path/to/ps-bk-dj" >&2
@@ -47,6 +50,18 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 
+# --- 1b. Ensure the dev account exists (auth/email registers-or-logs-in).
+echo "==> Ensuring dev login ($DEV_EMAIL)"
+if curl -sf -X POST "$API_BASE_URL/api/v1/auth/email/" \
+     -H 'Content-Type: application/json' \
+     -d "{\"email\":\"$DEV_EMAIL\",\"password\":\"$DEV_PASSWORD\",\"name\":\"Dev\"}" \
+     >/dev/null 2>&1; then
+  echo "    dev account ready — app will auto-login"
+else
+  echo "    WARNING: could not register/login dev account (wrong password for an" >&2
+  echo "    existing account, or weak password). App will show the login screen." >&2
+fi
+
 # --- 2. Flutter app on the iOS Simulator.
 echo "==> Preparing Flutter app"
 flutter pub get
@@ -75,10 +90,15 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 
-echo "==> Launching app (API_BASE_URL=$API_BASE_URL). Backend logs stream above; Ctrl+C stops everything."
+echo "==> Launching app (API_BASE_URL=$API_BASE_URL, auto-login $DEV_EMAIL). Backend logs stream above; Ctrl+C stops everything."
+DEFINES=(
+  --dart-define=API_BASE_URL="$API_BASE_URL"
+  --dart-define=DEV_EMAIL="$DEV_EMAIL"
+  --dart-define=DEV_PASSWORD="$DEV_PASSWORD"
+)
 if [[ -n "$UDID" ]]; then
-  flutter run -d "$UDID" --dart-define=API_BASE_URL="$API_BASE_URL"
+  flutter run -d "$UDID" "${DEFINES[@]}"
 else
   echo "    (no booted simulator detected — letting Flutter pick a device)"
-  flutter run --dart-define=API_BASE_URL="$API_BASE_URL"
+  flutter run "${DEFINES[@]}"
 fi
