@@ -12,6 +12,7 @@ import 'core/network/token_store.dart';
 import 'core/rewards/rewards_bloc.dart';
 import 'core/subscription/subscription_bloc.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/reading_bloc.dart';
 import 'core/theme/theme_bloc.dart';
 import 'features/exam_prep/data/repositories/exam_prep_repository.dart';
 import 'features/exam_prep/presentation/bloc/exam_prep_bloc.dart';
@@ -67,6 +68,7 @@ class PlayStudyApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => ThemeBloc()..add(LoadTheme())),
+          BlocProvider(create: (_) => ReadingBloc()..add(LoadReading())),
           BlocProvider(
             create: (_) =>
                 AuthBloc(api: api, tokens: tokens)..add(AuthCheckRequested()),
@@ -104,14 +106,20 @@ class PlayStudyApp extends StatelessWidget {
               },
               child: BlocBuilder<ThemeBloc, ThemeState>(
                 builder: (context, themeState) {
-                  return MaterialApp.router(
-                    title: config.appName,
-                    debugShowCheckedModeBanner: false,
-                    theme: AppTheme.lightTheme,
-                    darkTheme: AppTheme.darkTheme,
-                    themeMode:
-                        themeState.isLight ? ThemeMode.light : ThemeMode.dark,
-                    routerConfig: router,
+                  return BlocBuilder<ReadingBloc, ReadingState>(
+                    builder: (context, reading) {
+                      return MaterialApp.router(
+                        title: config.appName,
+                        debugShowCheckedModeBanner: false,
+                        theme: AppTheme.withReading(
+                            AppTheme.lightTheme, reading),
+                        darkTheme: AppTheme.darkTheme,
+                        themeMode: themeState.isLight
+                            ? ThemeMode.light
+                            : ThemeMode.dark,
+                        routerConfig: router,
+                      );
+                    },
                   );
                 },
               ),

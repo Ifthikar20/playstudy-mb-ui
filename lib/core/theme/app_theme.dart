@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'reading_bloc.dart';
 import 'theme_bloc.dart';
 
 /// Airbnb-inspired design system.
@@ -81,6 +82,27 @@ class AppTheme {
         border: ThemeColors.darkBorder,
         error: ThemeColors.darkError,
       );
+
+  /// Apply the reader's dyslexia-friendly background tint + text colour on top
+  /// of the light theme. Tints the reading surfaces (scaffold + cards) and
+  /// softens the text. No-op at defaults so the standard look is preserved.
+  static ThemeData withReading(ThemeData base, ReadingState r) {
+    if (r.isDefault) return base;
+    final bg = r.background.color;
+    final tc = r.textColor.color;
+    return base.copyWith(
+      scaffoldBackgroundColor: bg,
+      canvasColor: bg,
+      colorScheme: base.colorScheme.copyWith(surface: bg, onSurface: tc),
+      cardTheme: base.cardTheme.copyWith(color: bg),
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: bg,
+        foregroundColor: tc,
+        titleTextStyle: base.appBarTheme.titleTextStyle?.copyWith(color: tc),
+      ),
+      textTheme: base.textTheme.apply(bodyColor: tc, displayColor: tc),
+    );
+  }
 
   static ThemeData _build({
     required Brightness brightness,

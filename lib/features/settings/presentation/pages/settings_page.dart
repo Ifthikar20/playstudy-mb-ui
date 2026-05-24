@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/auth/auth_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
+import '../../../../core/theme/reading_bloc.dart';
 import '../../../../core/theme/theme_bloc.dart';
 import '../../../../core/widgets/airbnb_card.dart';
 
@@ -64,6 +65,9 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
+          const SizedBox(height: 20),
+          _SectionLabel('Reading & accessibility'),
+          const _ReadingSettings(),
           const SizedBox(height: 20),
           _SectionLabel('Notifications'),
           AirbnbCard(
@@ -197,6 +201,158 @@ class _SectionLabel extends StatelessWidget {
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6,
             ),
+      ),
+    );
+  }
+}
+
+/// Dyslexia-friendly reading controls, with the "why" shown to the user so
+/// they understand the choices and can pick what works for them.
+class _ReadingSettings extends StatelessWidget {
+  const _ReadingSettings();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return BlocBuilder<ReadingBloc, ReadingState>(
+      builder: (context, reading) {
+        return AirbnbCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.menu_book_outlined, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('Page background', style: theme.textTheme.titleLarge),
+              ]),
+              const SizedBox(height: 6),
+              Text(
+                'Warm, muted backgrounds reduce visual stress and are easier to '
+                'read than white — the British Dyslexia Association recommends '
+                'cream or a soft pastel. The best tint varies per person, so '
+                'pick whichever feels most comfortable to you.',
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final bg in ReadingBackground.values)
+                    _BgSwatch(
+                      background: bg,
+                      selected: reading.background == bg,
+                      onTap: () =>
+                          context.read<ReadingBloc>().add(SetBackground(bg)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                Icon(Icons.text_fields, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('Text colour', style: theme.textTheme.titleLarge),
+              ]),
+              const SizedBox(height: 6),
+              Text(
+                'Dark grey is gentler than pure black — the slight drop in '
+                'contrast eases reading without hurting legibility.',
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final tc in ReadingTextColor.values)
+                    ChoiceChip(
+                      label: Text(tc.label),
+                      selected: reading.textColor == tc,
+                      avatar: CircleAvatar(backgroundColor: tc.color, radius: 8),
+                      onSelected: (_) =>
+                          context.read<ReadingBloc>().add(SetTextColor(tc)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 18, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'For emphasis we avoid red (it carries anxiety '
+                        'associations in learning) and use blue, teal, or warm '
+                        'orange instead. Colour is never the only cue — it is '
+                        'always paired with an icon, shape, or position, since '
+                        'about 8% of males see colour differently.',
+                        style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BgSwatch extends StatelessWidget {
+  final ReadingBackground background;
+  final bool selected;
+  final VoidCallback onTap;
+  const _BgSwatch({
+    required this.background,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: background.color,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? theme.colorScheme.primary : theme.dividerColor,
+                width: selected ? 3 : 1,
+              ),
+            ),
+            child: selected
+                ? Icon(Icons.check, color: theme.colorScheme.primary, size: 22)
+                : null,
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: 60,
+            child: Text(
+              background.label,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
