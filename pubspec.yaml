@@ -57,8 +57,11 @@ dependencies:
   # Charts — interactive learning-progress visualizations
   fl_chart: ^0.69.0
 
-  # Embedded web games — hosted HTML5 games loaded in a WebView
-  webview_flutter: ^4.10.0
+  # Embedded web games — hosted HTML5 games loaded in a WebView.
+  # Pinned to 4.7.0: newer webview_flutter_wkwebview (3.16+) uses the
+  # objective_c native-assets bridge, which fails to load on the simulator
+  # ("DOBJC_initializeApi" / "native_assets required define SdkRoot").
+  webview_flutter: 4.7.0
 
 dev_dependencies:
   flutter_test:
