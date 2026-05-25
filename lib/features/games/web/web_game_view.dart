@@ -41,6 +41,8 @@ class _WebGameViewState extends State<WebGameView> {
             'prompt': q.prompt,
             'choices': q.choices,
             'correctIndex': q.correctIndex,
+            'explanation': q.explanation ?? '',
+            'topic': q.topic,
           })
       .toList();
 

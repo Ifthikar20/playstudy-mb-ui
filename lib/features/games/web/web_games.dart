@@ -83,3 +83,32 @@ class CrosswordWebGame extends LearningGame {
     );
   }
 }
+
+/// Space Hunter — arcade shooter; clear waves + bosses, then answer the study
+/// set's questions to advance levels. Hosted on the web, embedded via WebView.
+class SpaceHunterWebGame extends LearningGame {
+  @override
+  String get id => 'space_hunter_web';
+
+  @override
+  String get name => 'Space Hunter';
+
+  @override
+  IconData get icon => Icons.rocket;
+
+  @override
+  String get description =>
+      'Blast waves and bosses, then answer questions to reach the next level.';
+
+  @override
+  bool canPlay(LearningMaterial material) => material.quiz.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context, LearningMaterial material) {
+    return WebGameView(
+      slug: 'space-hunter',
+      title: 'Space Hunter',
+      quiz: material.quiz,
+    );
+  }
+}
