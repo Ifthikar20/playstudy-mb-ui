@@ -1,9 +1,12 @@
 // Hide Flutter's MaterialPage: this app defines its own MaterialPage widget
 // (the learning-material screen) used by the routes below.
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide MaterialPage;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/exam_prep/presentation/pages/create_plan_page.dart';
 import '../../features/exam_prep/presentation/pages/daily_session_page.dart';
 import '../../features/exam_prep/presentation/pages/exam_prep_home_page.dart';
@@ -18,27 +21,39 @@ import '../../features/rewards/presentation/pages/adventure_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/subscription/presentation/pages/paywall_page.dart';
 import '../auth/auth_bloc.dart';
+import '../onboarding/onboarding_bloc.dart';
 import 'app_shell.dart';
 
 class AppRouter {
   /// Builds the router. Pass [authBloc] so we can redirect based on auth
   /// state and refresh the route when the user signs in / out.
-  static GoRouter create(AuthBloc authBloc) {
+  static GoRouter create(AuthBloc authBloc, OnboardingBloc onboardingBloc) {
     return GoRouter(
       initialLocation: '/',
-      refreshListenable: _BlocListenable(authBloc.stream),
+      refreshListenable:
+          _BlocListenable([authBloc.stream, onboardingBloc.stream]),
       redirect: (context, state) {
         final s = authBloc.state;
         // While the initial check is in-flight, don't redirect.
         if (s is AuthInitial || s is AuthLoading) return null;
         final loggedIn = s is Authenticated;
         final atLogin = state.matchedLocation == '/login';
-        if (!loggedIn && !atLogin) return '/login';
-        if (loggedIn && atLogin) return '/';
+        if (!loggedIn) return atLogin ? null : '/login';
+        if (atLogin) return '/';
+
+        // First login: show onboarding once (gated by the persisted flag).
+        final ob = onboardingBloc.state;
+        final atOnboarding = state.matchedLocation == '/onboarding';
+        if (ob.loaded && !ob.seen) return atOnboarding ? null : '/onboarding';
+        if (atOnboarding) return '/';
         return null;
       },
       routes: [
         GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
+        GoRoute(
+          path: '/onboarding',
+          builder: (_, __) => const OnboardingPage(),
+        ),
         GoRoute(
           path: '/paywall',
           builder: (_, __) => const PaywallPage(),
@@ -105,16 +120,21 @@ class AppRouter {
   }
 }
 
-/// Adapts a bloc Stream into a Listenable for GoRouter's refreshListenable.
+/// Adapts one or more bloc Streams into a Listenable for GoRouter's
+/// refreshListenable, so route redirects re-run when any of them changes.
 class _BlocListenable extends ChangeNotifier {
-  _BlocListenable(Stream stream) {
-    _sub = stream.listen((_) => notifyListeners());
+  final List<StreamSubscription> _subs = [];
+  _BlocListenable(List<Stream> streams) {
+    for (final s in streams) {
+      _subs.add(s.listen((_) => notifyListeners()));
+    }
   }
-  late final dynamic _sub;
 
   @override
   void dispose() {
-    _sub?.cancel();
+    for (final s in _subs) {
+      s.cancel();
+    }
     super.dispose();
   }
 }

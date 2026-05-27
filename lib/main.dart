@@ -12,6 +12,7 @@ import 'core/network/token_store.dart';
 import 'core/rewards/rewards_bloc.dart';
 import 'core/subscription/subscription_bloc.dart';
 import 'core/theme/app_theme.dart';
+import 'core/onboarding/onboarding_bloc.dart';
 import 'core/theme/reading_bloc.dart';
 import 'core/theme/theme_bloc.dart';
 import 'features/exam_prep/data/repositories/exam_prep_repository.dart';
@@ -72,6 +73,8 @@ class PlayStudyApp extends StatelessWidget {
           BlocProvider(create: (_) => ThemeBloc()..add(LoadTheme())),
           BlocProvider(create: (_) => ReadingBloc()..add(LoadReading())),
           BlocProvider(
+              create: (_) => OnboardingBloc()..add(LoadOnboarding())),
+          BlocProvider(
             create: (_) =>
                 AuthBloc(api: api, tokens: tokens)..add(AuthCheckRequested()),
           ),
@@ -91,7 +94,10 @@ class PlayStudyApp extends StatelessWidget {
         // (which would reset navigation state).
         child: Builder(
           builder: (context) {
-            final router = AppRouter.create(context.read<AuthBloc>());
+            final router = AppRouter.create(
+              context.read<AuthBloc>(),
+              context.read<OnboardingBloc>(),
+            );
             // Hydrate per-user data whenever auth state flips to signed-in,
             // and reset it on sign-out. Centralizing this here keeps the
             // individual blocs unaware of each other.
