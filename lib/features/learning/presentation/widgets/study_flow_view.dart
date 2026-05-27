@@ -177,6 +177,30 @@ class _StudyFlowViewState extends State<StudyFlowView> {
     }
   }
 
+  void _showTree() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _LearningTree(
+        titles: _sections.map((s) => s.title).toList(),
+        emojis: _sections.map((s) => s.emoji).toList(),
+        completed: _completed,
+        current: _section,
+        onJump: (i) {
+          Navigator.of(context).pop();
+          setState(() {
+            _section = i;
+            _inQuiz = false;
+          });
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -191,6 +215,8 @@ class _StudyFlowViewState extends State<StudyFlowView> {
           title: _cur.title,
           emoji: _cur.emoji,
           done: _completed.contains(_section),
+          completedCount: _completed.length,
+          onShowTree: _showTree,
         ),
         Expanded(
           child: _inQuiz
@@ -210,6 +236,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
               : _NotesPane(
                   section: _cur,
                   completed: _completed.contains(_section),
+                  keyTerms: widget.material.wordGame.map((w) => w.word).toList(),
                   onStartQuiz: _cur.questions.isEmpty ? null : _startQuiz,
                 ),
         ),
@@ -224,12 +251,16 @@ class _Header extends StatelessWidget {
   final String title;
   final String emoji;
   final bool done;
+  final int completedCount;
+  final VoidCallback onShowTree;
   const _Header({
     required this.section,
     required this.total,
     required this.title,
     required this.emoji,
     required this.done,
+    required this.completedCount,
+    required this.onShowTree,
   });
 
   @override
@@ -257,17 +288,174 @@ class _Header extends StatelessWidget {
               ),
             ),
             if (done) const Icon(Icons.check_circle, color: Colors.green),
+            IconButton(
+              tooltip: 'Learning tree',
+              icon: Icon(Icons.account_tree_outlined,
+                  color: theme.colorScheme.primary),
+              onPressed: onShowTree,
+            ),
           ]),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: (section + 1) / total,
+              value: total == 0 ? 0 : completedCount / total,
               minHeight: 4,
               backgroundColor: theme.dividerColor,
             ),
           ),
+          const SizedBox(height: 4),
+          Text('$completedCount of $total sections complete',
+              style: theme.textTheme.bodySmall),
         ],
+      ),
+    );
+  }
+}
+
+/// Graphical progress map: a vertical tree of section nodes showing what's done,
+/// where you are, and how much is left.
+class _LearningTree extends StatelessWidget {
+  final List<String> titles;
+  final List<String> emojis;
+  final Set<int> completed;
+  final int current;
+  final ValueChanged<int> onJump;
+  const _LearningTree({
+    required this.titles,
+    required this.emojis,
+    required this.completed,
+    required this.current,
+    required this.onJump,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = titles.length;
+    final doneCount = completed.length;
+    final left = total - doneCount;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.account_tree, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('Learning tree', style: theme.textTheme.titleLarge),
+              const Spacer(),
+              Text('$doneCount done • $left left', style: theme.textTheme.bodySmall),
+            ]),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (var i = 0; i < total; i++)
+                      _TreeNode(
+                        index: i,
+                        title: titles[i],
+                        emoji: emojis[i],
+                        isDone: completed.contains(i),
+                        isCurrent: i == current,
+                        isLast: i == total - 1,
+                        onTap: () => onJump(i),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TreeNode extends StatelessWidget {
+  final int index;
+  final String title;
+  final String emoji;
+  final bool isDone;
+  final bool isCurrent;
+  final bool isLast;
+  final VoidCallback onTap;
+  const _TreeNode({
+    required this.index,
+    required this.title,
+    required this.emoji,
+    required this.isDone,
+    required this.isCurrent,
+    required this.isLast,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final nodeColor = isDone
+        ? Colors.green
+        : isCurrent
+            ? theme.colorScheme.primary
+            : theme.dividerColor;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: isDone || isCurrent ? nodeColor : theme.cardColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: nodeColor, width: 2),
+                  ),
+                  child: Center(
+                    child: isDone
+                        ? const Icon(Icons.check, color: Colors.white, size: 18)
+                        : Text('${index + 1}',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: isCurrent ? Colors.white : null)),
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(width: 2, color: theme.dividerColor),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 14),
+                child: Row(
+                  children: [
+                    Text(emoji, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(title,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: isCurrent ? FontWeight.w700 : null,
+                            color: isCurrent ? theme.colorScheme.primary : null,
+                          )),
+                    ),
+                    if (isCurrent)
+                      Text('you are here', style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -276,30 +464,95 @@ class _Header extends StatelessWidget {
 class _NotesPane extends StatelessWidget {
   final _Section section;
   final bool completed;
+  final List<String> keyTerms;
   final VoidCallback? onStartQuiz;
   const _NotesPane({
     required this.section,
     required this.completed,
+    required this.keyTerms,
     required this.onStartQuiz,
   });
+
+  /// Build a TextSpan where any key term is bolded/coloured (case-insensitive).
+  TextSpan _highlight(String text, ThemeData theme) {
+    final terms = keyTerms
+        .map((t) => t.trim())
+        .where((t) => t.length >= 3)
+        .toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    final base = theme.textTheme.bodyLarge?.copyWith(height: 1.55);
+    if (terms.isEmpty) return TextSpan(text: text, style: base);
+    final pattern = RegExp(
+        r'\b(' + terms.map(RegExp.escape).join('|') + r')\b',
+        caseSensitive: false);
+    final spans = <TextSpan>[];
+    var i = 0;
+    for (final m in pattern.allMatches(text)) {
+      if (m.start > i) spans.add(TextSpan(text: text.substring(i, m.start)));
+      spans.add(TextSpan(
+        text: text.substring(m.start, m.end),
+        style: TextStyle(
+            fontWeight: FontWeight.w700, color: theme.colorScheme.primary),
+      ));
+      i = m.end;
+    }
+    if (i < text.length) spans.add(TextSpan(text: text.substring(i)));
+    return TextSpan(style: base, children: spans);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Split the content into paragraph "sub-sections".
+    final paras = section.content
+        .split(RegExp(r'\n\s*\n|\n'))
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
     return Column(
       children: [
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
             children: [
-              // Preferred: the section's readable content chunk.
+              // Highlighted section header.
               if (section.content.trim().isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border(
+                      left: BorderSide(color: theme.colorScheme.primary, width: 4),
+                    ),
+                  ),
+                  child: Row(children: [
+                    Text(section.emoji, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(section.title,
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(color: theme.colorScheme.primary)),
+                    ),
+                  ]),
+                ),
+              // Each paragraph as a sub-section card with highlighted key terms.
+              for (final para in paras)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text(
-                      section.content,
-                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.55),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 18,
+                          margin: const EdgeInsets.only(top: 3, right: 12),
+                          color: theme.colorScheme.primary.withOpacity(0.4),
+                        ),
+                        Expanded(child: RichText(text: _highlight(para, theme))),
+                      ],
                     ),
                   ),
                 ),
