@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/auth/auth_bloc.dart';
+import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/widgets/airbnb_card.dart';
 import '../../../exam_prep/data/models/exam_plan.dart';
@@ -9,24 +11,85 @@ import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
 import '../../../rewards/presentation/widgets/streak_card.dart';
+import '../widgets/achievement_overlay.dart';
+import '../widgets/level_card.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  static const _key = 'last_seen_points';
+  int _lastSeen = -1;
+  bool _celebrating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkReturnReward();
+  }
+
+  // On returning to the dashboard, if points went up while we were away,
+  // celebrate the achievement (and a level-up if the rank changed).
+  Future<void> _checkReturnReward() async {
+    final prefs = await SharedPreferences.getInstance();
+    _lastSeen = prefs.getInt(_key) ?? -1;
+    if (!mounted) return;
+    final st = context.read<RewardsBloc>().state;
+    if (_lastSeen >= 0 && st.points > _lastSeen) {
+      final rankedUp = _rankIndexFor(_lastSeen) < st.currentRankIndex;
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _celebrate(st.points - _lastSeen, st, rankedUp));
+    }
+    await prefs.setInt(_key, st.points);
+  }
+
+  int _rankIndexFor(int points) {
+    var idx = 0;
+    for (var i = 0; i < kRanks.length; i++) {
+      if (points >= kRanks[i].threshold) idx = i;
+    }
+    return idx;
+  }
+
+  Future<void> _celebrate(int delta, RewardsState st, bool rankedUp) async {
+    if (_celebrating || !mounted) return;
+    _celebrating = true;
+    await showAchievement(context, delta: delta, state: st, rankedUp: rankedUp);
+    _celebrating = false;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          children: [
-            _Greeting(),
-            const SizedBox(height: 20),
-            const StreakCard(),
-            const SizedBox(height: 20),
-            _HeroCta(onTap: () => context.go('/new')),
-            const SizedBox(height: 20),
+        // Catch rewards earned while the dashboard is already visible too.
+        child: BlocListener<RewardsBloc, RewardsState>(
+          listenWhen: (prev, next) => next.points > prev.points,
+          listener: (context, st) {
+            final rankedUp = _rankIndexFor(_lastSeen) < st.currentRankIndex;
+            final delta = _lastSeen >= 0 ? st.points - _lastSeen : st.lastAward;
+            _lastSeen = st.points;
+            SharedPreferences.getInstance()
+                .then((p) => p.setInt(_key, st.points));
+            if (delta > 0) _celebrate(delta, st, rankedUp);
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            children: [
+              _Greeting(),
+              const SizedBox(height: 20),
+              const LevelCard(),
+              const SizedBox(height: 16),
+              const StreakCard(),
+              const SizedBox(height: 20),
+              _HeroCta(onTap: () => context.go('/new')),
+              const SizedBox(height: 20),
             BlocBuilder<ExamPrepBloc, ExamPrepState>(
               builder: (context, state) {
                 final today = state.plans.where((p) => p.isToday).toList();
@@ -77,6 +140,7 @@ class HomePage extends StatelessWidget {
               },
             ),
           ],
+        ),
         ),
       ),
     );
