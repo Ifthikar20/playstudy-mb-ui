@@ -1,21 +1,30 @@
 #!/usr/bin/env bash
-# Production-style run: builds a RELEASE build and installs it on your iPhone,
-# pointed at the production backend + games, with NO dev auto-login (you sign in
-# normally). Use ./run-dev.sh for local development instead.
+# Production-style run: builds a RELEASE build and installs it on your iPhone.
 #
-#   ./run-prod.sh                         # install on the default device, prod URLs
-#   DEVICE=auto ./run-prod.sh             # auto-detect the connected iPhone
-#   API_BASE_URL=https://staging.api ... ./run-prod.sh   # point at staging
+#   ./run-prod.sh                      # real production (api/games defaults, real sign-in)
+#   WITH_BACKEND=1 ./run-prod.sh       # release build + LOCAL backend & games on your
+#                                      # Mac + auto-login (a usable installed app for testing)
+#   DEVICE=auto ./run-prod.sh
+#
+# Notes:
+#  - WITH_BACKEND runs the backend on your Mac, so keep this terminal open while
+#    you use the app (the standalone app can't reach it once the script stops).
+#  - For a truly standalone app with no Mac, deploy the backend to the
+#    production URLs and run without WITH_BACKEND (real sign-in).
 set -euo pipefail
 cd "$(dirname "$0")"
+UI_DIR="$PWD"
 
-# Default to the physical iPhone. Override with DEVICE=<id|name|auto>.
 DEVICE="${DEVICE-AliIphone2024}"
-
-# Production URLs come from the app's built-in defaults (AppConfig) unless you
-# override them here. Leave unset to ship the real production endpoints.
 API_BASE_URL="${API_BASE_URL:-}"
 GAMES_BASE_URL="${GAMES_BASE_URL:-}"
+DEV_EMAIL="${DEV_EMAIL:-}"
+DEV_PASSWORD="${DEV_PASSWORD:-}"
+
+WITH_BACKEND="${WITH_BACKEND:-}"
+BACKEND_DIR="${BACKEND_DIR:-$UI_DIR/../ps-bk-dj}"
+LANDING_DIR="${LANDING_DIR:-$UI_DIR/../playstudy-mb-landing}"
+GAMES_PORT="${GAMES_PORT:-8080}"
 
 # --- Resolve the target device (must be a real device for an install) --------
 TARGET_ID=""
@@ -26,12 +35,60 @@ except Exception: ds=[]
 ios=[d for d in ds if 'ios' in (d.get('targetPlatform') or '') and not d.get('emulator')]
 print(ios[0]['id'] if ios else '')" 2>/dev/null || true)"
   if [[ -z "$TARGET_ID" ]]; then
-    echo "ERROR: no physical iOS device found. Unlock your iPhone, keep it on the" >&2
-    echo "same Wi-Fi/cable, and make sure it's paired in Xcode." >&2
+    echo "ERROR: no physical iOS device found. Unlock your iPhone and pair it in Xcode." >&2
     exit 1
   fi
 else
   TARGET_ID="$DEVICE"
+fi
+
+BACKEND_PID=""
+GAMES_PID=""
+cleanup() {
+  [[ -n "$BACKEND_PID" ]] && kill "$BACKEND_PID" 2>/dev/null || true
+  [[ -n "$GAMES_PID" ]] && kill "$GAMES_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+# --- Optional: run the backend + games locally and auto-login ----------------
+if [[ -n "$WITH_BACKEND" ]]; then
+  LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo 127.0.0.1)"
+  API_BASE_URL="${API_BASE_URL:-http://$LAN_IP:8000}"
+  GAMES_BASE_URL="${GAMES_BASE_URL:-http://$LAN_IP:$GAMES_PORT}"
+  DEV_EMAIL="${DEV_EMAIL:-dev@playstudy.app}"
+  DEV_PASSWORD="${DEV_PASSWORD:-Devpass123!}"
+
+  if [[ ! -x "$BACKEND_DIR/setup.sh" ]]; then
+    echo "ERROR: backend not found at $BACKEND_DIR — set BACKEND_DIR=..." >&2
+    exit 1
+  fi
+  echo "==> Preparing backend (installs deps + runs migrations)"
+  ( cd "$BACKEND_DIR" && ./setup.sh --no-run )
+
+  echo "==> Starting backend on 0.0.0.0:8000"
+  (
+    cd "$BACKEND_DIR"
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    unset ANTHROPIC_API_KEY ANTHROPIC_MODEL LLM_PROVIDER \
+          DEEPSEEK_API_KEY GEMINI_API_KEY LOCAL_LLM_API_KEY 2>/dev/null || true
+    exec python manage.py runserver 0.0.0.0:8000 --noreload
+  ) > >(awk '{ print "[backend] " $0; fflush() }') 2>&1 &
+  BACKEND_PID=$!
+
+  if [[ -d "$LANDING_DIR/public/games" ]]; then
+    echo "==> Serving games from $LANDING_DIR/public on :$GAMES_PORT"
+    ( cd "$LANDING_DIR/public" && exec python3 -m http.server "$GAMES_PORT" --bind 0.0.0.0 ) \
+      > >(awk '{ print "[games] " $0; fflush() }') 2>&1 &
+    GAMES_PID=$!
+  fi
+
+  echo "==> Waiting for backend health at $API_BASE_URL/health/"
+  for _ in $(seq 1 30); do
+    if curl -sf "$API_BASE_URL/health/" >/dev/null 2>&1; then echo "    backend is up"; break; fi
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then echo "ERROR: backend exited" >&2; exit 1; fi
+    sleep 1
+  done
 fi
 
 # --- Prepare the Flutter project ---------------------------------------------
@@ -41,22 +98,15 @@ if [[ ! -f ios/Runner.xcodeproj/project.pbxproj ]]; then
   echo "    iOS project missing — running 'flutter create --platforms=ios .'"
   flutter create --platforms=ios .
 fi
-
-# Pre-warm Xcode so a wireless install/attach doesn't time out.
 echo "    warming up Xcode…"
 open -g ios/Runner.xcworkspace 2>/dev/null || true
 sleep 8
 
-# --- Build flags --------------------------------------------------------------
+# --- Build flags + optional auto-login ---------------------------------------
 DEFINES=()
 [[ -n "$API_BASE_URL" ]] && DEFINES+=(--dart-define=API_BASE_URL="$API_BASE_URL")
 [[ -n "$GAMES_BASE_URL" ]] && DEFINES+=(--dart-define=GAMES_BASE_URL="$GAMES_BASE_URL")
 
-# Optional auto-login: set DEV_EMAIL + DEV_PASSWORD to skip the sign-in screen
-# (handy for an installed build you just want to use). Requires the chosen
-# backend to be reachable. Leave unset for a true production (real sign-in) run.
-DEV_EMAIL="${DEV_EMAIL:-}"
-DEV_PASSWORD="${DEV_PASSWORD:-}"
 LOGIN_NOTE="real sign-in (no dev auto-login)"
 if [[ -n "$DEV_EMAIL" && -n "$DEV_PASSWORD" ]]; then
   DEFINES+=(--dart-define=DEV_EMAIL="$DEV_EMAIL" --dart-define=DEV_PASSWORD="$DEV_PASSWORD")
@@ -68,27 +118,24 @@ if [[ -n "$DEV_EMAIL" && -n "$DEV_PASSWORD" ]]; then
         >/dev/null 2>&1; then
     echo "==> Seeded login on $_base"
   else
-    echo "WARNING: couldn't reach $_base to seed the account — auto-login will" >&2
-    echo "         still attempt in-app, but make sure that backend is running." >&2
+    echo "WARNING: couldn't reach $_base to seed the account." >&2
   fi
 fi
 
 cat <<BANNER
 
   ┌──────────────────────────────────────────────────────────┐
-  │  PlayStudy — PRODUCTION install (release build)           │
+  │  PlayStudy — install (release build)                      │
   ├──────────────────────────────────────────────────────────┤
      Backend : ${API_BASE_URL:-https://api.playstudy.app (app default)}
      Games   : ${GAMES_BASE_URL:-https://playstudy.app (app default)}
      Device  : $TARGET_ID
      Login   : $LOGIN_NOTE
   └──────────────────────────────────────────────────────────┘
-  Tip: once it launches, press 'q' to detach — the app stays
-  installed on the iPhone and runs on its own (release build).
+$( [[ -n "$WITH_BACKEND" ]] && echo "  Keep this terminal open — the app uses the backend on your Mac." )
+  Tip: press 'q' to detach (release app stays installed on the phone).
 
 BANNER
 
-# --noreload/hot-reload don't apply in release; this builds, signs, installs,
-# and launches the release app on the device. The ${arr[@]+...} form is safe
-# under `set -u` when DEFINES is empty (macOS Bash 3.2).
+# The ${arr[@]+...} form is safe under `set -u` when DEFINES is empty (Bash 3.2).
 flutter run --release -d "$TARGET_ID" ${DEFINES[@]+"${DEFINES[@]}"}
