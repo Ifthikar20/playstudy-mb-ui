@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
+import '../../../family/data/family_repository.dart';
 import '../../data/models/learning_models.dart';
 
 /// Guided, section-by-section study loop:
@@ -44,8 +47,39 @@ class _StudyFlowViewState extends State<StudyFlowView> {
   late final List<_Section> _sections = _build();
   final Set<int> _completed = {};
 
+  // Time tracking: a heartbeat every 15s credits the current section so the
+  // parent analytics board can show how long was spent on each section.
+  static const _hbSeconds = 15;
+  Timer? _heartbeat;
+
   int _section = 0;
   bool _inQuiz = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartbeat = Timer.periodic(const Duration(seconds: _hbSeconds), _tick);
+  }
+
+  @override
+  void dispose() {
+    _heartbeat?.cancel();
+    super.dispose();
+  }
+
+  void _tick(Timer _) {
+    final m = widget.material;
+    if (!mounted || m.sections.isEmpty || m.id.isEmpty) return;
+    context
+        .read<FamilyRepository>()
+        .heartbeat(
+          studySetId: m.id,
+          sectionIndex: _section,
+          sectionTitle: _cur.title,
+          seconds: _hbSeconds,
+        )
+        .catchError((_) {}); // progress logging must never disrupt studying
+  }
 
   // Per-section quiz state.
   int _qIndex = 0;
@@ -163,6 +197,20 @@ class _StudyFlowViewState extends State<StudyFlowView> {
               'section': _cur.title,
             },
           ));
+      // Record section completion + score for the parent analytics board.
+      final m = widget.material;
+      if (m.sections.isNotEmpty && m.id.isNotEmpty) {
+        context
+            .read<FamilyRepository>()
+            .completeSection(
+              studySetId: m.id,
+              sectionIndex: _section,
+              sectionTitle: _cur.title,
+              correct: _qScore,
+              total: _cur.questions.length,
+            )
+            .catchError((_) {});
+      }
     }
   }
 

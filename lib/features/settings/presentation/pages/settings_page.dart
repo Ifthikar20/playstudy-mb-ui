@@ -127,6 +127,19 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 20),
+          _SectionLabel('Family'),
+          AirbnbCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: Icon(Icons.family_restroom_outlined,
+                  color: theme.colorScheme.primary),
+              title: const Text('Parents & children'),
+              subtitle: const Text('Link a parent, or follow a child\'s progress'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/family'),
+            ),
+          ),
+          const SizedBox(height: 20),
           _SectionLabel('About'),
           AirbnbCard(
             padding: EdgeInsets.zero,

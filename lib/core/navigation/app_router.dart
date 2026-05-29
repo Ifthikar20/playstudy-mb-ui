@@ -6,6 +6,8 @@ import 'package:flutter/material.dart' hide MaterialPage;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/family/presentation/pages/child_dashboard_page.dart';
+import '../../features/family/presentation/pages/family_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/exam_prep/presentation/pages/create_plan_page.dart';
 import '../../features/exam_prep/presentation/pages/daily_session_page.dart';
@@ -57,6 +59,17 @@ class AppRouter {
         GoRoute(
           path: '/paywall',
           builder: (_, __) => const PaywallPage(),
+        ),
+        GoRoute(
+          path: '/family',
+          builder: (_, __) => const FamilyPage(),
+        ),
+        GoRoute(
+          path: '/family/child/:id',
+          builder: (context, state) => ChildDashboardPage(
+            studentId: state.pathParameters['id'] ?? '',
+            studentName: (state.extra as String?) ?? 'Student',
+          ),
         ),
         GoRoute(
           path: '/adventure',

@@ -16,6 +16,7 @@ import 'core/onboarding/onboarding_bloc.dart';
 import 'core/theme/reading_bloc.dart';
 import 'core/theme/theme_bloc.dart';
 import 'features/exam_prep/data/repositories/exam_prep_repository.dart';
+import 'features/family/data/family_repository.dart';
 import 'features/exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import 'features/games/guess_the_word/guess_the_word_game.dart';
 import 'features/games/super_dash/super_dash_game.dart';
@@ -67,6 +68,7 @@ class PlayStudyApp extends StatelessWidget {
         RepositoryProvider<ApiClient>.value(value: api),
         RepositoryProvider(create: (_) => LearningRepository(api)),
         RepositoryProvider(create: (_) => ExamPrepRepository(api)),
+        RepositoryProvider(create: (_) => FamilyRepository(api)),
       ],
       child: MultiBlocProvider(
         providers: [
