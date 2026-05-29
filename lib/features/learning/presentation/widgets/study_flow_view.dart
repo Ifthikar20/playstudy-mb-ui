@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../family/data/family_repository.dart';
 import '../../data/models/learning_models.dart';
+import 'learning_tree_view.dart';
 
 /// Guided, section-by-section study loop:
 ///   read the section's notes  ->  quiz just that section  ->  back to the
@@ -226,6 +227,27 @@ class _StudyFlowViewState extends State<StudyFlowView> {
   }
 
   void _showTree() {
+    // Use the full graphical tree when the set has server sections; otherwise
+    // fall back to the simple list (older sets derived from quiz topics).
+    if (widget.material.sections.isNotEmpty) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Learning tree')),
+          body: LearningTreeView(
+            material: widget.material,
+            completed: _completed,
+            onJumpToSection: (i) {
+              Navigator.of(context).pop();
+              setState(() {
+                _section = i;
+                _inQuiz = false;
+              });
+            },
+          ),
+        ),
+      ));
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/models/learning_models.dart';
 import '../widgets/games_grid.dart';
+import '../widgets/learning_tree_view.dart';
 import '../widgets/quiz_view.dart';
 import '../widgets/study_flow_view.dart';
 
@@ -9,6 +10,15 @@ class MaterialPage extends StatelessWidget {
   final LearningMaterial material;
   const MaterialPage({super.key, required this.material});
 
+  void _openTree(BuildContext context) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('Learning tree')),
+        body: LearningTreeView(material: material),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -16,6 +26,13 @@ class MaterialPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text(material.title),
+          actions: [
+            IconButton(
+              tooltip: 'Learning tree',
+              icon: const Icon(Icons.account_tree_outlined),
+              onPressed: () => _openTree(context),
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.school_outlined), text: 'Study'),
