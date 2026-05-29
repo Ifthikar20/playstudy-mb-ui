@@ -170,7 +170,23 @@ fi
 HOST="${API_BASE_URL#http://}"; HOST="${HOST%%:*}"
 GAMES_BASE_URL="http://$HOST:$GAMES_PORT"
 
-echo "==> Launching app on $TARGET_ID (auto-login $DEV_EMAIL, games $GAMES_BASE_URL). Ctrl+C stops everything."
+cat <<BANNER
+
+  ┌──────────────────────────────────────────────────────────┐
+  │  PlayStudy dev — the app auto-logs-in with this account   │
+  ├──────────────────────────────────────────────────────────┤
+     Login email : $DEV_EMAIL
+     Password    : $DEV_PASSWORD
+     Backend     : $API_BASE_URL
+     Games       : $GAMES_BASE_URL
+     Device      : $TARGET_ID
+  └──────────────────────────────────────────────────────────┘
+  (If auto-login doesn't trigger, sign in manually with the
+   email + password above.)
+
+BANNER
+
+echo "==> Launching app (auto-login $DEV_EMAIL). Ctrl+C stops everything."
 flutter run -d "$TARGET_ID" \
   --dart-define=API_BASE_URL="$API_BASE_URL" \
   --dart-define=GAMES_BASE_URL="$GAMES_BASE_URL" \
