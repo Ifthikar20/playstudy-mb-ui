@@ -52,6 +52,27 @@ DEFINES=()
 [[ -n "$API_BASE_URL" ]] && DEFINES+=(--dart-define=API_BASE_URL="$API_BASE_URL")
 [[ -n "$GAMES_BASE_URL" ]] && DEFINES+=(--dart-define=GAMES_BASE_URL="$GAMES_BASE_URL")
 
+# Optional auto-login: set DEV_EMAIL + DEV_PASSWORD to skip the sign-in screen
+# (handy for an installed build you just want to use). Requires the chosen
+# backend to be reachable. Leave unset for a true production (real sign-in) run.
+DEV_EMAIL="${DEV_EMAIL:-}"
+DEV_PASSWORD="${DEV_PASSWORD:-}"
+LOGIN_NOTE="real sign-in (no dev auto-login)"
+if [[ -n "$DEV_EMAIL" && -n "$DEV_PASSWORD" ]]; then
+  DEFINES+=(--dart-define=DEV_EMAIL="$DEV_EMAIL" --dart-define=DEV_PASSWORD="$DEV_PASSWORD")
+  LOGIN_NOTE="auto-login as $DEV_EMAIL"
+  _base="${API_BASE_URL:-https://api.playstudy.app}"
+  if curl -sf -X POST "$_base/api/v1/auth/email/" \
+        -H 'Content-Type: application/json' \
+        -d "{\"email\":\"$DEV_EMAIL\",\"password\":\"$DEV_PASSWORD\",\"name\":\"Dev\"}" \
+        >/dev/null 2>&1; then
+    echo "==> Seeded login on $_base"
+  else
+    echo "WARNING: couldn't reach $_base to seed the account — auto-login will" >&2
+    echo "         still attempt in-app, but make sure that backend is running." >&2
+  fi
+fi
+
 cat <<BANNER
 
   ┌──────────────────────────────────────────────────────────┐
@@ -60,7 +81,7 @@ cat <<BANNER
      Backend : ${API_BASE_URL:-https://api.playstudy.app (app default)}
      Games   : ${GAMES_BASE_URL:-https://playstudy.app (app default)}
      Device  : $TARGET_ID
-     Login   : real sign-in (no dev auto-login)
+     Login   : $LOGIN_NOTE
   └──────────────────────────────────────────────────────────┘
   Tip: once it launches, press 'q' to detach — the app stays
   installed on the iPhone and runs on its own (release build).
