@@ -129,17 +129,29 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _SetCard extends StatelessWidget {
+class _SetCard extends StatefulWidget {
   final SetProgress set;
   final String Function(int) durFn;
   const _SetCard({required this.set, required this.durFn});
 
   @override
+  State<_SetCard> createState() => _SetCardState();
+}
+
+class _SetCardState extends State<_SetCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final set = widget.set;
+    final durFn = widget.durFn;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: AirbnbCard(
+        onTap: set.sections.isEmpty
+            ? null
+            : () => setState(() => _expanded = !_expanded),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -153,6 +165,9 @@ class _SetCard extends StatelessWidget {
               if (set.avgScorePct != null)
                 Text('avg ${set.avgScorePct}%',
                     style: theme.textTheme.bodySmall),
+              if (set.sections.isNotEmpty)
+                Icon(_expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20, color: theme.colorScheme.onSurface.withOpacity(0.5)),
             ]),
             const SizedBox(height: 6),
             Text(
@@ -171,7 +186,7 @@ class _SetCard extends StatelessWidget {
                 backgroundColor: theme.dividerColor,
               ),
             ),
-            if (set.sections.isNotEmpty) ...[
+            if (_expanded && set.sections.isNotEmpty) ...[
               const SizedBox(height: 16),
               SizedBox(height: 130, child: _SectionBars(sections: set.sections)),
               const SizedBox(height: 8),

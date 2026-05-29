@@ -75,6 +75,32 @@ class _QuizViewState extends State<QuizView> {
               const SizedBox(height: 8),
               Text('You scored $_score / ${widget.questions.length}',
                   style: Theme.of(context).textTheme.bodyLarge),
+              const SizedBox(height: 16),
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 550),
+                curve: Curves.elasticOut,
+                tween: Tween(begin: 0, end: 1),
+                builder: (context, t, child) =>
+                    Transform.scale(scale: t, child: child),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFFF59E0B), Color(0xFFFF6B35)]),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.bolt, color: Colors.white, size: 20),
+                    const SizedBox(width: 6),
+                    Text('+${5 + _score * 5} points',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16)),
+                  ]),
+                ),
+              ),
               const SizedBox(height: 24),
               ElevatedButton(onPressed: _restart, child: const Text('Try again')),
             ],
