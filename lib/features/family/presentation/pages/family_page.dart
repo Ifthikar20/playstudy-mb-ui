@@ -137,12 +137,7 @@ class _FamilyPageState extends State<FamilyPage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
             children: [
-              Text(
-                'Link a parent so they can see your learning progress, or link a '
-                'child to follow theirs.',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6)),
-              ),
+              const _GuideCard(),
               const SizedBox(height: 20),
 
               // --- Children you follow (parent mode) ---
@@ -182,8 +177,8 @@ class _FamilyPageState extends State<FamilyPage> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: _enterCode,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Link a child (enter their code)'),
+                  icon: const Icon(Icons.keyboard),
+                  label: const Text("Enter my child's code"),
                 ),
               ),
 
@@ -221,8 +216,8 @@ class _FamilyPageState extends State<FamilyPage> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _showCode,
-                  icon: const Icon(Icons.qr_code_2),
-                  label: const Text('Link a parent (share a code)'),
+                  icon: const Icon(Icons.ios_share),
+                  label: const Text('Share my code with a parent'),
                 ),
               ),
             ],
@@ -233,6 +228,77 @@ class _FamilyPageState extends State<FamilyPage> {
   }
 
   String _initial(String n) => n.isEmpty ? '?' : n[0].toUpperCase();
+}
+
+/// Plain-language guide so neither side is confused about who does what.
+class _GuideCard extends StatelessWidget {
+  const _GuideCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget role(IconData icon, String who, List<String> steps) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(icon, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(who,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 6),
+            for (var i = 0; i < steps.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(left: 26, bottom: 4),
+                child: Text('${i + 1}. ${steps[i]}',
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.4)),
+              ),
+          ],
+        );
+
+    return AirbnbCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.info_outline, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Text('How linking works', style: theme.textTheme.titleLarge),
+          ]),
+          const SizedBox(height: 14),
+          role(Icons.school_outlined, "If you're the student", [
+            'Tap “Share my code” below.',
+            'Read the 6-character code to your parent.',
+          ]),
+          const SizedBox(height: 12),
+          role(Icons.family_restroom_outlined, "If you're the parent", [
+            'Sign in with your own account.',
+            "Ask your child for their code, then tap “Enter my child's code”.",
+          ]),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(children: [
+              Icon(Icons.lock_outline, size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'A parent only sees study progress — never your password, and '
+                  'they can\'t change your account.',
+                  style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SectionLabel extends StatelessWidget {
