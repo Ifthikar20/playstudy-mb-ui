@@ -108,9 +108,13 @@ DEFINES=()
 [[ -n "$GAMES_BASE_URL" ]] && DEFINES+=(--dart-define=GAMES_BASE_URL="$GAMES_BASE_URL")
 
 LOGIN_NOTE="real sign-in (no dev auto-login)"
+CREDS_LINE=""
 if [[ -n "$DEV_EMAIL" && -n "$DEV_PASSWORD" ]]; then
   DEFINES+=(--dart-define=DEV_EMAIL="$DEV_EMAIL" --dart-define=DEV_PASSWORD="$DEV_PASSWORD")
   LOGIN_NOTE="auto-login as $DEV_EMAIL"
+  CREDS_LINE="
+   Email   : $DEV_EMAIL
+   Password: $DEV_PASSWORD"
   _base="${API_BASE_URL:-https://api.playstudy.app}"
   if curl -sf -X POST "$_base/api/v1/auth/email/" \
         -H 'Content-Type: application/json' \
@@ -130,7 +134,7 @@ cat <<BANNER
      Backend : ${API_BASE_URL:-https://api.playstudy.app (app default)}
      Games   : ${GAMES_BASE_URL:-https://playstudy.app (app default)}
      Device  : $TARGET_ID
-     Login   : $LOGIN_NOTE
+     Login   : $LOGIN_NOTE$CREDS_LINE
   └──────────────────────────────────────────────────────────┘
 $( [[ -n "$WITH_BACKEND" ]] && echo "  Keep this terminal open — the app uses the backend on your Mac." )
   Tip: press 'q' to detach (release app stays installed on the phone).
