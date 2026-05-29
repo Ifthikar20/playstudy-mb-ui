@@ -68,5 +68,6 @@ cat <<BANNER
 BANNER
 
 # --noreload/hot-reload don't apply in release; this builds, signs, installs,
-# and launches the release app on the device.
-flutter run --release -d "$TARGET_ID" "${DEFINES[@]}"
+# and launches the release app on the device. The ${arr[@]+...} form is safe
+# under `set -u` when DEFINES is empty (macOS Bash 3.2).
+flutter run --release -d "$TARGET_ID" ${DEFINES[@]+"${DEFINES[@]}"}
