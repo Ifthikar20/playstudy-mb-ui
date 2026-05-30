@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/games/game_registry.dart';
 import '../../../../core/games/learning_game.dart';
+import '../../../library/presentation/pages/library_page.dart'
+    show GameTileCard;
 import '../../data/models/learning_models.dart';
 
 /// Renders one card per registered game that can be played for this material.
@@ -32,63 +34,23 @@ class GamesGrid extends StatelessWidget {
         ),
       );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.78,
+      ),
       itemCount: games.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, i) =>
-          _GameCard(material: material, game: games[i]),
-    );
-  }
-}
-
-class _GameCard extends StatelessWidget {
-  final LearningMaterial material;
-  final LearningGame game;
-  const _GameCard({required this.material, required this.game});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+      itemBuilder: (context, i) => GameTileCard(
+        game: games[i],
+        questionCount: games[i].questionCount(material),
+        theme: Theme.of(context),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => _GamePlayPage(material: material, game: game),
+            builder: (_) => _GamePlayPage(material: material, game: games[i]),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(children: [
-            Container(
-              height: 56,
-              width: 56,
-              decoration: BoxDecoration(
-                color: scheme.primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: game.icon != null
-                  ? Icon(game.icon, color: scheme.primary, size: 28)
-                  : Center(
-                      child: Text(game.emoji,
-                          style: const TextStyle(fontSize: 28))),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(game.name,
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 2),
-                  Text(game.description,
-                      style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right),
-          ]),
         ),
       ),
     );

@@ -21,6 +21,16 @@ class FlappyWebGame extends LearningGame {
       'Tap to fly through the gaps — answer a question to revive.';
 
   @override
+  List<Color> get coverColors =>
+      const [Color(0xFFFBC78A), Color(0xFFEF4444)];
+
+  @override
+  GameDifficulty get difficulty => GameDifficulty.medium;
+
+  @override
+  int questionCount(LearningMaterial m) => m.quiz.length;
+
+  @override
   Widget build(BuildContext context, LearningMaterial material) {
     return WebGameView(
       slug: 'flappy',
@@ -44,6 +54,16 @@ class SpaceShooterWebGame extends LearningGame {
   @override
   String get description =>
       'Blast waves of invaders — answer a question to get back in the fight.';
+
+  @override
+  List<Color> get coverColors =>
+      const [Color(0xFF6B5CE7), Color(0xFF1F1B2E)];
+
+  @override
+  GameDifficulty get difficulty => GameDifficulty.hard;
+
+  @override
+  int questionCount(LearningMaterial m) => m.quiz.length;
 
   @override
   Widget build(BuildContext context, LearningMaterial material) {
@@ -70,6 +90,16 @@ class CrosswordWebGame extends LearningGame {
   @override
   String get description =>
       'Fill the grid from the clues built on this set\'s key terms.';
+
+  @override
+  List<Color> get coverColors =>
+      const [Color(0xFFA8E6F0), Color(0xFF6B5CE7)];
+
+  @override
+  GameDifficulty get difficulty => GameDifficulty.medium;
+
+  @override
+  int questionCount(LearningMaterial m) => m.wordGame.length;
 
   @override
   bool canPlay(LearningMaterial material) => material.wordGame.length >= 2;
@@ -99,6 +129,16 @@ class SpaceHunterWebGame extends LearningGame {
   @override
   String get description =>
       'Blast waves and bosses, then answer questions to reach the next level.';
+
+  @override
+  List<Color> get coverColors =>
+      const [Color(0xFFC4C0F5), Color(0xFF1F1B2E)];
+
+  @override
+  GameDifficulty get difficulty => GameDifficulty.hard;
+
+  @override
+  int questionCount(LearningMaterial m) => m.quiz.length;
 
   @override
   bool canPlay(LearningMaterial material) => material.quiz.isNotEmpty;

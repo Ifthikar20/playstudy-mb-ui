@@ -22,6 +22,16 @@ class SuperDashGame extends LearningGame {
       'Endless runner — answer a quiz to pass each checkpoint.';
 
   @override
+  List<Color> get coverColors =>
+      const [Color(0xFF8FE3B6), Color(0xFF6B5CE7)];
+
+  @override
+  GameDifficulty get difficulty => GameDifficulty.medium;
+
+  @override
+  int questionCount(LearningMaterial m) => m.quiz.length;
+
+  @override
   bool canPlay(LearningMaterial material) => material.quiz.isNotEmpty;
 
   @override

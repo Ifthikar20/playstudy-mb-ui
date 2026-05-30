@@ -115,7 +115,7 @@ class _GamesLibraryTab extends StatelessWidget {
             crossAxisCount: 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.05,
+            childAspectRatio: 0.78,
           ),
           itemCount: games.length,
           itemBuilder: (context, i) {
@@ -210,58 +210,190 @@ class _GamesLibraryTab extends StatelessWidget {
 class _GameTile extends StatelessWidget {
   final LearningGame game;
   final Color accent;
+  final int? questionCount;
   final VoidCallback onTap;
   const _GameTile(
-      {required this.game, required this.accent, required this.onTap});
+      {required this.game,
+      required this.accent,
+      required this.onTap,
+      this.questionCount});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Material(
-      color: accent.withOpacity(0.45),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: accent, width: 1.2),
-          ),
-          padding: const EdgeInsets.all(14),
+    return GameTileCard(
+      game: game,
+      questionCount: questionCount,
+      onTap: onTap,
+      theme: theme,
+    );
+  }
+}
+
+/// Reusable game card: gradient cover with the icon as a watermark, then a
+/// title row plus two chips — question count and difficulty.
+class GameTileCard extends StatelessWidget {
+  final LearningGame game;
+  final int? questionCount;
+  final VoidCallback onTap;
+  final ThemeData theme;
+  const GameTileCard({
+    super.key,
+    required this.game,
+    required this.onTap,
+    required this.theme,
+    this.questionCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Material(
+        color: theme.colorScheme.surface,
+        child: InkWell(
+          onTap: onTap,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                height: 48,
-                width: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: game.icon != null
-                      ? Icon(game.icon, size: 28)
-                      : Text(game.emoji,
-                          style: const TextStyle(fontSize: 26)),
-                ),
+              // Cover: gradient with a large watermark icon.
+              SizedBox(
+                height: 78,
+                child: Stack(children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: game.coverColors,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: -8,
+                    bottom: -12,
+                    child: Icon(
+                      game.icon ?? Icons.videogame_asset_outlined,
+                      size: 92,
+                      color: Colors.white.withOpacity(0.22),
+                    ),
+                  ),
+                  Positioned(
+                    left: 12,
+                    top: 12,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        game.icon ?? Icons.videogame_asset_outlined,
+                        color: game.coverColors.last,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: _GameDifficultyBadge(difficulty: game.difficulty),
+                  ),
+                ]),
               ),
-              const Spacer(),
-              Text(game.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text(
-                game.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(game.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(
+                      game.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      _Chip(
+                        icon: Icons.help_outline,
+                        label: questionCount != null
+                            ? '$questionCount Q'
+                            : 'from your set',
+                        color: theme.colorScheme.primary,
+                      ),
+                    ]),
+                  ],
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _Chip(
+      {required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: color)),
+      ]),
+    );
+  }
+}
+
+class _GameDifficultyBadge extends StatelessWidget {
+  final GameDifficulty difficulty;
+  const _GameDifficultyBadge({required this.difficulty});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = switch (difficulty) {
+      GameDifficulty.easy => (const Color(0xFF22C55E), 'Easy'),
+      GameDifficulty.medium => (const Color(0xFFF59E0B), 'Medium'),
+      GameDifficulty.hard => (const Color(0xFFEF4444), 'Hard'),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3),
       ),
     );
   }
