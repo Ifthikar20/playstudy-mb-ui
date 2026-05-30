@@ -879,11 +879,11 @@ class _PointsBurst extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFFF6B35)]),
+          gradient: const LinearGradient(colors: [Color(0xFF6B5CE7), Color(0xFF9D8DFA)]),
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFF59E0B).withOpacity(0.4),
+              color: const Color(0xFF6B5CE7).withOpacity(0.4),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),

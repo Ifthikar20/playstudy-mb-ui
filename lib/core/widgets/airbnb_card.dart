@@ -59,13 +59,14 @@ class GradientHeader extends StatelessWidget {
     this.overlay,
   });
 
+  // Soft pastel palette — each card picks a tile based on its title seed.
   static const _palettes = [
-    [Color(0xFF007AFF), Color(0xFF5856D6)],
-    [Color(0xFFFF2D55), Color(0xFFFF9500)],
-    [Color(0xFF22C55E), Color(0xFF14B8A6)],
-    [Color(0xFFA855F7), Color(0xFFEC4899)],
-    [Color(0xFFF59E0B), Color(0xFFEF4444)],
-    [Color(0xFF0EA5E9), Color(0xFF6366F1)],
+    [Color(0xFFD6F26C), Color(0xFFB8E04C)], // lime
+    [Color(0xFFFBC78A), Color(0xFFF5A971)], // peach
+    [Color(0xFF8FE3B6), Color(0xFF6FCFA0)], // mint
+    [Color(0xFFA8E6F0), Color(0xFF82D0E0)], // sky
+    [Color(0xFFC4C0F5), Color(0xFFA5A0F0)], // lavender
+    [Color(0xFF9D8DFA), Color(0xFF6B5CE7)], // indigo (brand)
   ];
 
   List<Color> get _colors {
@@ -92,7 +93,7 @@ class GradientHeader extends StatelessWidget {
             right: -20,
             bottom: -20,
             child: Icon(icon,
-                size: 160, color: Colors.white.withOpacity(0.18)),
+                size: 160, color: Colors.black.withOpacity(0.10)),
           ),
           if (overlay != null) overlay!,
         ]),

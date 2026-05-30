@@ -87,7 +87,7 @@ class _QuizViewState extends State<QuizView> {
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFFF59E0B), Color(0xFFFF6B35)]),
+                        colors: [Color(0xFF6B5CE7), Color(0xFF9D8DFA)]),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [

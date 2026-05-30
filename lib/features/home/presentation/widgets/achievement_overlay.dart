@@ -83,13 +83,13 @@ class _AchievementCard extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF6B35).withOpacity(0.12),
+                  color: theme.colorScheme.primary.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   rankedUp ? Icons.military_tech_outlined : Icons.bolt,
                   size: 40,
-                  color: const Color(0xFFFF6B35),
+                  color: theme.colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -103,7 +103,7 @@ class _AchievementCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFFF59E0B), Color(0xFFFF6B35)]),
+                      colors: [Color(0xFF6B5CE7), Color(0xFF9D8DFA)]),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -167,11 +167,12 @@ class _ConfettiPainter extends CustomPainter {
   final double t; // 0..1
   _ConfettiPainter(this.t);
   static const _colors = [
-    Color(0xFFFF385C),
-    Color(0xFFF59E0B),
-    Color(0xFF22C55E),
-    Color(0xFF007AFF),
-    Color(0xFFA855F7),
+    Color(0xFF6B5CE7), // indigo
+    Color(0xFFD6F26C), // lime
+    Color(0xFF8FE3B6), // mint
+    Color(0xFFA8E6F0), // sky
+    Color(0xFFC4C0F5), // lavender
+    Color(0xFFFBC78A), // peach
   ];
 
   @override

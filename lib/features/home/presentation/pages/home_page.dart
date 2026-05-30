@@ -331,7 +331,8 @@ class _EmptyHero extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       onTap: onTap,
       child: Column(children: [
-        const Icon(Icons.menu_book_outlined, size: 44, color: Color(0xFFFF6B35)),
+        Icon(Icons.menu_book_outlined,
+            size: 44, color: Theme.of(context).colorScheme.primary),
         const SizedBox(height: 12),
         Text('No study sets yet',
             style: Theme.of(context).textTheme.titleLarge),
