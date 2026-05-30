@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
 import '../../data/models/learning_models.dart';
+import '../../data/repositories/learning_repository.dart';
 
 class QuizView extends StatefulWidget {
   final List<QuizQuestion> questions;
@@ -21,11 +22,45 @@ class _QuizViewState extends State<QuizView> {
   int? _selected;
   bool _revealed = false;
   bool _done = false;
+  bool _fetchingMore = false;
+  late List<QuizQuestion> _questions = List<QuizQuestion>.from(widget.questions);
 
   @override
   void initState() {
     super.initState();
     _restoreProgress();
+  }
+
+  Future<void> _generateFreshPack() async {
+    if (widget.resumeKey == null) return;
+    setState(() => _fetchingMore = true);
+    try {
+      final repo = context.read<LearningRepository>();
+      final fresh = await repo.generateQuizPack(widget.resumeKey!, count: 10);
+      if (!mounted) return;
+      if (fresh.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No fresh questions came back.')),
+        );
+        return;
+      }
+      setState(() {
+        _questions = [..._questions, ...fresh];
+        _index = _questions.length - fresh.length;
+        _score = 0;
+        _selected = null;
+        _revealed = false;
+        _done = false;
+        _fetchingMore = false;
+      });
+      _saveProgress();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _fetchingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Couldn\'t fetch more questions: $e')),
+      );
+    }
   }
 
   String? get _prefsKey =>
@@ -37,7 +72,7 @@ class _QuizViewState extends State<QuizView> {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getInt('${key}_index');
     final savedScore = prefs.getInt('${key}_score') ?? 0;
-    if (saved != null && saved < widget.questions.length && mounted) {
+    if (saved != null && saved < _questions.length && mounted) {
       setState(() {
         _index = saved;
         _score = savedScore;
@@ -61,7 +96,7 @@ class _QuizViewState extends State<QuizView> {
     await prefs.remove('${key}_score');
   }
 
-  QuizQuestion get _q => widget.questions[_index];
+  QuizQuestion get _q => _questions[_index];
 
   void _choose(int i) {
     if (_revealed) return;
@@ -73,7 +108,7 @@ class _QuizViewState extends State<QuizView> {
   }
 
   void _next() {
-    if (_index + 1 < widget.questions.length) {
+    if (_index + 1 < _questions.length) {
       setState(() {
         _index++;
         _selected = null;
@@ -86,7 +121,7 @@ class _QuizViewState extends State<QuizView> {
       context.read<RewardsBloc>().add(RecordActivity(
             points: 5 + _score * 5,
             reason: 'Finished a quiz',
-            context: {'score': _score, 'total': widget.questions.length},
+            context: {'score': _score, 'total': _questions.length},
           ));
     }
   }
@@ -104,7 +139,7 @@ class _QuizViewState extends State<QuizView> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.questions.isEmpty) {
+    if (_questions.isEmpty) {
       return const Center(child: Text('No quiz questions yet.'));
     }
     if (_done) {
@@ -119,7 +154,7 @@ class _QuizViewState extends State<QuizView> {
               Text('Quiz complete',
                   style: Theme.of(context).textTheme.displaySmall),
               const SizedBox(height: 8),
-              Text('You scored $_score / ${widget.questions.length}',
+              Text('You scored $_score / ${_questions.length}',
                   style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 16),
               TweenAnimationBuilder<double>(
@@ -148,14 +183,40 @@ class _QuizViewState extends State<QuizView> {
                 ),
               ),
               const SizedBox(height: 24),
-              ElevatedButton(onPressed: _restart, child: const Text('Try again')),
+              SizedBox(
+                width: 240,
+                child: ElevatedButton.icon(
+                  onPressed: _fetchingMore || widget.resumeKey == null
+                      ? null
+                      : _generateFreshPack,
+                  icon: _fetchingMore
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_fetchingMore
+                      ? 'Generating…'
+                      : 'Get fresh questions'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: 240,
+                child: OutlinedButton(
+                  onPressed: _restart,
+                  child: const Text('Retry these'),
+                ),
+              ),
             ],
           ),
         ),
       );
     }
 
-    final total = widget.questions.length;
+    final total = _questions.length;
     final answered = _revealed ? _index + 1 : _index;
     final pct = total == 0 ? 0 : ((answered / total) * 100).round();
     final theme = Theme.of(context);

@@ -78,6 +78,20 @@ class LearningRepository {
     _library.removeWhere((m) => m.id == id);
   }
 
+  /// Generate a fresh pack of [count] quiz questions for [id] that don't
+  /// repeat anything already on the set. Returns the new questions.
+  Future<List<QuizQuestion>> generateQuizPack(String id,
+      {int count = 10}) async {
+    debugPrint('[learning] quiz-pack request id=$id count=$count');
+    final response = await api.dio.post(
+      'studysets/$id/quiz-pack/',
+      data: {'count': count},
+    );
+    final list = (response.data as List).cast<Map<String, dynamic>>();
+    debugPrint('[learning] quiz-pack got ${list.length} new questions');
+    return list.map(QuizQuestion.fromJson).toList();
+  }
+
   Future<LearningMaterial> _pollUntilReady(String id) async {
     // ~2 minutes max (60 * 2s) — generation is typically 10-40s.
     for (var i = 0; i < 60; i++) {
