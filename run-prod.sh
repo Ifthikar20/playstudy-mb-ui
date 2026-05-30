@@ -90,6 +90,29 @@ if [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]]; then
     if ! kill -0 "$BACKEND_PID" 2>/dev/null; then echo "ERROR: backend exited" >&2; exit 1; fi
     sleep 1
   done
+
+  # Make the dev user unlimited so testing isn't blocked by FREE_GENERATION_LIMIT.
+  echo "==> Marking $DEV_EMAIL as premium (unlimited generations)"
+  (
+    cd "$BACKEND_DIR"
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from apps.subscriptions.models import Subscription
+U = get_user_model()
+u = U.objects.filter(email='$DEV_EMAIL').first()
+if u:
+    sub, _ = Subscription.objects.get_or_create(user=u)
+    sub.is_premium = True
+    sub.expires_at = None
+    sub.usage_count = 0
+    sub.save()
+    print('   dev user is premium, usage_count reset')
+else:
+    print('   WARNING: dev user not found yet')
+" 2>&1 | sed 's/^/    /'
+  )
 fi
 
 # --- Prepare the Flutter project ---------------------------------------------
