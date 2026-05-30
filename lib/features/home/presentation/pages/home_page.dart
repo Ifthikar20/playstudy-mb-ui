@@ -128,7 +128,7 @@ class _HomePageState extends State<HomePage> {
                   children: library
                       .take(5)
                       .map((m) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: StudySetCard(
                               material: m,
                               onTap: () =>
@@ -398,68 +398,68 @@ class StudySetCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Stack(children: [
-                GradientHeader(seed: material.title, icon: _icon),
+                GradientHeader(seed: material.title, icon: _icon, height: 72),
                 Positioned(
-                  top: 12,
-                  right: 12,
+                  top: 8,
+                  right: 8,
                   child: Container(
-                    height: 36,
-                    width: 36,
+                    height: 28,
+                    width: 28,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.25),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(Icons.favorite_border,
-                        color: Colors.white, size: 20),
+                        color: Colors.white, size: 16),
                   ),
                 ),
                 Positioned(
-                  bottom: 12,
-                  left: 12,
+                  bottom: 8,
+                  left: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(_icon, size: 13, color: theme.colorScheme.primary),
-                      const SizedBox(width: 4),
+                      Icon(_icon, size: 11, color: theme.colorScheme.primary),
+                      const SizedBox(width: 3),
                       Text(_sourceLabel,
                           style: const TextStyle(
-                              fontSize: 11, fontWeight: FontWeight.w600)),
+                              fontSize: 10, fontWeight: FontWeight.w600)),
                     ]),
                   ),
                 ),
               ]),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(material.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleLarge),
-                    const SizedBox(height: 4),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
                     Text(
                       material.summary,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Row(children: [
                       _MetaChip(
                           icon: Icons.menu_book_outlined,
-                          label:
-                              '${material.keyPoints.length} key points'),
-                      const SizedBox(width: 8),
+                          label: '${material.keyPoints.length} pts'),
+                      const SizedBox(width: 6),
                       _MetaChip(
                           icon: Icons.quiz_outlined,
                           label: '${material.quiz.length} quiz'),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       _MetaChip(
                           icon: Icons.videogame_asset_outlined,
                           label: '${material.wordGame.length} words'),
@@ -483,15 +483,19 @@ class _MetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: Theme.of(context).colorScheme.onSurface),
-        const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Icon(icon, size: 11, color: Theme.of(context).colorScheme.onSurface),
+        const SizedBox(width: 3),
+        Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(fontSize: 11)),
       ]),
     );
   }
