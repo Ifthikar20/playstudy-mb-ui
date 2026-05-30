@@ -283,10 +283,8 @@ class _StudyFlowViewState extends State<StudyFlowView> {
           section: _section,
           total: _sections.length,
           title: _cur.title,
-          emoji: _cur.emoji,
           done: _completed.contains(_section),
           completedCount: _completed.length,
-          onShowTree: _showTree,
         ),
         Expanded(
           child: _inQuiz
@@ -319,64 +317,57 @@ class _Header extends StatelessWidget {
   final int section;
   final int total;
   final String title;
-  final String emoji;
   final bool done;
   final int completedCount;
-  final VoidCallback onShowTree;
   const _Header({
     required this.section,
     required this.total,
     required this.title,
-    required this.emoji,
     required this.done,
     required this.completedCount,
-    required this.onShowTree,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text(emoji, style: const TextStyle(fontSize: 28)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Section ${section + 1} of $total',
-                      style: theme.textTheme.bodySmall),
-                  Text(title,
-                      style: theme.textTheme.titleLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ],
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
               ),
+              child: Text('${section + 1}/$total',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700)),
             ),
-            if (done) const Icon(Icons.check_circle, color: Colors.green),
-            IconButton(
-              tooltip: 'Learning tree',
-              icon: Icon(Icons.account_tree_outlined,
-                  color: theme.colorScheme.primary),
-              onPressed: onShowTree,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(title,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
             ),
+            if (done)
+              const Icon(Icons.check_circle, color: Colors.green, size: 18),
           ]),
           const SizedBox(height: 6),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: total == 0 ? 0 : completedCount / total,
-              minHeight: 4,
+              minHeight: 3,
               backgroundColor: theme.dividerColor,
             ),
           ),
-          const SizedBox(height: 4),
-          Text('$completedCount of $total sections complete',
-              style: theme.textTheme.bodySmall),
         ],
       ),
     );
