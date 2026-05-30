@@ -1,69 +1,311 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../core/games/game_registry.dart';
+import '../../../../core/games/learning_game.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
 
+/// Library with two tabs: Study (the user's generated study sets) and
+/// Games (every game registered with [GameRegistry]).
 class LibraryPage extends StatelessWidget {
   const LibraryPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Library')),
-      body: BlocBuilder<LearningBloc, LearningState>(
-        builder: (context, state) {
-          final library = state.library;
-          if (library.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('📭', style: TextStyle(fontSize: 56)),
-                    const SizedBox(height: 12),
-                    Text('Your library is empty',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 4),
-                    Text('Study sets you create will appear here.',
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ],
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/'),
+          ),
+          title: const Text('Library'),
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(36),
+            child: TabBar(
+              isScrollable: false,
+              labelPadding: EdgeInsets.symmetric(vertical: 6),
+              tabs: [
+                Tab(height: 30, text: 'Study'),
+                Tab(height: 30, text: 'Games'),
+              ],
+            ),
+          ),
+        ),
+        body: const TabBarView(
+          children: [
+            _StudyLibraryTab(),
+            _GamesLibraryTab(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StudyLibraryTab extends StatelessWidget {
+  const _StudyLibraryTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<LearningBloc, LearningState>(
+      builder: (context, state) {
+        final library = state.library;
+        if (library.isEmpty) {
+          return _EmptyLibrary(
+            icon: Icons.menu_book_outlined,
+            title: 'Your study library is empty',
+            body: 'Study sets you create will appear here.',
+            ctaLabel: 'Create a study set',
+            onCta: () => context.go('/new'),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          itemCount: library.length,
+          itemBuilder: (context, i) {
+            final m = library[i];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Dismissible(
+                key: ValueKey(m.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.delete_outline, color: Colors.white),
+                ),
+                onDismissed: (_) =>
+                    context.read<LearningBloc>().add(DeleteMaterial(m.id)),
+                child: StudySetCard(
+                  material: m,
+                  onTap: () => context.push('/material/${m.id}', extra: m),
                 ),
               ),
             );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            itemCount: library.length,
-            itemBuilder: (context, i) {
-              final m = library[i];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Dismissible(
-                  key: ValueKey(m.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 24),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(Icons.delete_outline, color: Colors.white),
-                  ),
-                  onDismissed: (_) => context
-                      .read<LearningBloc>()
-                      .add(DeleteMaterial(m.id)),
-                  child: StudySetCard(
-                    material: m,
-                    onTap: () => context.push('/material/${m.id}', extra: m),
+          },
+        );
+      },
+    );
+  }
+}
+
+class _GamesLibraryTab extends StatelessWidget {
+  const _GamesLibraryTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final games = GameRegistry.instance.all;
+    return BlocBuilder<LearningBloc, LearningState>(
+      builder: (context, state) {
+        final library = state.library;
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.05,
+          ),
+          itemCount: games.length,
+          itemBuilder: (context, i) {
+            final g = games[i];
+            final accent =
+                ThemeColors.accentPalette[i % ThemeColors.accentPalette.length];
+            return _GameTile(
+              game: g,
+              accent: accent,
+              onTap: () => _openGame(context, g, library),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openGame(BuildContext context, LearningGame game,
+      List<dynamic> library) async {
+    // If the user has no study sets yet, route to /new so they can create
+    // material that the game will run on. Otherwise let them pick which set
+    // to play this game with.
+    if (library.isEmpty) {
+      context.go('/new');
+      return;
+    }
+    final material = await showModalBottomSheet<dynamic>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheet) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Play ${game.name} with…',
+                    style: Theme.of(sheet).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text('Pick a study set for this game.',
+                    style: Theme.of(sheet).textTheme.bodySmall),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: library.length,
+                    separatorBuilder: (_, __) => Divider(
+                        height: 1, color: Theme.of(sheet).dividerColor),
+                    itemBuilder: (_, i) {
+                      final m = library[i];
+                      final playable = game.canPlay(m);
+                      return ListTile(
+                        leading: const Icon(Icons.menu_book_outlined),
+                        title: Text(m.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                          playable
+                              ? '${m.quiz.length} quiz · ${m.wordGame.length} words'
+                              : 'Not enough content for this game',
+                          style: TextStyle(
+                              color: playable
+                                  ? null
+                                  : Theme.of(sheet).hintColor),
+                        ),
+                        enabled: playable,
+                        onTap: playable ? () => Navigator.pop(sheet, m) : null,
+                      );
+                    },
                   ),
                 ),
-              );
-            },
-          );
-        },
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (material == null || !context.mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(game.name)),
+          body: game.build(context, material),
+        ),
+      ),
+    );
+  }
+}
+
+class _GameTile extends StatelessWidget {
+  final LearningGame game;
+  final Color accent;
+  final VoidCallback onTap;
+  const _GameTile(
+      {required this.game, required this.accent, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: accent.withOpacity(0.45),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent, width: 1.2),
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: game.icon != null
+                      ? Icon(game.icon, size: 28)
+                      : Text(game.emoji,
+                          style: const TextStyle(fontSize: 26)),
+                ),
+              ),
+              const Spacer(),
+              Text(game.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(
+                game.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyLibrary extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final String ctaLabel;
+  final VoidCallback onCta;
+  const _EmptyLibrary({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.ctaLabel,
+    required this.onCta,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 56, color: theme.colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(title,
+                style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+            const SizedBox(height: 4),
+            Text(body,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onCta,
+              icon: const Icon(Icons.add),
+              label: Text(ctaLabel),
+            ),
+          ],
+        ),
       ),
     );
   }
