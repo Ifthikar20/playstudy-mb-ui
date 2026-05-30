@@ -187,14 +187,18 @@ class _QuizViewState extends State<QuizView> {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 10),
-          // Fixed-height answer block — divides remaining space equally so
-          // 4 options always fit; FittedBox shrinks long answers in place.
+          // Compact answer tiles — natural height (~46px each). Wrapped in
+          // a SingleChildScrollView so an unusually long set still scrolls
+          // instead of overflowing, but in the common 4-option case it
+          // sits comfortably without ever scrolling.
           Expanded(
-            child: Column(
-              children: [
-                for (var i = 0; i < _q.choices.length; i++) ...[
-                  Expanded(
-                    child: _AnswerTile(
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < _q.choices.length; i++) ...[
+                    _AnswerTile(
                       letter: String.fromCharCode(65 + i),
                       text: _q.choices[i],
                       isCorrect: i == _q.correctIndex,
@@ -202,10 +206,11 @@ class _QuizViewState extends State<QuizView> {
                       revealed: _revealed,
                       onTap: () => _choose(i),
                     ),
-                  ),
-                  if (i != _q.choices.length - 1) const SizedBox(height: 6),
+                    if (i != _q.choices.length - 1)
+                      const SizedBox(height: 6),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           if (_revealed && _q.explanation != null) ...[

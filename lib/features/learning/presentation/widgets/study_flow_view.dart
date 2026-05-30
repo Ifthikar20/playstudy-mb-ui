@@ -787,14 +787,16 @@ class _QuizPane extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
-          // Fixed-height answer block — fits 4 options on screen without
-          // scrolling; long answers auto-shrink via FittedBox.
+          // Compact answer tiles — natural height (~46px each). Scrolls only
+          // if the choice list is unusually long.
           Expanded(
-            child: Column(
-              children: [
-                for (var i = 0; i < q.choices.length; i++) ...[
-                  Expanded(
-                    child: _AnswerTile(
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < q.choices.length; i++) ...[
+                    _AnswerTile(
                       letter: String.fromCharCode(65 + i),
                       text: q.choices[i],
                       isCorrect: i == q.correctIndex,
@@ -802,10 +804,11 @@ class _QuizPane extends StatelessWidget {
                       revealed: revealed,
                       onTap: () => onChoose(i),
                     ),
-                  ),
-                  if (i != q.choices.length - 1) const SizedBox(height: 6),
+                    if (i != q.choices.length - 1)
+                      const SizedBox(height: 6),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           if (revealed && q.explanation != null && q.explanation!.isNotEmpty) ...[
