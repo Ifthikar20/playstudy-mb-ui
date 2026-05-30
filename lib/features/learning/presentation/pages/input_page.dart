@@ -176,6 +176,10 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     );
   }
 
+  static final _ytHost = RegExp(
+      r'^https?://(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)/',
+      caseSensitive: false);
+
   Widget _linkTab() {
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -185,7 +189,9 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
           Text('Paste a link',
               style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 6),
-          Text('Articles, blog posts, or any URL with content to learn from.',
+          Text(
+              'Articles, blog posts, or a YouTube video. We read text or the '
+              'video captions and turn them into a study set.',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 20),
           TextField(
@@ -195,10 +201,32 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
             enableSuggestions: false,
             textInputAction: TextInputAction.done,
             decoration: const InputDecoration(
-              hintText: 'https://example.com/article',
+              hintText: 'https://example.com/article or YouTube link',
               prefixIcon: Icon(Icons.link),
             ),
+            onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
+          if (_ytHost.hasMatch(_linkCtrl.text.trim()))
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                Icon(Icons.smart_display_outlined,
+                    size: 18, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'YouTube detected — we\'ll pull the video captions and '
+                    'use them to build your study set.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ]),
+            ),
         ],
       ),
     );
