@@ -101,31 +101,17 @@ class AppRouter {
         GoRoute(
           path: '/material/:id',
           builder: (context, state) {
-            final fromExtra = state.extra as LearningMaterial?;
-            // A full object (with quiz) passed via `extra` is used directly.
-            // Otherwise (e.g. opened from a lightweight library row) fetch the
-            // full set from the backend.
+            // Tolerate any extra type — only use it if it really is a
+            // LearningMaterial with content, otherwise fall through to fetch.
+            final extra = state.extra;
+            final fromExtra = extra is LearningMaterial ? extra : null;
             if (fromExtra != null && fromExtra.quiz.isNotEmpty) {
+              debugPrint('[router] /material/${fromExtra.id} from extra');
               return MaterialPage(material: fromExtra);
             }
             final id = state.pathParameters['id'] ?? '';
-            final repo = context.read<LearningRepository>();
-            return FutureBuilder<LearningMaterial>(
-              future: repo.fetch(id),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  return MaterialPage(material: snapshot.data!);
-                }
-                if (snapshot.hasError) {
-                  return const Scaffold(
-                    body: Center(child: Text('Study set not found')),
-                  );
-                }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              },
-            );
+            debugPrint('[router] /material/$id fetching from repo');
+            return _MaterialLoader(id: id);
           },
         ),
       ],
@@ -149,5 +135,92 @@ class _BlocListenable extends ChangeNotifier {
       s.cancel();
     }
     super.dispose();
+  }
+}
+
+/// Loads a study set by id with a friendly retry + back UI on failure, so
+/// a transient backend error never strands the user on a dead screen.
+class _MaterialLoader extends StatefulWidget {
+  final String id;
+  const _MaterialLoader({required this.id});
+
+  @override
+  State<_MaterialLoader> createState() => _MaterialLoaderState();
+}
+
+class _MaterialLoaderState extends State<_MaterialLoader> {
+  late Future<LearningMaterial> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<LearningMaterial> _load() async {
+    try {
+      final repo = context.read<LearningRepository>();
+      final m = await repo.fetch(widget.id);
+      debugPrint('[router] /material/${widget.id} loaded "${m.title}"');
+      return m;
+    } catch (e, st) {
+      debugPrint('[error] load material/${widget.id} failed: $e');
+      debugPrint('[error] $st');
+      rethrow;
+    }
+  }
+
+  void _retry() => setState(() => _future = _load());
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<LearningMaterial>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snap.hasError) {
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/'),
+              ),
+              title: const Text('Study set'),
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_outlined,
+                        size: 56, color: Colors.grey),
+                    const SizedBox(height: 12),
+                    const Text("Couldn't open this study set.",
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 6),
+                    Text('${snap.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.grey)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _retry,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return MaterialPage(material: snap.data!);
+      },
+    );
   }
 }

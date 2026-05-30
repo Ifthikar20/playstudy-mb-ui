@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,6 +29,19 @@ import 'features/learning/presentation/bloc/learning_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Catch framework + async errors so a single faulty widget can't kill the
+  // app silently — log them with a clear prefix so they surface in [ui].
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('[error] FlutterError: ${details.exceptionAsString()}');
+    if (details.stack != null) debugPrint('[error] ${details.stack}');
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[error] Uncaught: $error');
+    debugPrint('[error] $stack');
+    return true;
+  };
 
   PaintingBinding.instance.imageCache.maximumSize = 30;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024;

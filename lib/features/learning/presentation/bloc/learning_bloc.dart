@@ -75,8 +75,11 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
     on<LoadLibrary>((event, emit) async {
       try {
         await repository.loadLibrary();
+        debugPrint('[learning] Library loaded (${repository.library.length} sets)');
         emit(LibraryReady(repository.library));
-      } catch (e) {
+      } catch (e, st) {
+        debugPrint('[error] LoadLibrary failed: $e');
+        debugPrint('[error] $st');
         emit(LearningError(apiErrorMessage(e), repository.library));
       }
     });
@@ -92,8 +95,9 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
         );
         debugPrint('[learning] Generate SUCCESS id=${m.id} title="${m.title}"');
         emit(GenerateSuccess(material: m, library: repository.library));
-      } catch (e) {
+      } catch (e, st) {
         debugPrint('[learning] Generate FAILED: $e');
+        debugPrint('[error] $st');
         emit(LearningError(apiErrorMessage(e), repository.library));
       }
     });
@@ -101,7 +105,10 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
     on<DeleteMaterial>((event, emit) async {
       try {
         await repository.delete(event.id);
-      } catch (_) {
+        debugPrint('[learning] Deleted ${event.id}');
+      } catch (e, st) {
+        debugPrint('[error] Delete ${event.id} failed: $e');
+        debugPrint('[error] $st');
         // best-effort; fall through to re-emit current library
       }
       emit(LibraryReady(repository.library));
