@@ -583,25 +583,14 @@ class _NotesPane extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
             children: [
-              // Each paragraph as a sub-section card with highlighted key terms.
+              // Plain text body — paragraphs only, no card chrome.
               for (final para in paras)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border(
-                        left: BorderSide(
-                            color: theme.colorScheme.primary.withOpacity(0.55),
-                            width: 3),
-                      ),
-                    ),
-                    child: DefaultTextStyle.merge(
-                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
-                      child: RichText(text: _highlight(para, theme)),
-                    ),
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: DefaultTextStyle.merge(
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(height: 1.5, fontSize: 15),
+                    child: RichText(text: _highlight(para, theme)),
                   ),
                 ),
               // Fallback bullets for older sets without section content.
@@ -630,27 +619,38 @@ class _NotesPane extends StatelessWidget {
                     ),
                   ),
                 ),
-              // "Explain further" — a small, real-world example for the section.
+              // "Further understanding" — a real-world example or a key
+              // term explained, so the reader has something concrete to
+               // anchor the section's ideas to.
               if (section.example.trim().isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: RichText(
-                    text: TextSpan(
-                      style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
-                      children: [
-                        TextSpan(
-                          text: 'Explain further  ',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(Icons.lightbulb_outline,
+                            size: 16, color: theme.colorScheme.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Further understanding',
                           style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.primary),
+                              color: theme.colorScheme.primary,
+                              letterSpacing: 0.2),
                         ),
-                        TextSpan(text: section.example),
-                      ],
-                    ),
+                      ]),
+                      const SizedBox(height: 6),
+                      Text(
+                        section.example,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(height: 1.45, fontSize: 13),
+                      ),
+                    ],
                   ),
                 ),
             ],
