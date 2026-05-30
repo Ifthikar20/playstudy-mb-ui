@@ -156,27 +156,71 @@ class _QuizViewState extends State<QuizView> {
     }
 
     final total = widget.questions.length;
+    final answered = _revealed ? _index + 1 : _index;
+    final pct = total == 0 ? 0 : ((answered / total) * 100).round();
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Compact progress strip + difficulty badge on the right.
-          Row(children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                    value: (_index + 1) / total, minHeight: 3),
-              ),
+          // Overall quiz progress card — tells the learner exactly how far
+          // through this quiz they are.
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 10),
-            _DifficultyBadge(difficulty: _q.difficulty),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.quiz_outlined,
+                      size: 16, color: theme.colorScheme.primary),
+                  const SizedBox(width: 6),
+                  Text('Quiz progress',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.primary,
+                          letterSpacing: 0.2)),
+                  const Spacer(),
+                  Text('$answered / $total  ·  $pct%',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                ]),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeOut,
+                    tween: Tween(
+                        begin: 0, end: total == 0 ? 0 : answered / total),
+                    builder: (_, v, __) => LinearProgressIndicator(
+                        value: v, minHeight: 6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Per-question header row: position + difficulty.
+          Row(children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('Q${_index + 1}/$total',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700)),
+            ),
             const SizedBox(width: 8),
-            Text('${_index + 1}/$total',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            _DifficultyBadge(difficulty: _q.difficulty),
           ]),
           const SizedBox(height: 10),
           // Question — clamped to 4 lines so really long prompts don't push
