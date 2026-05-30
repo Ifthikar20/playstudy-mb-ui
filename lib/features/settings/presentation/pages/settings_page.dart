@@ -297,16 +297,26 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _clearCache(BuildContext context) async {
     final ok = await _confirm(context,
         title: 'Clear local cache?',
-        body: 'This resets in-app preferences like dark mode, reading colour, '
-            'last-seen rewards, and the onboarding flag. Your study sets and '
-            'account stay safe.',
+        body: 'Resets in-app preferences (dark mode, reading colour, '
+            'notifications, last-seen rewards, onboarding flag). Your '
+            'sign-in, study sets, and account stay safe.',
         confirmLabel: 'Clear');
     if (!ok) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    // Keep the JWTs so the user stays signed in.
+    const keepKeys = {'auth_access_token', 'auth_refresh_token'};
+    final toRemove =
+        prefs.getKeys().where((k) => !keepKeys.contains(k)).toList();
+    for (final k in toRemove) {
+      await prefs.remove(k);
+    }
     if (!context.mounted) return;
+    setState(() {
+      _notifications = true;
+      _sound = true;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Local cache cleared.')),
+      SnackBar(content: Text('Cleared ${toRemove.length} cached values.')),
     );
   }
 
