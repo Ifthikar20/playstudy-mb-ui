@@ -20,6 +20,9 @@ DEV_EMAIL="${DEV_EMAIL:-}"
 DEV_PASSWORD="${DEV_PASSWORD:-}"
 
 WITH_BACKEND="${WITH_BACKEND:-1}"
+# profile = release-like perf + Dart logs visible (default).
+# release = fully stripped; print()/debugPrint() silent.
+BUILD_MODE="${BUILD_MODE:-profile}"
 BACKEND_DIR="${BACKEND_DIR:-$UI_DIR/../ps-bk-dj}"
 LANDING_DIR="${LANDING_DIR:-$UI_DIR/../playstudy-mb-landing}"
 GAMES_PORT="${GAMES_PORT:-8080}"
@@ -127,17 +130,20 @@ fi
 cat <<BANNER
 
   ┌──────────────────────────────────────────────────────────┐
-  │  PlayStudy — install (release build)                      │
+  │  PlayStudy — install ($BUILD_MODE build)                     │
   ├──────────────────────────────────────────────────────────┤
      Backend : ${API_BASE_URL:-https://api.playstudy.app (app default)}
      Games   : ${GAMES_BASE_URL:-https://playstudy.app (app default)}
      Device  : $TARGET_ID
      Login   : $LOGIN_NOTE$CREDS_LINE
   └──────────────────────────────────────────────────────────┘
-$( [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]] && echo "  Keep this terminal open — backend + games run here. Logs stream below as [backend] / [games]." )
-  Tip: press 'q' to detach (release app stays installed on the phone).
+$( [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]] && echo "  Keep this terminal open — [backend] / [games] / Dart UI logs all stream below." )
+  Tip: press 'q' to detach. Switch to fully-stripped release with BUILD_MODE=release.
 
 BANNER
 
 # The ${arr[@]+...} form is safe under `set -u` when DEFINES is empty (Bash 3.2).
-flutter run --release -d "$TARGET_ID" ${DEFINES[@]+"${DEFINES[@]}"}
+# Dart print()/debugPrint() are stripped in --release; --profile keeps them
+# so UI logs stream here alongside [backend] / [games]. flutter run keeps its
+# interactive key prompt because stdout is not piped through anything.
+flutter run "--$BUILD_MODE" -d "$TARGET_ID" ${DEFINES[@]+"${DEFINES[@]}"}
