@@ -266,7 +266,7 @@ class _TreePainter extends CustomPainter {
         if (n.current) {
           fill = primary.withOpacity(0.20);
         } else if (n.done) {
-          fill = const Color(0x3322C55E);
+          fill = const Color(0xFF22C55E).withOpacity(0.22);
         } else {
           fill = primary.withOpacity(0.06);
         }
@@ -285,10 +285,10 @@ class _TreePainter extends CustomPainter {
         ..color = n.current
             ? primary
             : n.done
-                ? const Color(0xFF22C55E)
+                ? const Color(0xFF15803D)
                 : divider
         ..style = PaintingStyle.stroke
-        ..strokeWidth = n.current ? 2.5 : (n.kind == _Kind.topic ? 1.5 : 1),
+        ..strokeWidth = n.current ? 2.5 : (n.done ? 2.2 : (n.kind == _Kind.topic ? 1.5 : 1)),
     );
 
     // Bullet / status dot.
@@ -298,7 +298,7 @@ class _TreePainter extends CustomPainter {
             ? (n.current
                 ? primary
                 : n.done
-                    ? const Color(0xFF22C55E)
+                    ? const Color(0xFF15803D)
                     : primary)
             : n.kind == _Kind.sub
                 ? divider
@@ -306,7 +306,8 @@ class _TreePainter extends CustomPainter {
     canvas.drawCircle(Offset(x + 14, y), n.current ? 6 : 5,
         Paint()..color = dotC);
 
-    // Right badge for topics: "You are here" if current, otherwise N/T Q.
+    // Right badge for topics: "You are here" if current, otherwise the
+    // question count — and a green check on completed nodes.
     var labelRight = right - 10;
     if (n.kind == _Kind.topic) {
       if (n.current) {
@@ -314,10 +315,18 @@ class _TreePainter extends CustomPainter {
         tp.layout();
         tp.paint(canvas, Offset(right - 12 - tp.width, y - tp.height / 2));
         labelRight = right - 18 - tp.width;
+      } else if (n.done) {
+        // Draw a filled green ✓ circle on the right.
+        final cx = right - 18;
+        canvas.drawCircle(
+            Offset(cx, y), 9, Paint()..color = const Color(0xFF15803D));
+        final tp = _text('✓', 13, FontWeight.w900, Colors.white);
+        tp.layout();
+        tp.paint(canvas, Offset(cx - tp.width / 2, y - tp.height / 2));
+        labelRight = right - 32;
       } else if (n.qTotal > 0) {
         final badge = '${n.qDone}/${n.qTotal} Q';
-        final tp = _text(badge, 11, FontWeight.w700,
-            n.done ? const Color(0xFF16A34A) : primary);
+        final tp = _text(badge, 11, FontWeight.w700, primary);
         tp.layout();
         tp.paint(canvas, Offset(right - 12 - tp.width, y - tp.height / 2));
         labelRight = right - 18 - tp.width;
