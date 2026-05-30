@@ -162,7 +162,7 @@ class _QuizViewState extends State<QuizView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Compact progress strip with a chip pill on the right.
+          // Compact progress strip + difficulty badge on the right.
           Row(children: [
             Expanded(
               child: ClipRRect(
@@ -172,6 +172,8 @@ class _QuizViewState extends State<QuizView> {
               ),
             ),
             const SizedBox(width: 10),
+            _DifficultyBadge(difficulty: _q.difficulty),
+            const SizedBox(width: 8),
             Text('${_index + 1}/$total',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(fontWeight: FontWeight.w700)),
@@ -313,6 +315,38 @@ class _AnswerTile extends StatelessWidget {
             if (revealed && isPicked && !isCorrect)
               const Icon(Icons.cancel, color: Colors.red, size: 18),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+
+class _DifficultyBadge extends StatelessWidget {
+  final QuizDifficulty difficulty;
+  const _DifficultyBadge({required this.difficulty});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = switch (difficulty) {
+      QuizDifficulty.easy => (const Color(0xFF22C55E), 'Easy'),
+      QuizDifficulty.medium => (const Color(0xFFF59E0B), 'Medium'),
+      QuizDifficulty.hard => (const Color(0xFFEF4444), 'Challenge'),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.45), width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
         ),
       ),
     );

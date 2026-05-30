@@ -768,6 +768,8 @@ class _QuizPane extends StatelessWidget {
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w700)),
             ),
+            const SizedBox(width: 8),
+            _DifficultyBadge(difficulty: q.difficulty),
             const Spacer(),
             TextButton.icon(
               onPressed: onBackToNotes,
@@ -955,6 +957,36 @@ class _PointsBurst extends StatelessWidget {
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
         ]),
+      ),
+    );
+  }
+}
+
+class _DifficultyBadge extends StatelessWidget {
+  final QuizDifficulty difficulty;
+  const _DifficultyBadge({required this.difficulty});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = switch (difficulty) {
+      QuizDifficulty.easy => (const Color(0xFF22C55E), 'Easy'),
+      QuizDifficulty.medium => (const Color(0xFFF59E0B), 'Medium'),
+      QuizDifficulty.hard => (const Color(0xFFEF4444), 'Challenge'),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.45), width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3),
       ),
     );
   }

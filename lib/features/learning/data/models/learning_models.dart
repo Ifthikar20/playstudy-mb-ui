@@ -1,5 +1,28 @@
 import 'package:equatable/equatable.dart';
 
+enum QuizDifficulty {
+  easy,
+  medium,
+  hard;
+
+  static QuizDifficulty fromString(String? s) {
+    switch ((s ?? '').toLowerCase()) {
+      case 'easy':
+        return QuizDifficulty.easy;
+      case 'hard':
+        return QuizDifficulty.hard;
+      default:
+        return QuizDifficulty.medium;
+    }
+  }
+
+  String get label => switch (this) {
+        QuizDifficulty.easy => 'Easy',
+        QuizDifficulty.medium => 'Medium',
+        QuizDifficulty.hard => 'Hard',
+      };
+}
+
 class QuizQuestion extends Equatable {
   final String id;
   final String prompt;
@@ -7,6 +30,7 @@ class QuizQuestion extends Equatable {
   final int correctIndex;
   final String? explanation;
   final String topic;
+  final QuizDifficulty difficulty;
 
   const QuizQuestion({
     required this.id,
@@ -15,11 +39,12 @@ class QuizQuestion extends Equatable {
     required this.correctIndex,
     this.explanation,
     this.topic = 'General',
+    this.difficulty = QuizDifficulty.medium,
   });
 
   @override
   List<Object?> get props =>
-      [id, prompt, choices, correctIndex, explanation, topic];
+      [id, prompt, choices, correctIndex, explanation, topic, difficulty];
 
   static QuizQuestion fromJson(Map<String, dynamic> j) => QuizQuestion(
         id: (j['id'] ?? '').toString(),
@@ -28,6 +53,7 @@ class QuizQuestion extends Equatable {
         correctIndex: j['correctIndex'] as int? ?? 0,
         explanation: j['explanation'] as String?,
         topic: j['topic'] as String? ?? 'General',
+        difficulty: QuizDifficulty.fromString(j['difficulty'] as String?),
       );
 }
 
