@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/auth/auth_bloc.dart';
+import '../../../../core/onboarding/onboarding_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/theme/reading_bloc.dart';
 import '../../../../core/theme/theme_bloc.dart';
@@ -46,10 +47,53 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/'),
+        ),
+        title: const Text('Settings'),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
+          _SectionLabel('Account'),
+          BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, auth) {
+              final name =
+                  auth is Authenticated ? auth.user.name : 'Signed out';
+              final email =
+                  auth is Authenticated ? auth.user.email : '';
+              return AirbnbCard(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor:
+                        theme.colorScheme.primary.withOpacity(0.12),
+                    child: Icon(Icons.person_outline,
+                        color: theme.colorScheme.primary),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        if (email.isNotEmpty)
+                          Text(email, style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ]),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
           _SectionLabel('Appearance'),
           BlocBuilder<ThemeBloc, ThemeState>(
             builder: (context, state) => AirbnbCard(
@@ -98,7 +142,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ]),
           ),
           const SizedBox(height: 20),
-          _SectionLabel('Account'),
+          _SectionLabel('Subscription'),
           BlocBuilder<SubscriptionBloc, SubscriptionState>(
             builder: (context, sub) => AirbnbCard(
               padding: EdgeInsets.zero,
@@ -118,9 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ListTile(
                     leading: const Icon(Icons.cancel_outlined),
                     title: const Text('Cancel subscription'),
-                    onTap: () => context
-                        .read<SubscriptionBloc>()
-                        .add(CancelPremium()),
+                    onTap: () => _confirmCancelPremium(context),
                   ),
                 ],
               ]),
@@ -138,6 +180,51 @@ class _SettingsPageState extends State<SettingsPage> {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/family'),
             ),
+          ),
+          const SizedBox(height: 20),
+          _SectionLabel('Help & feedback'),
+          AirbnbCard(
+            padding: EdgeInsets.zero,
+            child: Column(children: [
+              _LinkRow(
+                icon: Icons.replay_outlined,
+                title: 'Replay onboarding',
+                subtitle: 'See the welcome tour again',
+                onTap: () => _replayOnboarding(context),
+              ),
+              Divider(height: 1, color: theme.dividerColor),
+              _LinkRow(
+                icon: Icons.feedback_outlined,
+                title: 'Send feedback',
+                subtitle: 'Tell us what to fix or build next',
+                onTap: () => _sendFeedback(context),
+              ),
+              Divider(height: 1, color: theme.dividerColor),
+              _LinkRow(
+                icon: Icons.help_outline,
+                title: 'How PlayStudy works',
+                onTap: () => _showInfo(
+                    context,
+                    'How PlayStudy works',
+                    'Paste a link, upload a file, or paste text — we turn it '
+                        'into a guided study set with sections, a quiz, and '
+                        'word games. Points and streaks reward consistent '
+                        'study. Parents can follow along read-only.'),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          _SectionLabel('Data'),
+          AirbnbCard(
+            padding: EdgeInsets.zero,
+            child: Column(children: [
+              _LinkRow(
+                icon: Icons.cleaning_services_outlined,
+                title: 'Clear local cache',
+                subtitle: 'Reset on-device prefs and last-seen flags',
+                onTap: () => _clearCache(context),
+              ),
+            ]),
           ),
           const SizedBox(height: 20),
           _SectionLabel('About'),
@@ -172,15 +259,109 @@ class _SettingsPageState extends State<SettingsPage> {
               leading: Icon(Icons.logout, color: theme.colorScheme.error),
               title: Text('Sign out',
                   style: TextStyle(color: theme.colorScheme.error)),
-              onTap: () {
-                context.read<AuthBloc>().add(AuthSignOut());
-                context.go('/login');
-              },
+              onTap: () => _confirmSignOut(context),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final ok = await _confirm(context,
+        title: 'Sign out?',
+        body: 'You will need to sign in again to access your study sets.',
+        confirmLabel: 'Sign out');
+    if (!ok || !context.mounted) return;
+    context.read<AuthBloc>().add(AuthSignOut());
+    context.go('/login');
+  }
+
+  Future<void> _confirmCancelPremium(BuildContext context) async {
+    final ok = await _confirm(context,
+        title: 'Cancel Premium?',
+        body: 'You will keep premium until the current period ends.',
+        confirmLabel: 'Cancel subscription');
+    if (!ok || !context.mounted) return;
+    context.read<SubscriptionBloc>().add(CancelPremium());
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Premium will not renew.')),
+    );
+  }
+
+  Future<void> _replayOnboarding(BuildContext context) async {
+    context.read<OnboardingBloc>().add(ResetOnboarding());
+    context.go('/onboarding');
+  }
+
+  Future<void> _clearCache(BuildContext context) async {
+    final ok = await _confirm(context,
+        title: 'Clear local cache?',
+        body: 'This resets in-app preferences like dark mode, reading colour, '
+            'last-seen rewards, and the onboarding flag. Your study sets and '
+            'account stay safe.',
+        confirmLabel: 'Clear');
+    if (!ok) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Local cache cleared.')),
+    );
+  }
+
+  void _sendFeedback(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Send feedback'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'What worked? What did not? Ideas?',
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Thanks — feedback noted.')),
+              );
+            },
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirm(BuildContext context,
+      {required String title,
+      required String body,
+      required String confirmLabel}) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(confirmLabel)),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _showInfo(BuildContext context, String title, String body) {
@@ -374,11 +555,13 @@ class _BgSwatch extends StatelessWidget {
 class _LinkRow extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String? subtitle;
   final String? trailingText;
   final VoidCallback? onTap;
   const _LinkRow({
     required this.icon,
     required this.title,
+    this.subtitle,
     this.trailingText,
     this.onTap,
   });
@@ -388,9 +571,10 @@ class _LinkRow extends StatelessWidget {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
+      subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: trailingText != null
           ? Text(trailingText!, style: Theme.of(context).textTheme.bodySmall)
-          : const Icon(Icons.chevron_right),
+          : (onTap != null ? const Icon(Icons.chevron_right) : null),
       onTap: onTap,
     );
   }

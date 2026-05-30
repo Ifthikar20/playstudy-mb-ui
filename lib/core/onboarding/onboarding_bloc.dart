@@ -15,6 +15,8 @@ class LoadOnboarding extends OnboardingEvent {}
 
 class CompleteOnboarding extends OnboardingEvent {}
 
+class ResetOnboarding extends OnboardingEvent {}
+
 class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
   static const _key = 'onboarding_seen';
 
@@ -28,6 +30,12 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_key, true);
       emit(const OnboardingState(loaded: true, seen: true));
+    });
+
+    on<ResetOnboarding>((event, emit) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_key);
+      emit(const OnboardingState(loaded: true, seen: false));
     });
   }
 }

@@ -10,9 +10,8 @@ import '../../../exam_prep/data/models/exam_plan.dart';
 import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
-import '../../../rewards/presentation/widgets/streak_card.dart';
 import '../widgets/achievement_overlay.dart';
-import '../widgets/level_card.dart';
+import '../widgets/study_activity_chart.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -64,7 +63,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -84,63 +82,31 @@ class _HomePageState extends State<HomePage> {
             children: [
               _Greeting(),
               const SizedBox(height: 20),
-              const LevelCard(),
-              const SizedBox(height: 16),
-              const StreakCard(),
+              const StudyActivityChart(),
               const SizedBox(height: 20),
               _HeroCta(onTap: () => context.go('/new')),
               const SizedBox(height: 20),
-            BlocBuilder<ExamPrepBloc, ExamPrepState>(
-              builder: (context, state) {
-                final today = state.plans.where((p) => p.isToday).toList();
-                if (today.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: _TodayPrepStrip(plan: today.first),
-                );
-              },
-            ),
-            BlocBuilder<SubscriptionBloc, SubscriptionState>(
-              builder: (context, sub) {
-                if (sub.isPremium || !sub.loaded) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: _UsageStrip(remaining: sub.remainingFree),
-                );
-              },
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Your study sets', style: theme.textTheme.titleLarge),
-                TextButton(
-                  onPressed: () => context.go('/library'),
-                  child: const Text('See all'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            BlocBuilder<LearningBloc, LearningState>(
-              builder: (context, state) {
-                final library = state.library;
-                if (library.isEmpty) return _EmptyHero(onTap: () => context.go('/new'));
-                return Column(
-                  children: library
-                      .take(5)
-                      .map((m) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: StudySetCard(
-                              material: m,
-                              onTap: () =>
-                                  context.push('/material/${m.id}', extra: m),
-                            ),
-                          ))
-                      .toList(),
-                );
-              },
-            ),
-          ],
-        ),
+              BlocBuilder<ExamPrepBloc, ExamPrepState>(
+                builder: (context, state) {
+                  final today = state.plans.where((p) => p.isToday).toList();
+                  if (today.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _TodayPrepStrip(plan: today.first),
+                  );
+                },
+              ),
+              BlocBuilder<SubscriptionBloc, SubscriptionState>(
+                builder: (context, sub) {
+                  if (sub.isPremium || !sub.loaded) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _UsageStrip(remaining: sub.remainingFree),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
