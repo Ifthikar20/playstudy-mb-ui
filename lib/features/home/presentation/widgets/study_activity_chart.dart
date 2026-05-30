@@ -18,7 +18,7 @@ class StudyActivityChart extends StatefulWidget {
 }
 
 class _StudyActivityChartState extends State<StudyActivityChart> {
-  late Future<List<DayActivity>> _future;
+  late Future<_ChartData> _future;
 
   @override
   void initState() {
@@ -26,18 +26,44 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
     _future = _load();
   }
 
-  Future<List<DayActivity>> _load() async {
+  Future<_ChartData> _load() async {
+    final api = context.read<ApiClient>();
+    List<DayActivity> days = const [];
+    int totalSeconds = 0;
+    int sectionsDone = 0;
+    int sectionsTotal = 0;
     try {
-      final api = context.read<ApiClient>();
-      final response =
-          await api.dio.get('rewards/history/', queryParameters: {'days': 14});
-      final results =
-          (response.data['results'] as List).cast<Map<String, dynamic>>();
-      return results.map(DayActivity.fromJson).toList();
+      final r = await api.dio
+          .get('rewards/history/', queryParameters: {'days': 14});
+      final results = (r.data['results'] as List).cast<Map<String, dynamic>>();
+      days = results.map(DayActivity.fromJson).toList();
     } catch (e) {
-      debugPrint('[home] StudyActivityChart load failed: $e');
-      return const <DayActivity>[];
+      debugPrint('[home] rewards/history load failed: $e');
     }
+    try {
+      final r = await api.dio.get('progress/me/');
+      final totals = r.data['totals'] as Map<String, dynamic>? ?? const {};
+      totalSeconds = (totals['secondsSpent'] as int?) ?? 0;
+      sectionsDone = (totals['sectionsCompleted'] as int?) ?? 0;
+      sectionsTotal = (totals['sectionsTotal'] as int?) ?? 0;
+    } catch (e) {
+      debugPrint('[home] progress/me load failed: $e');
+    }
+    return _ChartData(
+      days: days,
+      totalSeconds: totalSeconds,
+      sectionsDone: sectionsDone,
+      sectionsTotal: sectionsTotal,
+    );
+  }
+
+  String _fmtDuration(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final m = seconds ~/ 60;
+    if (m < 60) return '${m}m';
+    final h = m ~/ 60;
+    final mm = m % 60;
+    return mm == 0 ? '${h}h' : '${h}h ${mm}m';
   }
 
   @override
@@ -45,13 +71,11 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
     final theme = Theme.of(context);
     return BlocBuilder<RewardsBloc, RewardsState>(
       builder: (context, rewards) {
-        return FutureBuilder<List<DayActivity>>(
+        return FutureBuilder<_ChartData>(
           future: _future,
           builder: (context, snap) {
-            final data = snap.data ?? const <DayActivity>[];
-            final last7 = data.length >= 7 ? data.sublist(data.length - 7) : data;
-            final weekTotal = last7.fold<int>(0, (a, d) => a + d.points);
-            final activeDays = data.where((d) => d.count > 0).length;
+            final data = snap.data ?? const _ChartData.empty();
+            final days = data.days;
             return AirbnbCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,8 +90,8 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
                   const SizedBox(height: 14),
                   Row(children: [
                     _Metric(
-                        label: 'Points this week',
-                        value: '$weekTotal',
+                        label: 'Time studied',
+                        value: _fmtDuration(data.totalSeconds),
                         color: theme.colorScheme.primary),
                     const SizedBox(width: 18),
                     _Metric(
@@ -76,8 +100,10 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
                         color: theme.colorScheme.secondary),
                     const SizedBox(width: 18),
                     _Metric(
-                        label: 'Active days',
-                        value: '$activeDays / 14',
+                        label: 'Sections done',
+                        value: data.sectionsTotal == 0
+                            ? '${data.sectionsDone}'
+                            : '${data.sectionsDone}/${data.sectionsTotal}',
                         color: theme.colorScheme.tertiary),
                   ]),
                   const SizedBox(height: 16),
@@ -89,7 +115,7 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
                                 width: 22,
                                 height: 22,
                                 child: CircularProgressIndicator(strokeWidth: 2)))
-                        : _BarChart(data: data, color: theme.colorScheme.primary),
+                        : _BarChart(data: days, color: theme.colorScheme.primary),
                   ),
                 ],
               ),
@@ -99,6 +125,24 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
       },
     );
   }
+}
+
+class _ChartData {
+  final List<DayActivity> days;
+  final int totalSeconds;
+  final int sectionsDone;
+  final int sectionsTotal;
+  const _ChartData({
+    required this.days,
+    required this.totalSeconds,
+    required this.sectionsDone,
+    required this.sectionsTotal,
+  });
+  const _ChartData.empty()
+      : days = const [],
+        totalSeconds = 0,
+        sectionsDone = 0,
+        sectionsTotal = 0;
 }
 
 class _Metric extends StatelessWidget {

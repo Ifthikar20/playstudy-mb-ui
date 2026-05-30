@@ -110,63 +110,129 @@ class _QuizViewState extends State<QuizView> {
     }
 
     final total = widget.questions.length;
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LinearProgressIndicator(value: (_index + 1) / total),
-          const SizedBox(height: 20),
-          Text('Question ${_index + 1} of $total',
-              style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 8),
-          Text(_q.prompt, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 20),
-          ...List.generate(_q.choices.length, (i) {
-            final isCorrect = i == _q.correctIndex;
-            final isPicked = i == _selected;
-            Color? bg;
-            if (_revealed) {
-              if (isCorrect) bg = Colors.green.withOpacity(0.12);
-              else if (isPicked) bg = Colors.red.withOpacity(0.12);
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Material(
-                color: bg ?? Theme.of(context).colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Theme.of(context).dividerColor),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => _choose(i),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      Expanded(
-                          child: Text(_q.choices[i],
-                              style: Theme.of(context).textTheme.bodyLarge)),
-                      if (_revealed && isCorrect)
-                        const Icon(Icons.check_circle, color: Colors.green),
-                      if (_revealed && isPicked && !isCorrect)
-                        const Icon(Icons.cancel, color: Colors.red),
-                    ]),
-                  ),
-                ),
+          // Compact progress strip with a chip pill on the right.
+          Row(children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                    value: (_index + 1) / total, minHeight: 3),
               ),
-            );
-          }),
-          const Spacer(),
-          if (_revealed && _q.explanation != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(_q.explanation!,
-                  style: Theme.of(context).textTheme.bodySmall),
             ),
-          ElevatedButton(
-            onPressed: _revealed ? _next : null,
-            child: Text(_index + 1 == total ? 'Finish' : 'Next'),
+            const SizedBox(width: 10),
+            Text('${_index + 1}/$total',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 10),
+          // Question — clamped to 4 lines so really long prompts don't push
+          // the answers off-screen.
+          Text(
+            _q.prompt,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700, height: 1.25),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 10),
+          // Answers — Expanded so they always fit, scrollable if a prompt
+          // happens to have unusually long choices.
+          Expanded(
+            child: ListView.separated(
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: _q.choices.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 6),
+              itemBuilder: (_, i) {
+                final isCorrect = i == _q.correctIndex;
+                final isPicked = i == _selected;
+                Color? bg;
+                Color border = theme.dividerColor;
+                if (_revealed) {
+                  if (isCorrect) {
+                    bg = Colors.green.withOpacity(0.12);
+                    border = Colors.green;
+                  } else if (isPicked) {
+                    bg = Colors.red.withOpacity(0.10);
+                    border = Colors.red;
+                  }
+                }
+                return Material(
+                  color: bg ?? theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: border),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _choose(i),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      child: Row(children: [
+                        Container(
+                          width: 22,
+                          height: 22,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            String.fromCharCode(65 + i),
+                            style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _q.choices[i],
+                            style: theme.textTheme.bodyMedium,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_revealed && isCorrect)
+                          const Icon(Icons.check_circle,
+                              color: Colors.green, size: 18),
+                        if (_revealed && isPicked && !isCorrect)
+                          const Icon(Icons.cancel,
+                              color: Colors.red, size: 18),
+                      ]),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (_revealed && _q.explanation != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(_q.explanation!,
+                  style: theme.textTheme.bodySmall),
+            ),
+          ],
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: _revealed ? _next : null,
+              child: Text(_index + 1 == total ? 'Finish' : 'Next'),
+            ),
           ),
         ],
       ),
