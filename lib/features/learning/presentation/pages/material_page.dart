@@ -25,20 +25,33 @@ class MaterialPage extends StatelessWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(material.title),
+          toolbarHeight: 48,
+          titleSpacing: 0,
+          title: Text(
+            material.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           actions: [
             IconButton(
               tooltip: 'Learning tree',
-              icon: const Icon(Icons.account_tree_outlined),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.account_tree_outlined, size: 20),
               onPressed: () => _openTree(context),
             ),
           ],
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.school_outlined), text: 'Study'),
-              Tab(icon: Icon(Icons.quiz_outlined), text: 'Quiz'),
-              Tab(icon: Icon(Icons.videogame_asset_outlined), text: 'Games'),
-            ],
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(36),
+            child: TabBar(
+              isScrollable: false,
+              labelPadding: EdgeInsets.symmetric(vertical: 6),
+              tabs: [
+                Tab(height: 30, text: 'Study'),
+                Tab(height: 30, text: 'Quiz'),
+                Tab(height: 30, text: 'Games'),
+              ],
+            ),
           ),
         ),
         body: TabBarView(
