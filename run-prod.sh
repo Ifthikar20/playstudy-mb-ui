@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # Production-style run: builds a RELEASE build and installs it on your iPhone.
 #
-#   ./run-prod.sh                      # real production (api/games defaults, real sign-in)
-#   WITH_BACKEND=1 ./run-prod.sh       # release build + LOCAL backend & games on your
-#                                      # Mac + auto-login (a usable installed app for testing)
-#   DEVICE=auto ./run-prod.sh
+# By default this runs the FULL STACK locally so the installed app actually
+# works end-to-end: backend (Django) + games (static server) + auto-login,
+# with all backend and games logs streamed inline. Keep this terminal open.
 #
-# Notes:
-#  - WITH_BACKEND runs the backend on your Mac, so keep this terminal open while
-#    you use the app (the standalone app can't reach it once the script stops).
-#  - For a truly standalone app with no Mac, deploy the backend to the
-#    production URLs and run without WITH_BACKEND (real sign-in).
+#   ./run-prod.sh                      # full stack on your Mac + auto-login (default)
+#   WITH_BACKEND=0 ./run-prod.sh       # point at remote api.playstudy.app, real sign-in
+#                                      # (only useful once the prod backend is deployed)
+#   DEVICE=auto ./run-prod.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 UI_DIR="$PWD"
@@ -21,7 +19,7 @@ GAMES_BASE_URL="${GAMES_BASE_URL:-}"
 DEV_EMAIL="${DEV_EMAIL:-}"
 DEV_PASSWORD="${DEV_PASSWORD:-}"
 
-WITH_BACKEND="${WITH_BACKEND:-}"
+WITH_BACKEND="${WITH_BACKEND:-1}"
 BACKEND_DIR="${BACKEND_DIR:-$UI_DIR/../ps-bk-dj}"
 LANDING_DIR="${LANDING_DIR:-$UI_DIR/../playstudy-mb-landing}"
 GAMES_PORT="${GAMES_PORT:-8080}"
@@ -51,7 +49,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # --- Optional: run the backend + games locally and auto-login ----------------
-if [[ -n "$WITH_BACKEND" ]]; then
+if [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]]; then
   LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo 127.0.0.1)"
   API_BASE_URL="${API_BASE_URL:-http://$LAN_IP:8000}"
   GAMES_BASE_URL="${GAMES_BASE_URL:-http://$LAN_IP:$GAMES_PORT}"
@@ -136,7 +134,7 @@ cat <<BANNER
      Device  : $TARGET_ID
      Login   : $LOGIN_NOTE$CREDS_LINE
   └──────────────────────────────────────────────────────────┘
-$( [[ -n "$WITH_BACKEND" ]] && echo "  Keep this terminal open — the app uses the backend on your Mac." )
+$( [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]] && echo "  Keep this terminal open — backend + games run here. Logs stream below as [backend] / [games]." )
   Tip: press 'q' to detach (release app stays installed on the phone).
 
 BANNER
