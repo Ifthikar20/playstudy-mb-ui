@@ -9,6 +9,7 @@ import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/widgets/airbnb_button.dart';
 import '../../data/models/learning_models.dart';
 import '../bloc/learning_bloc.dart';
+import '../widgets/generating_overlay.dart';
 
 /// Input page: paste a link OR upload a file OR paste text, then generate
 /// summary + quiz + game.
@@ -125,33 +126,51 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
           ),
         ),
         body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: TabBarView(
-                  controller: _tab,
-                  children: [
-                    _linkTab(),
-                    _uploadTab(),
-                    _textTab(),
-                  ],
+          child: Stack(children: [
+            Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    controller: _tab,
+                    children: [
+                      _linkTab(),
+                      _uploadTab(),
+                      _textTab(),
+                    ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: BlocBuilder<LearningBloc, LearningState>(
-                  builder: (context, state) {
-                    return AirbnbButton(
-                      label: 'Generate learning material',
-                      icon: Icons.auto_awesome,
-                      loading: state is Generating,
-                      onPressed: _generate,
-                    );
-                  },
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: BlocBuilder<LearningBloc, LearningState>(
+                    builder: (context, state) {
+                      return AirbnbButton(
+                        label: 'Generate learning material',
+                        icon: Icons.auto_awesome,
+                        loading: state is Generating,
+                        onPressed: _generate,
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            // Friendly full-screen waiting UI while the backend generates.
+            BlocBuilder<LearningBloc, LearningState>(
+              buildWhen: (a, b) => (a is Generating) != (b is Generating),
+              builder: (context, state) {
+                if (state is! Generating) return const SizedBox.shrink();
+                final subject = _tab.index == 0
+                    ? _linkCtrl.text.trim()
+                    : _tab.index == 1
+                        ? (_file?.name ?? '')
+                        : 'Your pasted notes';
+                return Positioned.fill(
+                  child: GeneratingOverlay(
+                      subject: subject.isEmpty ? null : subject),
+                );
+              },
+            ),
+          ]),
         ),
       ),
     );
