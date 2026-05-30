@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/airbnb_card.dart';
 import '../../data/family_repository.dart';
@@ -40,7 +41,14 @@ class _ChildDashboardPageState extends State<ChildDashboardPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.studentName)),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/'),
+        ),
+        title: Text(widget.studentName),
+      ),
       body: FutureBuilder<Analytics>(
         future: _future,
         builder: (context, snap) {

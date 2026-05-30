@@ -231,17 +231,19 @@ class _StudyFlowViewState extends State<StudyFlowView> {
     // fall back to the simple list (older sets derived from quiz topics).
     if (widget.material.sections.isNotEmpty) {
       Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => Scaffold(
+        builder: (treeCtx) => Scaffold(
           appBar: AppBar(title: const Text('Learning tree')),
           body: LearningTreeView(
             material: widget.material,
             completed: _completed,
             onJumpToSection: (i) {
-              Navigator.of(context).pop();
-              setState(() {
-                _section = i;
-                _inQuiz = false;
-              });
+              Navigator.of(treeCtx).pop();
+              if (mounted) {
+                setState(() {
+                  _section = i;
+                  _inQuiz = false;
+                });
+              }
             },
           ),
         ),
@@ -255,17 +257,19 @@ class _StudyFlowViewState extends State<StudyFlowView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _LearningTree(
+      builder: (sheetCtx) => _LearningTree(
         titles: _sections.map((s) => s.title).toList(),
         emojis: _sections.map((s) => s.emoji).toList(),
         completed: _completed,
         current: _section,
         onJump: (i) {
-          Navigator.of(context).pop();
-          setState(() {
-            _section = i;
-            _inQuiz = false;
-          });
+          Navigator.of(sheetCtx).pop();
+          if (mounted) {
+            setState(() {
+              _section = i;
+              _inQuiz = false;
+            });
+          }
         },
       ),
     );

@@ -35,9 +35,10 @@ class _FamilyPageState extends State<FamilyPage> {
     try {
       final code = await _repo.issueCode();
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
       showDialog<void>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (dialogCtx) => AlertDialog(
           title: const Text('Share this code with your parent'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -56,12 +57,13 @@ class _FamilyPageState extends State<FamilyPage> {
             TextButton(
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: code));
-                _toast('Code copied');
+                messenger.showSnackBar(
+                    const SnackBar(content: Text('Code copied')));
               },
               child: const Text('Copy'),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogCtx).pop(),
               child: const Text('Done'),
             ),
           ],
@@ -76,7 +78,7 @@ class _FamilyPageState extends State<FamilyPage> {
     final ctrl = TextEditingController();
     final code = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Link a child'),
         content: TextField(
           controller: ctrl,
@@ -89,10 +91,10 @@ class _FamilyPageState extends State<FamilyPage> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogCtx).pop(),
               child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(ctrl.text.trim()),
+            onPressed: () => Navigator.of(dialogCtx).pop(ctrl.text.trim()),
             child: const Text('Link'),
           ),
         ],
@@ -121,7 +123,14 @@ class _FamilyPageState extends State<FamilyPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Family')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/'),
+        ),
+        title: const Text('Family'),
+      ),
       body: FutureBuilder<FamilyStatus>(
         future: _future,
         builder: (context, snap) {

@@ -95,14 +95,14 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
   void _showFinal() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('All done! 🎉'),
         content: Text('You guessed $_score / ${widget.challenges.length} words.'),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              _restart();
+              Navigator.of(dialogCtx).pop();
+              if (mounted) _restart();
             },
             child: const Text('Play again'),
           ),

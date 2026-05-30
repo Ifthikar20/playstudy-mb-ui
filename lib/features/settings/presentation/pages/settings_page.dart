@@ -377,12 +377,12 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showInfo(BuildContext context, String title, String body) {
     showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: Text(title),
         content: Text(body),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
             child: const Text('Close'),
           ),
         ],

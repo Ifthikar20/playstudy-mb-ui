@@ -68,7 +68,14 @@ class _CreatePlanPageState extends State<CreatePlanPage> {
     final theme = Theme.of(context);
     final library = context.watch<LearningBloc>().state.library;
     return Scaffold(
-      appBar: AppBar(title: const Text('New exam plan')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/'),
+        ),
+        title: const Text('New exam plan'),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
