@@ -178,8 +178,8 @@ class _RankRing extends StatelessWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(state.currentRank.emoji,
-                  style: const TextStyle(fontSize: 26)),
+              Icon(state.currentRank.icon,
+                  size: 26, color: Theme.of(context).colorScheme.primary),
               Text('${(progress * 100).round()}%',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(fontWeight: FontWeight.w700)),

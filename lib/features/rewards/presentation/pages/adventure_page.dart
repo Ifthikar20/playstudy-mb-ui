@@ -61,7 +61,8 @@ class _Header extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(children: [
-        Text(state.currentRank.emoji, style: const TextStyle(fontSize: 44)),
+        Icon(state.currentRank.icon,
+            size: 44, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -145,7 +146,7 @@ class _RankStep extends StatelessWidget {
       ),
       child: Center(
         child: unlocked
-            ? Text(rank.emoji, style: const TextStyle(fontSize: 32))
+            ? Icon(rank.icon, size: 32, color: theme.colorScheme.primary)
             : Icon(Icons.lock_outline,
                 color: theme.colorScheme.onSurface.withOpacity(0.4)),
       ),

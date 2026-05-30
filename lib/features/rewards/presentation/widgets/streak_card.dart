@@ -73,8 +73,8 @@ class StreakCard extends StatelessWidget {
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
-                    Text(state.currentRank.emoji,
-                        style: const TextStyle(fontSize: 16)),
+                    Icon(state.currentRank.icon,
+                        size: 16, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: ClipRRect(
