@@ -747,83 +747,169 @@ class _QuizPane extends StatelessWidget {
     final q = section.questions[qIndex];
     final total = section.questions.length;
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LinearProgressIndicator(value: (qIndex + 1) / total),
-          const SizedBox(height: 16),
           Row(children: [
-            Text('Question ${qIndex + 1} of $total',
-                style: theme.textTheme.bodySmall),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('${qIndex + 1}/$total',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700)),
+            ),
             const Spacer(),
-            TextButton(onPressed: onBackToNotes, child: const Text('Notes')),
+            TextButton.icon(
+              onPressed: onBackToNotes,
+              icon: const Icon(Icons.menu_book_outlined, size: 16),
+              label: const Text('Notes'),
+              style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 32)),
+            ),
           ]),
           const SizedBox(height: 8),
-          Text(q.prompt, style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 20),
+          Text(
+            q.prompt,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700, height: 1.25),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          // Fixed-height answer block — fits 4 options on screen without
+          // scrolling; long answers auto-shrink via FittedBox.
           Expanded(
-            child: ListView(
+            child: Column(
               children: [
-                ...List.generate(q.choices.length, (i) {
-                  final isCorrect = i == q.correctIndex;
-                  final isPicked = i == selected;
-                  Color? bg;
-                  if (revealed) {
-                    if (isCorrect) {
-                      bg = Colors.green.withOpacity(0.12);
-                    } else if (isPicked) {
-                      bg = Colors.red.withOpacity(0.12);
-                    }
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Material(
-                      color: bg ?? theme.colorScheme.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: theme.dividerColor),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => onChoose(i),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(children: [
-                            Expanded(
-                                child: Text(q.choices[i],
-                                    style: theme.textTheme.bodyLarge)),
-                            if (revealed && isCorrect)
-                              const Icon(Icons.check_circle, color: Colors.green),
-                            if (revealed && isPicked && !isCorrect)
-                              const Icon(Icons.cancel, color: Colors.red),
-                          ]),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                if (revealed && q.explanation != null && q.explanation!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text('Why: ${q.explanation!}',
-                          style: theme.textTheme.bodyMedium),
+                for (var i = 0; i < q.choices.length; i++) ...[
+                  Expanded(
+                    child: _AnswerTile(
+                      letter: String.fromCharCode(65 + i),
+                      text: q.choices[i],
+                      isCorrect: i == q.correctIndex,
+                      isPicked: i == selected,
+                      revealed: revealed,
+                      onTap: () => onChoose(i),
                     ),
                   ),
+                  if (i != q.choices.length - 1) const SizedBox(height: 6),
+                ],
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: revealed ? onNext : null,
-            child: Text(qIndex + 1 == total ? 'Finish section' : 'Next'),
+          if (revealed && q.explanation != null && q.explanation!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('Why: ${q.explanation!}',
+                  style: theme.textTheme.bodySmall),
+            ),
+          ],
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: revealed ? onNext : null,
+              child: Text(qIndex + 1 == total ? 'Finish section' : 'Next'),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnswerTile extends StatelessWidget {
+  final String letter;
+  final String text;
+  final bool isCorrect;
+  final bool isPicked;
+  final bool revealed;
+  final VoidCallback onTap;
+  const _AnswerTile({
+    required this.letter,
+    required this.text,
+    required this.isCorrect,
+    required this.isPicked,
+    required this.revealed,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Color? bg;
+    Color border = theme.dividerColor;
+    if (revealed) {
+      if (isCorrect) {
+        bg = Colors.green.withOpacity(0.12);
+        border = Colors.green;
+      } else if (isPicked) {
+        bg = Colors.red.withOpacity(0.10);
+        border = Colors.red;
+      }
+    }
+    return Material(
+      color: bg ?? theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: border),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(children: [
+            Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(letter,
+                  style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              // FittedBox auto-shrinks long answers so they always fit on
+              // one line at the tile's fixed height.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Text(
+                    text,
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: 3,
+                  ),
+                ),
+              ),
+            ),
+            if (revealed && isCorrect)
+              const Icon(Icons.check_circle, color: Colors.green, size: 18),
+            if (revealed && isPicked && !isCorrect)
+              const Icon(Icons.cancel, color: Colors.red, size: 18),
+          ]),
+        ),
       ),
     );
   }

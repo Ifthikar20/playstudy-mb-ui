@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
 import '../../data/models/learning_models.dart';
 
 class QuizView extends StatefulWidget {
   final List<QuizQuestion> questions;
-  const QuizView({super.key, required this.questions});
+  /// Optional id used to persist progress so reopening the tab resumes
+  /// where the user left off instead of starting over.
+  final String? resumeKey;
+  const QuizView({super.key, required this.questions, this.resumeKey});
 
   @override
   State<QuizView> createState() => _QuizViewState();
@@ -17,6 +21,45 @@ class _QuizViewState extends State<QuizView> {
   int? _selected;
   bool _revealed = false;
   bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreProgress();
+  }
+
+  String? get _prefsKey =>
+      widget.resumeKey == null ? null : 'quiz_progress_${widget.resumeKey}';
+
+  Future<void> _restoreProgress() async {
+    final key = _prefsKey;
+    if (key == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getInt('${key}_index');
+    final savedScore = prefs.getInt('${key}_score') ?? 0;
+    if (saved != null && saved < widget.questions.length && mounted) {
+      setState(() {
+        _index = saved;
+        _score = savedScore;
+      });
+    }
+  }
+
+  Future<void> _saveProgress() async {
+    final key = _prefsKey;
+    if (key == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('${key}_index', _index);
+    await prefs.setInt('${key}_score', _score);
+  }
+
+  Future<void> _clearProgress() async {
+    final key = _prefsKey;
+    if (key == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('${key}_index');
+    await prefs.remove('${key}_score');
+  }
 
   QuizQuestion get _q => widget.questions[_index];
 
@@ -36,8 +79,10 @@ class _QuizViewState extends State<QuizView> {
         _selected = null;
         _revealed = false;
       });
+      _saveProgress();
     } else {
       setState(() => _done = true);
+      _clearProgress();
       context.read<RewardsBloc>().add(RecordActivity(
             points: 5 + _score * 5,
             reason: 'Finished a quiz',
@@ -54,6 +99,7 @@ class _QuizViewState extends State<QuizView> {
       _revealed = false;
       _done = false;
     });
+    _clearProgress();
   }
 
   @override
@@ -141,77 +187,25 @@ class _QuizViewState extends State<QuizView> {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 10),
-          // Answers — Expanded so they always fit, scrollable if a prompt
-          // happens to have unusually long choices.
+          // Fixed-height answer block — divides remaining space equally so
+          // 4 options always fit; FittedBox shrinks long answers in place.
           Expanded(
-            child: ListView.separated(
-              physics: const ClampingScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: _q.choices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (_, i) {
-                final isCorrect = i == _q.correctIndex;
-                final isPicked = i == _selected;
-                Color? bg;
-                Color border = theme.dividerColor;
-                if (_revealed) {
-                  if (isCorrect) {
-                    bg = Colors.green.withOpacity(0.12);
-                    border = Colors.green;
-                  } else if (isPicked) {
-                    bg = Colors.red.withOpacity(0.10);
-                    border = Colors.red;
-                  }
-                }
-                return Material(
-                  color: bg ?? theme.colorScheme.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(color: border),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () => _choose(i),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      child: Row(children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.10),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            String.fromCharCode(65 + i),
-                            style: TextStyle(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _q.choices[i],
-                            style: theme.textTheme.bodyMedium,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (_revealed && isCorrect)
-                          const Icon(Icons.check_circle,
-                              color: Colors.green, size: 18),
-                        if (_revealed && isPicked && !isCorrect)
-                          const Icon(Icons.cancel,
-                              color: Colors.red, size: 18),
-                      ]),
+            child: Column(
+              children: [
+                for (var i = 0; i < _q.choices.length; i++) ...[
+                  Expanded(
+                    child: _AnswerTile(
+                      letter: String.fromCharCode(65 + i),
+                      text: _q.choices[i],
+                      isCorrect: i == _q.correctIndex,
+                      isPicked: i == _selected,
+                      revealed: _revealed,
+                      onTap: () => _choose(i),
                     ),
                   ),
-                );
-              },
+                  if (i != _q.choices.length - 1) const SizedBox(height: 6),
+                ],
+              ],
             ),
           ),
           if (_revealed && _q.explanation != null) ...[
@@ -235,6 +229,86 @@ class _QuizViewState extends State<QuizView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnswerTile extends StatelessWidget {
+  final String letter;
+  final String text;
+  final bool isCorrect;
+  final bool isPicked;
+  final bool revealed;
+  final VoidCallback onTap;
+  const _AnswerTile({
+    required this.letter,
+    required this.text,
+    required this.isCorrect,
+    required this.isPicked,
+    required this.revealed,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Color? bg;
+    Color border = theme.dividerColor;
+    if (revealed) {
+      if (isCorrect) {
+        bg = Colors.green.withOpacity(0.12);
+        border = Colors.green;
+      } else if (isPicked) {
+        bg = Colors.red.withOpacity(0.10);
+        border = Colors.red;
+      }
+    }
+    return Material(
+      color: bg ?? theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: border),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(children: [
+            Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(letter,
+                  style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Text(text,
+                      style: theme.textTheme.bodyMedium, maxLines: 3),
+                ),
+              ),
+            ),
+            if (revealed && isCorrect)
+              const Icon(Icons.check_circle, color: Colors.green, size: 18),
+            if (revealed && isPicked && !isCorrect)
+              const Icon(Icons.cancel, color: Colors.red, size: 18),
+          ]),
+        ),
       ),
     );
   }

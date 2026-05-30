@@ -57,7 +57,7 @@ class MaterialPage extends StatelessWidget {
         body: TabBarView(
           children: [
             StudyFlowView(material: material),
-            QuizView(questions: material.quiz),
+            QuizView(questions: material.quiz, resumeKey: material.id),
             GamesGrid(material: material),
           ],
         ),
