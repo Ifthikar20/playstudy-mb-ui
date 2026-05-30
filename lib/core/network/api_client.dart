@@ -18,8 +18,10 @@ class ApiClient {
           BaseOptions(
             baseUrl: '$baseUrl/api/v1/',
             connectTimeout: const Duration(seconds: 15),
-            receiveTimeout: const Duration(seconds: 60),
-            sendTimeout: const Duration(seconds: 60),
+            // Long enough to cover LLM-bound paths (PDF extraction + chunked
+            // generation) when running against the dev backend in eager mode.
+            receiveTimeout: const Duration(minutes: 3),
+            sendTimeout: const Duration(minutes: 3),
             contentType: 'application/json',
           ),
         ) {
