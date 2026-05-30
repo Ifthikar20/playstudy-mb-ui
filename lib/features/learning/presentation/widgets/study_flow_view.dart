@@ -573,65 +573,54 @@ class _NotesPane extends StatelessWidget {
     return Column(
       children: [
         Expanded(
+          // The slim _Header above already shows the section title — no need
+          // to repeat it here. Use a plain ListView with tight paddings so
+          // the body is mostly content.
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
             children: [
-              // Highlighted section header.
-              if (section.content.trim().isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.10),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border(
-                      left: BorderSide(color: theme.colorScheme.primary, width: 4),
-                    ),
-                  ),
-                  child: Row(children: [
-                    Text(section.emoji, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(section.title,
-                          style: theme.textTheme.titleLarge
-                              ?.copyWith(color: theme.colorScheme.primary)),
-                    ),
-                  ]),
-                ),
               // Each paragraph as a sub-section card with highlighted key terms.
               for (final para in paras)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 18,
-                          margin: const EdgeInsets.only(top: 3, right: 12),
-                          color: theme.colorScheme.primary.withOpacity(0.4),
-                        ),
-                        Expanded(child: RichText(text: _highlight(para, theme))),
-                      ],
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border(
+                        left: BorderSide(
+                            color: theme.colorScheme.primary.withOpacity(0.55),
+                            width: 3),
+                      ),
+                    ),
+                    child: DefaultTextStyle.merge(
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+                      child: RichText(text: _highlight(para, theme)),
                     ),
                   ),
                 ),
               // Fallback bullets for older sets without section content.
               for (final note in section.notes)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.lightbulb_outline,
-                            color: theme.colorScheme.primary, size: 20),
-                        const SizedBox(width: 12),
+                            color: theme.colorScheme.primary, size: 18),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(note,
-                              style: theme.textTheme.bodyLarge
-                                  ?.copyWith(height: 1.5)),
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(height: 1.45)),
                         ),
                       ],
                     ),
@@ -639,37 +628,23 @@ class _NotesPane extends StatelessWidget {
                 ),
               // "Explain further" — a small, real-world example for the section.
               if (section.example.trim().isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.06),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
                       children: [
-                        Icon(Icons.lightbulb_outline,
-                            size: 16, color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(height: 1.4),
-                              children: [
-                                TextSpan(
-                                  text: 'Explain further  ',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: theme.colorScheme.primary),
-                                ),
-                                TextSpan(text: section.example),
-                              ],
-                            ),
-                          ),
+                        TextSpan(
+                          text: 'Explain further  ',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: theme.colorScheme.primary),
                         ),
+                        TextSpan(text: section.example),
                       ],
                     ),
                   ),
@@ -678,7 +653,7 @@ class _NotesPane extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
