@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../network/api_client.dart';
@@ -9,19 +10,19 @@ String _ymd(DateTime d) =>
 /// A rank on the adventure path. Reaching [threshold] points unlocks it.
 class Rank {
   final String name;
-  final String emoji;
+  final IconData icon;
   final int threshold;
-  const Rank(this.name, this.emoji, this.threshold);
+  const Rank(this.name, this.icon, this.threshold);
 }
 
 const kRanks = <Rank>[
-  Rank('Novice', '🌱', 0),
-  Rank('Explorer', '🧭', 100),
-  Rank('Scholar', '📖', 300),
-  Rank('Strategist', '♟️', 600),
-  Rank('Sage', '🦉', 1000),
-  Rank('Master', '🎓', 1500),
-  Rank('Legend', '🏆', 2200),
+  Rank('Novice', Icons.eco_outlined, 0),
+  Rank('Explorer', Icons.explore_outlined, 100),
+  Rank('Scholar', Icons.menu_book_outlined, 300),
+  Rank('Strategist', Icons.psychology_outlined, 600),
+  Rank('Sage', Icons.auto_stories_outlined, 1000),
+  Rank('Master', Icons.school_outlined, 1500),
+  Rank('Legend', Icons.workspace_premium_outlined, 2200),
 ];
 
 /// Tracks daily streak, lifetime points, and adventure rank. Points are

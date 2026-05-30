@@ -79,7 +79,19 @@ class _AchievementCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(rankedUp ? '🎉' : '⭐', style: const TextStyle(fontSize: 56)),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF6B35).withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  rankedUp ? Icons.military_tech_outlined : Icons.bolt,
+                  size: 40,
+                  color: const Color(0xFFFF6B35),
+                ),
+              ),
               const SizedBox(height: 8),
               Text(rankedUp ? 'Level up!' : 'Nice work!',
                   style: theme.textTheme.headlineSmall
@@ -106,8 +118,8 @@ class _AchievementCard extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Row(children: [
-                Text(state.currentRank.emoji,
-                    style: const TextStyle(fontSize: 22)),
+                Icon(state.currentRank.icon,
+                    size: 22, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -131,7 +143,7 @@ class _AchievementCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 next == null
-                    ? 'Max level reached 🏆'
+                    ? 'Max level reached'
                     : '${state.pointsToNextRank} pts to ${next.name}',
                 style: theme.textTheme.bodySmall,
               ),

@@ -19,7 +19,16 @@ class LevelCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text(st.currentRank.emoji, style: const TextStyle(fontSize: 32)),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(st.currentRank.icon,
+                      size: 22, color: theme.colorScheme.primary),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -59,12 +68,15 @@ class LevelCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                next == null
-                    ? 'Max level reached 🏆'
-                    : '${st.pointsToNextRank} pts to ${next.name} ${next.emoji}',
-                style: theme.textTheme.bodySmall,
-              ),
+              next == null
+                  ? Text('Max level reached', style: theme.textTheme.bodySmall)
+                  : Row(children: [
+                      Text('${st.pointsToNextRank} pts to ${next.name}',
+                          style: theme.textTheme.bodySmall),
+                      const SizedBox(width: 6),
+                      Icon(next.icon,
+                          size: 14, color: theme.textTheme.bodySmall?.color),
+                    ]),
             ],
           ),
         );

@@ -157,7 +157,9 @@ class _Greeting extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hi ${_first(name)} 👋', style: theme.textTheme.titleLarge),
+            Text('Hi, ${_first(name)}',
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text('What do you want to learn today?',
                 style: theme.textTheme.displaySmall),
@@ -329,7 +331,7 @@ class _EmptyHero extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       onTap: onTap,
       child: Column(children: [
-        const Text('📚', style: TextStyle(fontSize: 48)),
+        const Icon(Icons.menu_book_outlined, size: 44, color: Color(0xFFFF6B35)),
         const SizedBox(height: 12),
         Text('No study sets yet',
             style: Theme.of(context).textTheme.titleLarge),
