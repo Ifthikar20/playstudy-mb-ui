@@ -10,11 +10,15 @@ import '../../data/models/learning_models.dart';
 class LearningTreeView extends StatelessWidget {
   final LearningMaterial material;
   final Set<int> completed;
+  /// Section index the user was last on — drawn as a highlighted "you are
+  /// here / continue" node and centred on first paint.
+  final int? currentSection;
   final ValueChanged<int>? onJumpToSection;
   const LearningTreeView({
     super.key,
     required this.material,
     this.completed = const {},
+    this.currentSection,
     this.onJumpToSection,
   });
 
@@ -49,6 +53,7 @@ class LearningTreeView extends StatelessWidget {
         parent: rootRow,
         sectionIndex: si,
         done: done,
+        current: currentSection == si,
         qTotal: sec.quiz.length,
         qDone: done ? sec.quiz.length : 0,
       ));
@@ -159,6 +164,7 @@ class _Node {
   final int parent;
   final int sectionIndex;
   final bool done;
+  final bool current;
   final int qTotal;
   final int qDone;
   const _Node({
@@ -168,6 +174,7 @@ class _Node {
     required this.parent,
     this.sectionIndex = -1,
     this.done = false,
+    this.current = false,
     this.qTotal = 0,
     this.qDone = 0,
   });
@@ -256,7 +263,13 @@ class _TreePainter extends CustomPainter {
         fill = primary.withOpacity(0.14);
         break;
       case _Kind.topic:
-        fill = n.done ? const Color(0x3322C55E) : primary.withOpacity(0.06);
+        if (n.current) {
+          fill = primary.withOpacity(0.20);
+        } else if (n.done) {
+          fill = const Color(0x3322C55E);
+        } else {
+          fill = primary.withOpacity(0.06);
+        }
         break;
       case _Kind.sub:
         fill = theme.cardColor;
@@ -269,30 +282,46 @@ class _TreePainter extends CustomPainter {
     canvas.drawRRect(
       rect,
       Paint()
-        ..color = n.done ? const Color(0xFF22C55E) : divider
+        ..color = n.current
+            ? primary
+            : n.done
+                ? const Color(0xFF22C55E)
+                : divider
         ..style = PaintingStyle.stroke
-        ..strokeWidth = n.kind == _Kind.topic ? 1.5 : 1,
+        ..strokeWidth = n.current ? 2.5 : (n.kind == _Kind.topic ? 1.5 : 1),
     );
 
     // Bullet / status dot.
     final dotC = n.kind == _Kind.root
         ? primary
         : n.kind == _Kind.topic
-            ? (n.done ? const Color(0xFF22C55E) : primary)
+            ? (n.current
+                ? primary
+                : n.done
+                    ? const Color(0xFF22C55E)
+                    : primary)
             : n.kind == _Kind.sub
                 ? divider
                 : accent;
-    canvas.drawCircle(Offset(x + 14, y), 5, Paint()..color = dotC);
+    canvas.drawCircle(Offset(x + 14, y), n.current ? 6 : 5,
+        Paint()..color = dotC);
 
-    // Right badge for topics: questions + completion check.
+    // Right badge for topics: "You are here" if current, otherwise N/T Q.
     var labelRight = right - 10;
-    if (n.kind == _Kind.topic && n.qTotal > 0) {
-      final badge = '${n.qDone}/${n.qTotal} Q';
-      final tp = _text(badge, 11, FontWeight.w700,
-          n.done ? const Color(0xFF16A34A) : primary);
-      tp.layout();
-      tp.paint(canvas, Offset(right - 12 - tp.width, y - tp.height / 2));
-      labelRight = right - 18 - tp.width;
+    if (n.kind == _Kind.topic) {
+      if (n.current) {
+        final tp = _text('You are here', 11, FontWeight.w800, primary);
+        tp.layout();
+        tp.paint(canvas, Offset(right - 12 - tp.width, y - tp.height / 2));
+        labelRight = right - 18 - tp.width;
+      } else if (n.qTotal > 0) {
+        final badge = '${n.qDone}/${n.qTotal} Q';
+        final tp = _text(badge, 11, FontWeight.w700,
+            n.done ? const Color(0xFF16A34A) : primary);
+        tp.layout();
+        tp.paint(canvas, Offset(right - 12 - tp.width, y - tp.height / 2));
+        labelRight = right - 18 - tp.width;
+      }
     }
 
     // Label.

@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../family/data/family_repository.dart';
 import '../../data/models/learning_models.dart';
@@ -60,6 +62,46 @@ class _StudyFlowViewState extends State<StudyFlowView> {
   void initState() {
     super.initState();
     _heartbeat = Timer.periodic(const Duration(seconds: _hbSeconds), _tick);
+    _restore();
+  }
+
+  String get _progressKey => 'study_progress_${widget.material.id}';
+
+  Future<void> _restore() async {
+    if (widget.material.id.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_progressKey);
+    if (raw == null || !mounted) return;
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final savedSection =
+          (data['section'] as int?)?.clamp(0, _sections.length - 1) ?? 0;
+      final savedCompleted = (data['completed'] as List?)
+              ?.cast<int>()
+              .where((i) => i >= 0 && i < _sections.length) ??
+          const <int>[];
+      setState(() {
+        _section = savedSection;
+        _completed
+          ..clear()
+          ..addAll(savedCompleted);
+      });
+    } catch (_) {
+      // Stored shape changed — ignore and start fresh.
+    }
+  }
+
+  Future<void> _save() async {
+    if (widget.material.id.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _progressKey,
+      jsonEncode({
+        'section': _section,
+        'completed': _completed.toList(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }),
+    );
   }
 
   @override
@@ -189,6 +231,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
         _quizDone = true;
         _completed.add(_section);
       });
+      _save();
       context.read<RewardsBloc>().add(RecordActivity(
             points: 5 + _qScore * 5,
             reason: 'Finished a quiz',
@@ -223,6 +266,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
         _section++;
         _inQuiz = false;
       });
+      _save();
     }
   }
 
@@ -236,6 +280,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
           body: LearningTreeView(
             material: widget.material,
             completed: _completed,
+            currentSection: _section,
             onJumpToSection: (i) {
               Navigator.of(treeCtx).pop();
               if (mounted) {
@@ -243,6 +288,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
                   _section = i;
                   _inQuiz = false;
                 });
+                _save();
               }
             },
           ),
@@ -269,6 +315,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
               _section = i;
               _inQuiz = false;
             });
+            _save();
           }
         },
       ),
