@@ -45,9 +45,11 @@ fi
 
 BACKEND_PID=""
 GAMES_PID=""
+UI_LOG_PID=""
 cleanup() {
   [[ -n "$BACKEND_PID" ]] && kill "$BACKEND_PID" 2>/dev/null || true
   [[ -n "$GAMES_PID" ]] && kill "$GAMES_PID" 2>/dev/null || true
+  [[ -n "$UI_LOG_PID" ]] && kill "$UI_LOG_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -164,6 +166,23 @@ $( [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]] && echo "  Keep this termi
   Tip: press 'q' to detach. Switch to fully-stripped release with BUILD_MODE=release.
 
 BANNER
+
+# Background Dart console tail — prefixes every Dart line with [ui] so it
+# is easy to spot among [backend] / [games]. flutter run itself still owns
+# the foreground TTY so q/h/c interactive keys keep working.
+if command -v idevicesyslog >/dev/null 2>&1; then
+  ( idevicesyslog 2>/dev/null \
+      | grep --line-buffered -E 'Runner|Flutter|flutter:' \
+      | awk '{ print "[ui] " $0; fflush() }' ) &
+  UI_LOG_PID=$!
+  echo "==> Streaming Dart console as [ui] via idevicesyslog (pid $UI_LOG_PID)"
+else
+  ( flutter logs -d "$TARGET_ID" 2>/dev/null \
+      | awk '{ print "[ui] " $0; fflush() }' ) &
+  UI_LOG_PID=$!
+  echo "==> Streaming Dart console as [ui] via flutter logs (pid $UI_LOG_PID)"
+  echo "    tip: brew install libimobiledevice for cleaner [ui] output"
+fi
 
 # The ${arr[@]+...} form is safe under `set -u` when DEFINES is empty (Bash 3.2).
 # Dart print()/debugPrint() are stripped in --release; --profile keeps them
