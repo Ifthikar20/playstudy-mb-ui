@@ -106,6 +106,12 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
       },
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/'),
+          ),
           title: const Text('New study set'),
           bottom: TabBar(
             controller: _tab,
