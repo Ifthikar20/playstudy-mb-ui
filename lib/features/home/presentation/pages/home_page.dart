@@ -11,6 +11,7 @@ import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
 import '../widgets/achievement_overlay.dart';
+import '../widgets/games_strip.dart';
 import '../widgets/study_activity_chart.dart';
 
 class HomePage extends StatefulWidget {
@@ -83,7 +84,9 @@ class _HomePageState extends State<HomePage> {
               _Greeting(),
               const SizedBox(height: 20),
               const StudyActivityChart(),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
+              GamesStrip(onTapAny: () => context.go('/new')),
+              const SizedBox(height: 18),
               _HeroCta(onTap: () => context.go('/new')),
               const SizedBox(height: 20),
               BlocBuilder<ExamPrepBloc, ExamPrepState>(
@@ -148,52 +151,26 @@ class _HeroCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      borderRadius: BorderRadius.circular(24),
-      color: scheme.primary,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: scheme.primary.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        borderRadius: BorderRadius.circular(16),
+        color: scheme.primary,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(mainAxisSize: MainAxisSize.min, children: const [
+              Icon(Icons.add, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Create a study set',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700)),
+            ]),
           ),
-          padding: const EdgeInsets.all(20),
-          child: Row(children: [
-            Container(
-              height: 56,
-              width: 56,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.add_link, color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Create a study set',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700)),
-                  SizedBox(height: 2),
-                  Text('Link, file, or pasted text',
-                      style: TextStyle(color: Colors.white70, fontSize: 13)),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward, color: Colors.white),
-          ]),
         ),
       ),
     );
