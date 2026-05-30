@@ -60,12 +60,14 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
       case 0:
         var url = _linkCtrl.text.trim();
         if (url.isEmpty) return _toast('Paste a link first');
-        // Recover from accidental double-paste (iOS autofill duplicates).
+        // iOS autofill sometimes appends a duplicate of the URL, either cleanly
+        // (foo.pdf + foo.pdf) or with overlap (foo. + foo.pdf). The COMPLETE
+        // URL is always the last one, so keep everything from the last scheme.
         final lower = url.toLowerCase();
-        final second = [lower.indexOf('http://', 1), lower.indexOf('https://', 1)]
+        final last = [lower.lastIndexOf('http://'), lower.lastIndexOf('https://')]
             .where((i) => i > 0)
-            .fold<int>(-1, (a, b) => a == -1 ? b : (b < a ? b : a));
-        if (second > 0) url = url.substring(0, second);
+            .fold<int>(-1, (a, b) => b > a ? b : a);
+        if (last > 0) url = url.substring(last);
         bloc.add(GenerateMaterial(sourceKind: SourceKind.link, sourceRef: url));
         break;
       case 1:
