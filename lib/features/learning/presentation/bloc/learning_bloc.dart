@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/models/learning_models.dart';
@@ -81,6 +82,7 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
     });
 
     on<GenerateMaterial>((event, emit) async {
+      debugPrint('[learning] Generate kind=${event.sourceKind.name} ref=${event.sourceRef}');
       emit(Generating(repository.library));
       try {
         final m = await repository.generate(
@@ -88,8 +90,10 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
           sourceRef: event.sourceRef,
           titleHint: event.titleHint,
         );
+        debugPrint('[learning] Generate SUCCESS id=${m.id} title="${m.title}"');
         emit(GenerateSuccess(material: m, library: repository.library));
       } catch (e) {
+        debugPrint('[learning] Generate FAILED: $e');
         emit(LearningError(apiErrorMessage(e), repository.library));
       }
     });

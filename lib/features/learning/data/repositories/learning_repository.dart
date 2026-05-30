@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/network/api_client.dart';
@@ -65,7 +66,9 @@ class LearningRepository {
     );
 
     final id = create.data['id'] as String;
+    debugPrint('[learning] Created study set $id (HTTP ${create.statusCode}), polling status…');
     final material = await _pollUntilReady(id);
+    debugPrint('[learning] Study set $id ready: "${material.title}"');
     _library.insert(0, material);
     return material;
   }
@@ -80,6 +83,7 @@ class LearningRepository {
     for (var i = 0; i < 60; i++) {
       final status = await api.dio.get('studysets/$id/status/');
       final value = status.data['status'] as String;
+      debugPrint('[learning] poll $id (attempt ${i + 1}): status=$value');
       if (value == 'ready') return fetch(id);
       if (value == 'failed') {
         throw Exception(

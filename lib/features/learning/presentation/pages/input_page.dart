@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -92,12 +93,14 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     return BlocListener<LearningBloc, LearningState>(
       listener: (context, state) {
         if (state is GenerateSuccess) {
+          debugPrint('[input] GenerateSuccess -> push /material/${state.material.id}');
           // Usage + the creation reward are applied server-side on success —
           // re-read both rather than reporting points from the client.
           context.read<SubscriptionBloc>().add(LoadSubscription());
           context.read<RewardsBloc>().add(LoadRewards());
           context.push('/material/${state.material.id}', extra: state.material);
         } else if (state is LearningError) {
+          debugPrint('[input] LearningError: ${state.message}');
           _toast(state.message);
         }
       },
