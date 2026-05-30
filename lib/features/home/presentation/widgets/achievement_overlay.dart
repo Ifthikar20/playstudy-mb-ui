@@ -50,7 +50,11 @@ class _AchievementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final next = state.nextRank;
-    return Stack(
+    // Material parent so Text widgets don't get the yellow-underline
+    // "missing Material ancestor" debug treatment.
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
       alignment: Alignment.center,
       children: [
         // Confetti behind the card.
@@ -79,19 +83,7 @@ class _AchievementCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  rankedUp ? Icons.military_tech_outlined : Icons.bolt,
-                  size: 40,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
+              _PulsingTrophy(rankedUp: rankedUp),
               const SizedBox(height: 8),
               Text(rankedUp ? 'Level up!' : 'Nice work!',
                   style: theme.textTheme.headlineSmall
@@ -109,11 +101,17 @@ class _AchievementCard extends StatelessWidget {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   const Icon(Icons.bolt, color: Colors.white, size: 20),
                   const SizedBox(width: 6),
-                  Text('+$delta points',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18)),
+                  // Smooth count-up so the "+N points" feels earned.
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    tween: Tween(begin: 0, end: delta.toDouble()),
+                    builder: (_, v, __) => Text('+${v.round()} points',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18)),
+                  ),
                 ]),
               ),
               const SizedBox(height: 18),
@@ -159,6 +157,7 @@ class _AchievementCard extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }
@@ -196,4 +195,80 @@ class _ConfettiPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ConfettiPainter old) => old.t != t;
+}
+
+/// Trophy / bolt icon with a pulsing halo and a soft rotation — gives the
+/// reward card a bit of life when it opens.
+class _PulsingTrophy extends StatefulWidget {
+  final bool rankedUp;
+  const _PulsingTrophy({required this.rankedUp});
+
+  @override
+  State<_PulsingTrophy> createState() => _PulsingTrophyState();
+}
+
+class _PulsingTrophyState extends State<_PulsingTrophy>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return SizedBox(
+      width: 96,
+      height: 96,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (_, __) {
+          final t = _c.value;
+          return Stack(alignment: Alignment.center, children: [
+            // Expanding halo
+            Container(
+              width: 72 + 20 * t,
+              height: 72 + 20 * t,
+              decoration: BoxDecoration(
+                color: primary.withOpacity(0.18 * (1 - t)),
+                shape: BoxShape.circle,
+              ),
+            ),
+            // Solid inner circle pulses subtly
+            Transform.scale(
+              scale: 0.95 + 0.05 * t,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.14),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            // Icon — tiny wobble so it feels alive
+            Transform.rotate(
+              angle: (t - 0.5) * 0.12,
+              child: Icon(
+                widget.rankedUp ? Icons.military_tech_outlined : Icons.bolt,
+                size: 40,
+                color: primary,
+              ),
+            ),
+          ]);
+        },
+      ),
+    );
+  }
 }
