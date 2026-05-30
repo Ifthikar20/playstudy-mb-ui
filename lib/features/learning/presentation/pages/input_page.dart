@@ -57,8 +57,14 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     final bloc = context.read<LearningBloc>();
     switch (_tab.index) {
       case 0:
-        final url = _linkCtrl.text.trim();
+        var url = _linkCtrl.text.trim();
         if (url.isEmpty) return _toast('Paste a link first');
+        // Recover from accidental double-paste (iOS autofill duplicates).
+        final lower = url.toLowerCase();
+        final second = [lower.indexOf('http://', 1), lower.indexOf('https://', 1)]
+            .where((i) => i > 0)
+            .fold<int>(-1, (a, b) => a == -1 ? b : (b < a ? b : a));
+        if (second > 0) url = url.substring(0, second);
         bloc.add(GenerateMaterial(sourceKind: SourceKind.link, sourceRef: url));
         break;
       case 1:
@@ -155,6 +161,9 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
           TextField(
             controller: _linkCtrl,
             keyboardType: TextInputType.url,
+            autocorrect: false,
+            enableSuggestions: false,
+            textInputAction: TextInputAction.done,
             decoration: const InputDecoration(
               hintText: 'https://example.com/article',
               prefixIcon: Icon(Icons.link),
