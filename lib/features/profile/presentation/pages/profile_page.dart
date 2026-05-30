@@ -131,6 +131,29 @@ class ProfilePage extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
+          // Parental controls / family — surfaced directly on profile so it
+          // is one tap away rather than hidden under Settings.
+          AirbnbCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.family_restroom_outlined,
+                    color: theme.colorScheme.primary),
+              ),
+              title: const Text('Parental controls'),
+              subtitle: const Text(
+                  'Link a parent, or follow a child\'s study progress'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/family'),
+            ),
+          ),
+          const SizedBox(height: 16),
           AirbnbCard(
             padding: EdgeInsets.zero,
             child: ListTile(
