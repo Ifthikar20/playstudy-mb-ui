@@ -22,4 +22,12 @@ class AppConfig {
         'GAMES_BASE_URL',
         defaultValue: 'https://playstudy.app',
       );
+
+  /// This build's semantic version, used to gate server-published games whose
+  /// `minAppVersion` is newer than the installed app. Passed at build time via
+  /// `--dart-define=APP_VERSION=1.4.0`; keep it in sync with pubspec `version`.
+  String get appVersion => const String.fromEnvironment(
+        'APP_VERSION',
+        defaultValue: '1.0.0',
+      );
 }

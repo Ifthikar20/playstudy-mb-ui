@@ -22,6 +22,7 @@ import 'features/exam_prep/data/repositories/exam_prep_repository.dart';
 import 'features/family/data/family_repository.dart';
 import 'features/exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import 'features/games/guess_the_word/guess_the_word_game.dart';
+import 'features/games/remote/games_manifest_repository.dart';
 import 'features/games/super_dash/super_dash_game.dart';
 import 'features/games/web/web_games.dart';
 import 'features/learning/data/repositories/learning_repository.dart';
@@ -48,8 +49,8 @@ void main() async {
 
   AppConfig.initialize();
 
-  // Register all built-in games. To add a new game, write a class that
-  // extends LearningGame and add one line here. The UI picks it up
+  // Register all built-in (native, offline-capable) games. To add one, write a
+  // class that extends LearningGame and add a line here. The UI picks it up
   // automatically via GameRegistry — no other files need changing.
   GameRegistry.instance.register(GuessTheWordGame());
   GameRegistry.instance.register(SuperDashGame());
@@ -59,6 +60,11 @@ void main() async {
   GameRegistry.instance.register(SpaceHunterWebGame());
 
   await Hive.initFlutter();
+
+  // Then publish server-managed web games on top: the backend manifest can add
+  // a game (or pull a broken one) with no app release. Falls back to the last
+  // cached manifest offline, and never blocks startup if the fetch fails.
+  await GamesManifestRepository().registerInto(GameRegistry.instance);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
