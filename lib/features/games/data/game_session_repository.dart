@@ -2,10 +2,11 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_client.dart';
 
-/// Talks to the backend play-tracking API (`/games/sessions`). Every call is
-/// best-effort: a tracking failure must never interrupt gameplay, so errors are
-/// swallowed and logged. The server is the source of truth for scores, rewards
-/// and resume state — this just reports the host's SDK events to it.
+/// Talks to the backend play-tracking API (`/games/sessions`). Engine-agnostic:
+/// any game (Flame or otherwise) records a play by calling [start] when it opens
+/// and [complete] when it closes. Every call is best-effort — a tracking failure
+/// must never interrupt gameplay, so errors are swallowed and logged. The server
+/// owns play history, scores and resume state.
 class GameSessionRepository {
   final ApiClient api;
   GameSessionRepository(this.api);
@@ -40,7 +41,7 @@ class GameSessionRepository {
     }
   }
 
-  /// Finalizes a play; the server grants the (capped, deduped) reward.
+  /// Finalizes a play (records completion + final score for history).
   Future<void> complete(String sessionId, {int? score}) async {
     try {
       await api.dio.post('games/sessions/$sessionId/complete/', data: {

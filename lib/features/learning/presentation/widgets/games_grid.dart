@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/games/game_registry.dart';
 import '../../../../core/games/learning_game.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../games/data/game_session_repository.dart';
 import '../../../library/presentation/pages/library_page.dart'
     show GameTileCard;
 import '../../data/models/learning_models.dart';
@@ -57,16 +60,43 @@ class GamesGrid extends StatelessWidget {
   }
 }
 
-class _GamePlayPage extends StatelessWidget {
+class _GamePlayPage extends StatefulWidget {
   final LearningMaterial material;
   final LearningGame game;
   const _GamePlayPage({required this.material, required this.game});
 
   @override
+  State<_GamePlayPage> createState() => _GamePlayPageState();
+}
+
+class _GamePlayPageState extends State<_GamePlayPage> {
+  GameSessionRepository? _sessions;
+  String? _sessionId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Record the play for every game (Flame or otherwise): start on open,
+    // finalize on close. Engine-agnostic and best-effort — a tracking failure
+    // never affects gameplay.
+    _sessions = GameSessionRepository(context.read<ApiClient>());
+    _sessions!
+        .start(gameKey: widget.game.id, studySetId: widget.material.id)
+        .then((id) => _sessionId = id);
+  }
+
+  @override
+  void dispose() {
+    final id = _sessionId;
+    if (id != null) _sessions?.complete(id);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(game.name)),
-      body: game.build(context, material),
+      appBar: AppBar(title: Text(widget.game.name)),
+      body: widget.game.build(context, widget.material),
     );
   }
 }
