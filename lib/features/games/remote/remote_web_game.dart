@@ -11,7 +11,8 @@ import '../web/web_game_view.dart';
 /// it appear here with no app release — see [RemoteWebGame].
 class RemoteGameDef {
   final String key; // stable client id (LearningGame.id)
-  final String slug; // {gamesBaseUrl}/games/<slug>/index.html
+  final String slug; // {gamesBaseUrl}/games/<slug>/<version>/index.html
+  final String version; // immutable bundle version (path segment)
   final String name;
   final String description;
   final String icon; // Material icon name, may be unknown to this build
@@ -20,10 +21,12 @@ class RemoteGameDef {
   final GameDifficulty difficulty;
   final Map<String, int> requires; // {"quiz": 1} / {"words": 2}
   final String minAppVersion; // semver, '' = no minimum
+  final int sdkVersion; // PlayStudy SDK version the bundle targets
 
   const RemoteGameDef({
     required this.key,
     required this.slug,
+    required this.version,
     required this.name,
     required this.description,
     required this.icon,
@@ -32,6 +35,7 @@ class RemoteGameDef {
     required this.difficulty,
     required this.requires,
     required this.minAppVersion,
+    required this.sdkVersion,
   });
 
   factory RemoteGameDef.fromJson(Map<String, dynamic> j) {
@@ -50,6 +54,7 @@ class RemoteGameDef {
     return RemoteGameDef(
       key: (j['key'] ?? '').toString(),
       slug: (j['slug'] ?? '').toString(),
+      version: (j['version'] ?? '1').toString(),
       name: (j['name'] ?? 'Game').toString(),
       description: (j['description'] ?? '').toString(),
       icon: (j['icon'] ?? '').toString(),
@@ -60,6 +65,9 @@ class RemoteGameDef {
       difficulty: _parseDifficulty((j['difficulty'] ?? 'medium').toString()),
       requires: requires,
       minAppVersion: (j['minAppVersion'] ?? '').toString(),
+      sdkVersion: j['sdkVersion'] is int
+          ? j['sdkVersion'] as int
+          : int.tryParse('${j['sdkVersion']}') ?? 1,
     );
   }
 }
@@ -118,6 +126,8 @@ class RemoteWebGame extends LearningGame {
   Widget build(BuildContext context, LearningMaterial material) {
     return WebGameView(
       slug: def.slug,
+      version: def.version,
+      gameKey: def.key,
       title: def.name,
       quiz: material.quiz,
       words: material.wordGame,

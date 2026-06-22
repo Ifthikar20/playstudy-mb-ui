@@ -8,10 +8,11 @@ import 'package:flutter/material.dart';
 import 'game_event.dart';
 
 /// Web host: embeds the game bundle in a sandboxed <iframe> and bridges it via
-/// `window.postMessage`, mirroring the mobile WebView host so the same bundle
-/// runs unchanged on web. The game receives its init payload in the URL and via
-/// a posted `{type:'init', payload}` message, and emits [GameEvent]s by posting
-/// JSON back to its parent.
+/// `window.postMessage`. Security posture (the game is remote code from S3):
+///   • sandbox = allow-scripts only — no same-origin, no top navigation, so a
+///     game can't read the host app's storage or navigate it away.
+///   • postMessage is pinned to the bundle's exact origin (never '*').
+///   • inbound messages are accepted only from this iframe's window AND origin.
 class GameHostView extends StatefulWidget {
   final String bundleUrl;
   final String payloadJson;
@@ -30,22 +31,32 @@ class GameHostView extends StatefulWidget {
 
 class _GameHostViewState extends State<GameHostView> {
   late final String _viewType;
+  late final String _origin;
   late final html.IFrameElement _iframe;
   html.EventListener? _messageListener;
 
   @override
   void initState() {
     super.initState();
+    _origin = _originOf(widget.bundleUrl);
     _viewType = 'playstudy-game-${identityHashCode(this)}';
     _iframe = html.IFrameElement()
       ..src = widget.bundleUrl
       ..style.border = 'none'
       ..style.width = '100%'
       ..style.height = '100%'
-      // Sandbox remote game code: allow it to run scripts but not to navigate
-      // the top window or claim same-origin trust with the host app.
+      // Remote, untrusted code: run scripts, but no same-origin trust and no
+      // ability to navigate the top window.
       ..setAttribute('sandbox', 'allow-scripts allow-pointer-lock')
       ..allow = 'autoplay; fullscreen; gamepad';
+
+    _iframe.onLoad.listen((_) {
+      _injectPayload();
+      widget.onEvent(const GameEvent('loaded'));
+    });
+    _iframe.onError.listen((_) {
+      widget.onEvent(const GameEvent('load_failed', {'message': 'iframe error'}));
+    });
 
     ui_web.platformViewRegistry
         .registerViewFactory(_viewType, (int _) => _iframe);
@@ -56,8 +67,9 @@ class _GameHostViewState extends State<GameHostView> {
 
   void _onMessage(html.Event event) {
     if (event is! html.MessageEvent) return;
-    // Only accept messages from our own iframe's window.
+    // Accept only messages from our own iframe AND the expected origin.
     if (event.source != _iframe.contentWindow) return;
+    if (_origin != '*' && event.origin != _origin) return;
     Map<String, dynamic> data;
     try {
       final raw = event.data;
@@ -70,10 +82,19 @@ class _GameHostViewState extends State<GameHostView> {
   }
 
   void _injectPayload() {
+    // Pinned target origin — the payload is never broadcast to '*'.
     _iframe.contentWindow?.postMessage(
       '{"type":"init","payload":${widget.payloadJson}}',
-      '*',
+      _origin,
     );
+  }
+
+  static String _originOf(String url) {
+    try {
+      final u = Uri.parse(url);
+      if (u.hasScheme && u.host.isNotEmpty) return u.origin;
+    } catch (_) {}
+    return '*'; // fallback (e.g. relative URL in local testing)
   }
 
   @override

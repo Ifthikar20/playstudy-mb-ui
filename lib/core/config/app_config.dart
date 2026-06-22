@@ -30,4 +30,9 @@ class AppConfig {
         'APP_VERSION',
         defaultValue: '1.0.0',
       );
+
+  /// Highest PlayStudy Game SDK version this build's game host understands.
+  /// Games whose `sdkVersion` exceeds this are hidden (they'd fail to bridge).
+  /// Bump it when the app ships a newer SDK contract.
+  int get supportedSdkVersion => 1;
 }

@@ -22,6 +22,7 @@ class GameEvent {
 
   int? get score => data['score'] is num ? (data['score'] as num).toInt() : null;
   String? get reason => data['reason']?.toString();
+  String? get message => data['message']?.toString();
   Map<String, dynamic>? get state =>
       data['state'] is Map ? Map<String, dynamic>.from(data['state']) : null;
 

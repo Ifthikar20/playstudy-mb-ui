@@ -36,10 +36,14 @@ class GamesManifestRepository {
   Future<void> registerInto(GameRegistry registry) async {
     final defs = await _load();
     final appVersion = AppConfig.instance.appVersion;
+    final supportedSdk = AppConfig.instance.supportedSdkVersion;
     var registered = 0;
     for (final def in defs) {
       if (def.key.isEmpty || def.slug.isEmpty) continue;
       if (!_meetsMinVersion(appVersion, def.minAppVersion)) continue;
+      // Don't register a game built for a newer SDK than this app's host
+      // understands — it would load but fail to talk to the bridge.
+      if (def.sdkVersion > supportedSdk) continue;
       registry.register(RemoteWebGame(def));
       registered++;
     }

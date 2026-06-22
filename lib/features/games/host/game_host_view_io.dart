@@ -41,6 +41,16 @@ class _GameHostViewState extends State<GameHostView> {
           onPageFinished: (_) {
             _injectPayload();
             if (mounted) setState(() => _loading = false);
+            widget.onEvent(const GameEvent('loaded'));
+          },
+          onWebResourceError: (error) {
+            // Only the main document failing is worth reporting as a load
+            // failure; sub-resource errors are noisy and often non-fatal.
+            if (error.isForMainFrame ?? true) {
+              widget.onEvent(
+                GameEvent('load_failed', {'message': error.description}),
+              );
+            }
           },
         ),
       )

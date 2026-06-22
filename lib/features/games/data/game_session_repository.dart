@@ -51,4 +51,24 @@ class GameSessionRepository {
       debugPrint('[games] session complete failed: $e');
     }
   }
+
+  /// Reports a load/error signal so a broken S3 bundle becomes visible.
+  /// kind: 'loaded' | 'load_failed' | 'error'.
+  Future<void> telemetry({
+    required String gameKey,
+    String? version,
+    required String kind,
+    String? message,
+  }) async {
+    try {
+      await api.dio.post('games/telemetry/', data: {
+        'gameKey': gameKey,
+        if (version != null) 'version': version,
+        'kind': kind,
+        if (message != null && message.isNotEmpty) 'message': message,
+      });
+    } catch (e) {
+      debugPrint('[games] telemetry failed: $e');
+    }
+  }
 }
