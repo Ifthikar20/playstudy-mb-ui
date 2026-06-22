@@ -119,6 +119,8 @@ class RemoteWebGame extends LearningGame {
     return WebGameView(
       slug: def.slug,
       title: def.name,
+      gameKey: def.key,
+      studySetId: material.id,
       quiz: material.quiz,
       words: material.wordGame,
     );
