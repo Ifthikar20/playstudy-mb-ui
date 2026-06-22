@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -6,6 +7,7 @@ import 'package:hive/hive.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/games/game_registry.dart';
+import '../cache/bundle_serving.dart';
 import 'remote_web_game.dart';
 
 /// Fetches the server-published games manifest and registers each entry as a
@@ -37,7 +39,7 @@ class GamesManifestRepository {
     final defs = await _load();
     final appVersion = AppConfig.instance.appVersion;
     final supportedSdk = AppConfig.instance.supportedSdkVersion;
-    var registered = 0;
+    final registeredDefs = <RemoteGameDef>[];
     for (final def in defs) {
       if (def.key.isEmpty || def.slug.isEmpty) continue;
       if (!_meetsMinVersion(appVersion, def.minAppVersion)) continue;
@@ -45,10 +47,27 @@ class GamesManifestRepository {
       // understands — it would load but fail to talk to the bridge.
       if (def.sdkVersion > supportedSdk) continue;
       registry.register(RemoteWebGame(def));
-      registered++;
+      registeredDefs.add(def);
     }
+    final registered = registeredDefs.length;
+    // Pre-download the bundles in the background so they're playable offline
+    // before the user opens them. Best-effort; cached versions are skipped.
+    unawaited(_prewarm(registeredDefs));
     debugPrint('[games] registered $registered remote game(s) '
         'from ${defs.length} manifest entr${defs.length == 1 ? "y" : "ies"}');
+  }
+
+  /// Download each registered bundle to disk (sequentially, to avoid a startup
+  /// network burst) so games are available offline. No-op on web.
+  Future<void> _prewarm(List<RemoteGameDef> defs) async {
+    final base = AppConfig.instance.gamesBaseUrl;
+    for (final def in defs) {
+      await BundleServing.prewarm(
+        slug: def.slug,
+        version: def.version,
+        onlineBase: base,
+      );
+    }
   }
 
   /// Network first; on any failure fall back to the cached manifest. A

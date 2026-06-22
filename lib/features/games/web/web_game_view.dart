@@ -9,6 +9,7 @@ import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
 import '../data/game_score_scope.dart';
 import '../data/game_session_repository.dart';
+import '../cache/bundle_serving.dart';
 import '../host/game_host_view.dart';
 
 /// Hosts an S3-hosted HTML5 game and bridges it to the app. The embedding is
@@ -42,6 +43,7 @@ class WebGameView extends StatefulWidget {
 
 class _WebGameViewState extends State<WebGameView> {
   GameSessionRepository? _telemetry;
+  Future<String>? _baseFuture;
 
   List<Map<String, dynamic>> get _quizList => widget.quiz
       .map((q) => {
@@ -60,12 +62,12 @@ class _WebGameViewState extends State<WebGameView> {
 
   // Pass quiz + words in the URL (base64url JSON) so they're available the
   // instant the game loads — no dependency on the bridge round-trip timing.
-  String get _bundleUrl {
+  // [base] is the local cache server (offline) or the online origin.
+  String _bundleUrl(String base) {
     final params = <String>[];
     if (_quizList.isNotEmpty) params.add('quiz=${_b64(_quizList)}');
     if (_wordList.isNotEmpty) params.add('words=${_b64(_wordList)}');
     final query = params.isEmpty ? '' : '?${params.join('&')}';
-    final base = AppConfig.instance.gamesBaseUrl;
     return '$base/games/${widget.slug}/${widget.version}/index.html$query';
   }
 
@@ -78,6 +80,13 @@ class _WebGameViewState extends State<WebGameView> {
     if (widget.gameKey.isNotEmpty) {
       _telemetry = GameSessionRepository(context.read<ApiClient>());
     }
+    // Resolve the bundle base once: a local cache server if the bundle is on
+    // disk (offline-capable), otherwise the online origin.
+    _baseFuture = BundleServing.resolveBase(
+      slug: widget.slug,
+      version: widget.version,
+      onlineBase: AppConfig.instance.gamesBaseUrl,
+    );
   }
 
   void _report(String kind, [String? message]) {
@@ -120,10 +129,18 @@ class _WebGameViewState extends State<WebGameView> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       backgroundColor: Colors.black,
-      body: GameHostView(
-        bundleUrl: _bundleUrl,
-        payloadJson: _payloadJson,
-        onEvent: _onEvent,
+      body: FutureBuilder<String>(
+        future: _baseFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return GameHostView(
+            bundleUrl: _bundleUrl(snapshot.data!),
+            payloadJson: _payloadJson,
+            onEvent: _onEvent,
+          );
+        },
       ),
     );
   }
