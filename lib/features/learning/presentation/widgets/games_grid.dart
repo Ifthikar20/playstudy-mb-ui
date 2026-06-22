@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/games/game_registry.dart';
 import '../../../../core/games/learning_game.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../games/data/game_score_scope.dart';
 import '../../../games/data/game_session_repository.dart';
 import '../../../library/presentation/pages/library_page.dart'
     show GameTileCard;
@@ -72,13 +73,14 @@ class _GamePlayPage extends StatefulWidget {
 class _GamePlayPageState extends State<_GamePlayPage> {
   GameSessionRepository? _sessions;
   String? _sessionId;
+  int _lastScore = 0;
 
   @override
   void initState() {
     super.initState();
     // Record the play for every game (Flame or otherwise): start on open,
-    // finalize on close. Engine-agnostic and best-effort — a tracking failure
-    // never affects gameplay.
+    // finalize on close with the score the game reported. Engine-agnostic and
+    // best-effort — a tracking failure never affects gameplay.
     _sessions = GameSessionRepository(context.read<ApiClient>());
     _sessions!
         .start(gameKey: widget.game.id, studySetId: widget.material.id)
@@ -88,7 +90,7 @@ class _GamePlayPageState extends State<_GamePlayPage> {
   @override
   void dispose() {
     final id = _sessionId;
-    if (id != null) _sessions?.complete(id);
+    if (id != null) _sessions?.complete(id, score: _lastScore);
     super.dispose();
   }
 
@@ -96,7 +98,12 @@ class _GamePlayPageState extends State<_GamePlayPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.game.name)),
-      body: widget.game.build(context, widget.material),
+      // Games report their score through this scope; we keep the latest and
+      // save it with the session on close so it syncs across platforms.
+      body: GameScoreScope(
+        onScore: (score) => _lastScore = score,
+        child: widget.game.build(context, widget.material),
+      ),
     );
   }
 }

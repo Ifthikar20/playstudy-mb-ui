@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../learning/data/models/learning_models.dart';
+import '../data/game_score_scope.dart';
 import 'quiz_gate.dart';
 
 /// Native (no WebView) space shooter. Drag to move, auto-fire. Clear a wave of
@@ -144,6 +145,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
           e.hp--;
           if (e.hp <= 0) {
             _score += 10;
+            GameScoreScope.report(context, _score);
             _boom(e.x, e.y, const Color(0xFF8FE3B6));
             _enemies.removeAt(j);
           }

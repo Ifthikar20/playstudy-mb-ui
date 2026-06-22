@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
+import '../data/game_score_scope.dart';
 import 'super_dash_engine.dart';
 
 /// Super Dash with quiz checkpoints. Tap anywhere to jump. Every 30m the
@@ -52,6 +53,7 @@ class _SuperDashWidgetState extends State<SuperDashWidget> {
     final correct = index == q.correctIndex;
     if (correct) {
       _correctAtCheckpoint++;
+      GameScoreScope.report(context, _correctAtCheckpoint);
       context.read<RewardsBloc>().add(
           const RecordActivity(points: 5, reason: 'Super Dash checkpoint'));
     }

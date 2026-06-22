@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../learning/data/models/learning_models.dart';
+import '../data/game_score_scope.dart';
 import 'quiz_gate.dart';
 
 /// Native (no WebView) Flappy-style game. Tap to flap through the gaps; on a
@@ -141,6 +142,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
       if (!p.passed && p.x + pipeW < _bird.x) {
         p.passed = true;
         _score++;
+        GameScoreScope.report(context, _score);
         if (_gate.hasQuestions && _score >= _nextQuizAt) {
           _nextQuizAt = _score + 3;
           _askPlayQuestion();
@@ -180,6 +182,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
     if (!mounted) return;
     if (ok) {
       _score += 2;
+      GameScoreScope.report(context, _score);
       _invuln = 1.6;
     }
     _bird.y = _size.height * 0.4;

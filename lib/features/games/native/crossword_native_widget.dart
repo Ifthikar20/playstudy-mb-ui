@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
+import '../data/game_score_scope.dart';
 
 /// Native (no WebView) crossword built from the study set's word challenges.
 /// Words are placed with simple interlocking; tap a cell to select that word,
@@ -71,6 +72,7 @@ class _CrosswordNativeWidgetState extends State<CrosswordNativeWidget> {
     }
     if (!_solved) {
       setState(() => _solved = true);
+      GameScoreScope.report(context, widget.words.length);
       context.read<RewardsBloc>().add(
             const RecordActivity(points: 15, reason: 'Crossword solved'),
           );
