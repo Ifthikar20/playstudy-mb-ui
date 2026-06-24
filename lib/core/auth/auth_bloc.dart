@@ -102,10 +102,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
     try {
       final response = await api.dio.get('me/');
-      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+      final user = _userFrom(response.data['user'] as Map<String, dynamic>);
+      await tokens.cacheUser(user);
+      emit(Authenticated(user));
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      if (code == 401 || code == 403) {
+        // Genuine auth failure: the token is invalid and couldn't be refreshed.
+        await tokens.clear();
+        emit(const Unauthenticated());
+      } else {
+        // Transient (offline / timeout / server hiccup) — DON'T log the user
+        // out. Keep the session and show the cached user; /me will re-hydrate
+        // once we're back online.
+        final cached = await tokens.cachedUser();
+        emit(Authenticated(cached ??
+            const User(id: '', email: '', name: 'Student')));
+      }
     } catch (_) {
-      await tokens.clear();
-      emit(const Unauthenticated());
+      // Non-network error (e.g. malformed payload). Keep the session rather
+      // than logging out for no reason; surface nothing.
+      final cached = await tokens.cachedUser();
+      if (cached != null) {
+        emit(Authenticated(cached));
+      } else {
+        emit(const Unauthenticated());
+      }
     }
   }
 
@@ -122,7 +144,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         response.data['accessToken'] as String,
         response.data['refreshToken'] as String,
       );
-      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+      final user = _userFrom(response.data['user'] as Map<String, dynamic>);
+      await tokens.cacheUser(user);
+      emit(Authenticated(user));
     } catch (err) {
       emit(Unauthenticated(message: apiErrorMessage(err)));
     }
@@ -148,7 +172,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         response.data['accessToken'] as String,
         response.data['refreshToken'] as String,
       );
-      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+      final user = _userFrom(response.data['user'] as Map<String, dynamic>);
+      await tokens.cacheUser(user);
+      emit(Authenticated(user));
     } catch (err) {
       emit(Unauthenticated(message: apiErrorMessage(err)));
     }
@@ -164,7 +190,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (body.isEmpty) return;
     try {
       final response = await api.dio.patch('me/', data: body);
-      emit(Authenticated(_userFrom(response.data['user'] as Map<String, dynamic>)));
+      final user = _userFrom(response.data['user'] as Map<String, dynamic>);
+      await tokens.cacheUser(user);
+      emit(Authenticated(user));
     } catch (_) {
       // keep the current user on failure
     }

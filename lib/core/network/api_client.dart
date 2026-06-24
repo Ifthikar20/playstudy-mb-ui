@@ -42,8 +42,8 @@ class ApiClient {
           final canRetry =
               req.extra['retried'] != true && req.extra['noAuth'] != true;
           if (is401 && canRetry) {
-            final refreshed = await _refresh();
-            if (refreshed) {
+            final result = await _refresh();
+            if (result == _RefreshResult.refreshed) {
               req.extra['retried'] = true;
               final access = await tokens.accessToken();
               req.headers['Authorization'] = 'Bearer $access';
@@ -54,7 +54,11 @@ class ApiClient {
                 return handler.next(retryError);
               }
             }
-            await tokens.clear();
+            // Only clear tokens when the refresh token is genuinely invalid.
+            // A network blip during refresh must NOT log the user out.
+            if (result == _RefreshResult.authFailed) {
+              await tokens.clear();
+            }
           }
           handler.next(error);
         },
@@ -62,9 +66,9 @@ class ApiClient {
     );
   }
 
-  Future<bool> _refresh() async {
+  Future<_RefreshResult> _refresh() async {
     final refresh = await tokens.refreshToken();
-    if (refresh == null) return false;
+    if (refresh == null) return _RefreshResult.authFailed;
     try {
       final response = await dio.post(
         'auth/refresh/',
@@ -72,12 +76,22 @@ class ApiClient {
         options: Options(extra: {'noAuth': true}),
       );
       await tokens.setAccessToken(response.data['accessToken'] as String);
-      return true;
+      return _RefreshResult.refreshed;
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      // 400/401 = the refresh token itself is rejected → real logout.
+      // Anything else (no response, timeout, 5xx) = transient → keep tokens.
+      if (code == 400 || code == 401 || code == 403) {
+        return _RefreshResult.authFailed;
+      }
+      return _RefreshResult.networkError;
     } catch (_) {
-      return false;
+      return _RefreshResult.networkError;
     }
   }
 }
+
+enum _RefreshResult { refreshed, authFailed, networkError }
 
 /// Pulls a human-readable message out of the API's error envelope:
 /// `{"error": {"code": "...", "message": "..."}}`.
