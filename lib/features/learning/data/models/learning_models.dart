@@ -55,6 +55,16 @@ class QuizQuestion extends Equatable {
         topic: j['topic'] as String? ?? 'General',
         difficulty: QuizDifficulty.fromString(j['difficulty'] as String?),
       );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'prompt': prompt,
+        'choices': choices,
+        'correctIndex': correctIndex,
+        'explanation': explanation,
+        'topic': topic,
+        'difficulty': difficulty.name,
+      };
 }
 
 /// A single round of Guess the Word.
@@ -71,6 +81,8 @@ class WordChallenge extends Equatable {
         word: j['word'] as String? ?? '',
         clue: j['clue'] as String? ?? '',
       );
+
+  Map<String, dynamic> toJson() => {'word': word, 'clue': clue};
 }
 
 /// Source of the uploaded content.
@@ -102,6 +114,13 @@ class StudySection extends Equatable {
             .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'content': content,
+        'example': example,
+        'quiz': quiz.map((q) => q.toJson()).toList(),
+      };
 }
 
 /// Generated learning bundle from a piece of content.
@@ -176,4 +195,19 @@ class LearningMaterial extends Equatable {
         createdAt:
             DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
       );
+
+  /// Round-trips with [fromJson] for local (offline) persistence.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'sourceKind': sourceKind.name,
+        'sourceRef': sourceRef,
+        'summary': summary,
+        'keyPoints': keyPoints,
+        'quiz': quiz.map((q) => q.toJson()).toList(),
+        'wordGame': wordGame.map((w) => w.toJson()).toList(),
+        'topics': topics,
+        'sections': sections.map((s) => s.toJson()).toList(),
+        'createdAt': createdAt.toIso8601String(),
+      };
 }

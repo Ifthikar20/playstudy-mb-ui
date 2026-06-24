@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/network/api_client.dart';
+import '../learning_cache.dart';
 import '../models/learning_models.dart';
 
 /// Talks to the PlayStudy backend for study-set generation and the library.
@@ -17,6 +18,7 @@ class LearningRepository {
 
   final List<LearningMaterial> _library = [];
   final _uuid = const Uuid();
+  final _cache = LearningCache();
 
   List<LearningMaterial> get library => List.unmodifiable(_library);
 
@@ -27,20 +29,45 @@ class LearningRepository {
     return null;
   }
 
-  /// Refreshes the cached library from the server (lightweight rows).
+  /// Refreshes the library from the server, persisting it locally. Falls back
+  /// to the on-device cache when offline so the library still loads.
   Future<void> loadLibrary() async {
-    final response = await api.dio.get('studysets/');
-    final results =
-        (response.data['results'] as List).cast<Map<String, dynamic>>();
-    _library
-      ..clear()
-      ..addAll(results.map(LearningMaterial.fromJson));
+    try {
+      final response = await api.dio.get('studysets/');
+      final results =
+          (response.data['results'] as List).cast<Map<String, dynamic>>();
+      final rows = results.map(LearningMaterial.fromJson).toList();
+      _library
+        ..clear()
+        ..addAll(rows);
+      await _cache.saveLibrary(rows);
+    } catch (e) {
+      final cached = await _cache.loadLibrary();
+      if (cached.isEmpty) rethrow; // nothing offline to show — surface the error
+      debugPrint('[learning] library offline — ${cached.length} cached set(s)');
+      _library
+        ..clear()
+        ..addAll(cached);
+    }
   }
 
-  /// Fetches one full study set (with quiz + word game) by id.
+  /// Fetches one full study set (with quiz + word game) by id, caching it for
+  /// offline play. Falls back to the cached copy when offline.
   Future<LearningMaterial> fetch(String id) async {
-    final response = await api.dio.get('studysets/$id/');
-    return LearningMaterial.fromJson(response.data as Map<String, dynamic>);
+    try {
+      final response = await api.dio.get('studysets/$id/');
+      final material =
+          LearningMaterial.fromJson(response.data as Map<String, dynamic>);
+      await _cache.saveMaterial(material);
+      return material;
+    } catch (e) {
+      final cached = await _cache.loadMaterial(id);
+      if (cached != null) {
+        debugPrint('[learning] set $id served from offline cache');
+        return cached;
+      }
+      rethrow;
+    }
   }
 
   Future<LearningMaterial> generate({
@@ -70,12 +97,16 @@ class LearningRepository {
     final material = await _pollUntilReady(id);
     debugPrint('[learning] Study set $id ready: "${material.title}"');
     _library.insert(0, material);
+    await _cache.saveMaterial(material);
+    await _cache.saveLibrary(_library);
     return material;
   }
 
   Future<void> delete(String id) async {
     await api.dio.delete('studysets/$id/');
     _library.removeWhere((m) => m.id == id);
+    await _cache.removeMaterial(id);
+    await _cache.saveLibrary(_library);
   }
 
   /// Generate a fresh pack of [count] quiz questions for [id] that don't
