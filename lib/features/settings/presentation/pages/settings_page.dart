@@ -8,10 +8,9 @@ import '../../../../core/onboarding/onboarding_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/theme/reading_bloc.dart';
 import '../../../../core/theme/theme_bloc.dart';
+import '../../../../core/storage/offline_store.dart';
 import '../../../../core/storage/storage_prefs.dart';
 import '../../../../core/widgets/airbnb_card.dart';
-import '../../../games/cache/bundle_serving.dart';
-import '../../../learning/data/learning_cache.dart';
 
 /// App settings: appearance, notifications, account, legal, and sign-out.
 class SettingsPage extends StatefulWidget {
@@ -408,7 +407,6 @@ class _StorageSettings extends StatefulWidget {
 
 class _StorageSettingsState extends State<_StorageSettings> {
   bool _enabled = true;
-  int _limitMb = StoragePrefs.defaultLimitMb;
   int _usedBytes = 0;
   bool _loading = true;
 
@@ -420,12 +418,10 @@ class _StorageSettingsState extends State<_StorageSettings> {
 
   Future<void> _load() async {
     final enabled = await StoragePrefs.offlineEnabled();
-    final limit = await StoragePrefs.limitMb();
-    final used = await BundleServing.usageBytes();
+    final used = await OfflineStore.usageBytes();
     if (!mounted) return;
     setState(() {
       _enabled = enabled;
-      _limitMb = limit;
       _usedBytes = used;
       _loading = false;
     });
@@ -433,32 +429,19 @@ class _StorageSettingsState extends State<_StorageSettings> {
 
   String _mb(int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);
 
-  Future<void> _clear() async {
-    await BundleServing.clearDownloads();
-    await LearningCache().clearMaterials();
-    await _load();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Downloads cleared')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final limitBytes = _limitMb * 1024 * 1024;
-    final frac = limitBytes == 0
-        ? 0.0
-        : (_usedBytes / limitBytes).clamp(0.0, 1.0).toDouble();
+    final limitBytes = OfflineStore.limitBytes;
+    final frac = (_usedBytes / limitBytes).clamp(0.0, 1.0).toDouble();
     return AirbnbCard(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Column(children: [
         SwitchListTile.adaptive(
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           secondary: const Icon(Icons.download_for_offline_outlined),
-          title: const Text('Save games offline'),
-          subtitle: const Text('Download games so they play without internet'),
+          title: const Text('Save quizzes & games offline'),
+          subtitle: const Text('Play without an internet connection'),
           value: _enabled,
           onChanged: _loading
               ? null
@@ -469,17 +452,18 @@ class _StorageSettingsState extends State<_StorageSettings> {
         ),
         Divider(height: 1, color: theme.dividerColor),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Storage limit',
+                  Text('Offline storage',
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600)),
-                  Text('${_mb(_usedBytes)} MB of $_limitMb MB',
+                  Text(
+                      '${_mb(_usedBytes)} MB of ${StoragePrefs.maxOfflineMb} MB',
                       style: theme.textTheme.bodySmall),
                 ],
               ),
@@ -490,24 +474,10 @@ class _StorageSettingsState extends State<_StorageSettings> {
                   value: frac,
                   minHeight: 8,
                   backgroundColor: theme.dividerColor,
+                  color: frac > 0.9
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.primary,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final mb in StoragePrefs.limitOptionsMb)
-                    ChoiceChip(
-                      label: Text('$mb MB'),
-                      selected: _limitMb == mb,
-                      onSelected: _enabled
-                          ? (_) async {
-                              setState(() => _limitMb = mb);
-                              await StoragePrefs.setLimitMb(mb);
-                            }
-                          : null,
-                    ),
-                ],
               ),
             ],
           ),
@@ -515,12 +485,14 @@ class _StorageSettingsState extends State<_StorageSettings> {
         Divider(height: 1, color: theme.dividerColor),
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          leading: const Icon(Icons.delete_sweep_outlined),
-          title: const Text('Clear downloads'),
-          subtitle: Text(_usedBytes == 0
-              ? 'Nothing downloaded'
-              : 'Free up ${_mb(_usedBytes)} MB'),
-          onTap: _usedBytes == 0 ? null : _clear,
+          leading: const Icon(Icons.folder_open_outlined),
+          title: const Text('Manage offline content'),
+          subtitle: const Text('See saved quizzes & free up space'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            await context.push('/offline');
+            if (mounted) _load(); // refresh usage after managing
+          },
         ),
       ]),
     );

@@ -21,6 +21,7 @@ import '../../features/library/presentation/pages/library_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/rewards/presentation/pages/adventure_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/settings/presentation/pages/offline_page.dart';
 import '../../features/subscription/presentation/pages/paywall_page.dart';
 import '../auth/auth_bloc.dart';
 import '../onboarding/onboarding_bloc.dart';
@@ -78,6 +79,10 @@ class AppRouter {
         GoRoute(
           path: '/settings',
           builder: (_, __) => const SettingsPage(),
+        ),
+        GoRoute(
+          path: '/offline',
+          builder: (_, __) => const OfflinePage(),
         ),
         ShellRoute(
           builder: (context, state, child) => AppShell(child: child),

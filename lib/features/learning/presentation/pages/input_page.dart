@@ -5,8 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/rewards/rewards_bloc.dart';
+import '../../../../core/storage/offline_store.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/widgets/airbnb_button.dart';
+import '../../../settings/presentation/pages/offline_page.dart'
+    show showOfflineFullDialog;
 import '../../data/models/learning_models.dart';
 import '../bloc/learning_bloc.dart';
 import '../widgets/generating_overlay.dart';
@@ -102,6 +105,11 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
           context.read<SubscriptionBloc>().add(LoadSubscription());
           context.read<RewardsBloc>().add(LoadRewards());
           context.push('/material/${state.material.id}', extra: state.material);
+          // If saving this new quiz filled offline storage, tell the user so
+          // they're not confused, and offer to free space.
+          OfflineStore.isFull().then((full) {
+            if (full && mounted) showOfflineFullDialog(context);
+          });
         } else if (state is LearningError) {
           debugPrint('[input] LearningError: ${state.message}');
           _toast(state.message);
