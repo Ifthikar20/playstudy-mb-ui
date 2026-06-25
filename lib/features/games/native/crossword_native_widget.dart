@@ -111,7 +111,7 @@ class _CrosswordNativeWidgetState extends State<CrosswordNativeWidget> {
                 width: double.infinity,
                 color: const Color(0xFF15803D),
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                child: const Text('Solved! +15 points 🎉',
+                child: const Text('Solved! +15 points',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.w800)),
@@ -162,7 +162,7 @@ class _CrosswordNativeWidgetState extends State<CrosswordNativeWidget> {
                             ? const Color(0xFF15803D)
                             : theme.colorScheme.primary.withOpacity(0.15),
                         child: _wordComplete(w)
-                            ? const Icon(Icons.check,
+                            ? const Icon(Icons.check_rounded,
                                 size: 14, color: Colors.white)
                             : Text('${w.number}',
                                 style: TextStyle(

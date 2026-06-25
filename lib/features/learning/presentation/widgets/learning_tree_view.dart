@@ -1,17 +1,26 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+
 import '../../data/models/learning_models.dart';
 
-/// A graphical, pannable learning tree built from a study set:
-///   study set (root) -> topics (sections) -> sub-topics (paragraphs)
-///   -> sub-sub-topics (key terms).
-/// Topic nodes show how many questions they have + completion; related topics
-/// (sharing a key term) are joined with a dashed line. Tap a topic to jump.
+/// Top-to-bottom learning tree for a study set:
+///
+///        ┌────── Study set ──────┐
+///        │                        │
+///        ▼          ▼          ▼
+///     ┌──────┐   ┌──────┐   ┌──────┐
+///     │Topic │   │Topic │   │Topic │
+///     └──┬───┘   └──┬───┘   └──┬───┘
+///        │          │          │
+///       leaf       leaf       leaf
+///       leaf       leaf       leaf
+///
+/// Pannable + pinch-zoomable for large sets. Tap a topic node to jump back
+/// to it in the study flow.
 class LearningTreeView extends StatelessWidget {
   final LearningMaterial material;
   final Set<int> completed;
-  /// Section index the user was last on — drawn as a highlighted "you are
-  /// here / continue" node and centred on first paint.
   final int? currentSection;
   final ValueChanged<int>? onJumpToSection;
   const LearningTreeView({
@@ -22,356 +31,448 @@ class LearningTreeView extends StatelessWidget {
     this.onJumpToSection,
   });
 
-  // ---- Build a flat, ordered node list + parent links + related pairs ----
-  _TreeData _build() {
-    final nodes = <_Node>[];
-    final terms = material.wordGame
-        .map((w) => w.word.toUpperCase())
-        .where((w) => w.length >= 3)
-        .toList();
-
-    nodes.add(_Node(
-      depth: 0,
-      kind: _Kind.root,
-      label: material.title.isEmpty ? 'Study set' : material.title,
-      parent: -1,
-    ));
-    final rootRow = 0;
-
-    final topicRow = <int>[]; // section index -> row
-    final topicTerms = <Set<String>>[];
-
-    for (var si = 0; si < material.sections.length; si++) {
-      final sec = material.sections[si];
-      final done = completed.contains(si);
-      final topicIdx = nodes.length;
-      topicRow.add(topicIdx);
-      nodes.add(_Node(
-        depth: 1,
-        kind: _Kind.topic,
-        label: sec.title.isEmpty ? 'Topic ${si + 1}' : sec.title,
-        parent: rootRow,
-        sectionIndex: si,
-        done: done,
-        current: currentSection == si,
-        qTotal: sec.quiz.length,
-        qDone: done ? sec.quiz.length : 0,
-      ));
-
-      final contentUpper = sec.content.toUpperCase();
-      topicTerms.add(terms.where(contentUpper.contains).toSet());
-
-      // Sub-topics = paragraphs of the section content.
-      final paras = sec.content
-          .split(RegExp(r'\n\s*\n|\n'))
-          .map((p) => p.trim())
-          .where((p) => p.length > 12)
-          .take(4)
-          .toList();
-      for (final p in paras) {
-        final subIdx = nodes.length;
-        nodes.add(_Node(
-          depth: 2,
-          kind: _Kind.sub,
-          label: _short(p, 6),
-          parent: topicIdx,
-        ));
-        // Sub-sub-topics = key terms appearing in this paragraph.
-        final pu = p.toUpperCase();
-        for (final t in terms.where(pu.contains).take(3)) {
-          nodes.add(_Node(
-            depth: 3,
-            kind: _Kind.leaf,
-            label: _titleCase(t),
-            parent: subIdx,
-          ));
-        }
-      }
-    }
-
-    // Related topics: share at least one key term.
-    final related = <List<int>>[];
-    for (var a = 0; a < topicTerms.length; a++) {
-      for (var b = a + 1; b < topicTerms.length; b++) {
-        if (topicTerms[a].intersection(topicTerms[b]).isNotEmpty) {
-          related.add([topicRow[a], topicRow[b]]);
-        }
-      }
-    }
-    return _TreeData(nodes, related);
-  }
-
-  static String _short(String s, int words) {
-    final parts = s.split(RegExp(r'\s+'));
-    final out = parts.take(words).join(' ');
-    return parts.length > words ? '$out…' : out;
-  }
-
-  static String _titleCase(String t) =>
-      t.isEmpty ? t : t[0].toUpperCase() + t.substring(1).toLowerCase();
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final data = _build();
-    if (data.nodes.length <= 1) {
+    final sections = material.sections;
+    if (sections.isEmpty) {
       return Center(
         child: Text('No topics to map yet', style: theme.textTheme.bodyMedium),
       );
     }
-    const rowH = 60.0;
-    final height = data.nodes.length * rowH + 32;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = math.max(constraints.maxWidth, 320.0);
-        return InteractiveViewer(
-          panEnabled: true,
-          scaleEnabled: true,
-          minScale: 0.6,
-          maxScale: 2.5,
-          boundaryMargin: const EdgeInsets.all(80),
-          constrained: false,
-          child: GestureDetector(
-            onTapUp: (d) {
-              final row = (d.localPosition.dy ~/ rowH);
-              if (row < 0 || row >= data.nodes.length) return;
-              final n = data.nodes[row];
-              if (n.kind == _Kind.topic && onJumpToSection != null) {
-                onJumpToSection!(n.sectionIndex);
-              }
-            },
+
+    // Layout constants tuned to feel compact on phones.
+    const rootW = 220.0;
+    const rootH = 56.0;
+    const topicW = 138.0;
+    const topicH = 68.0;
+    const leafW = 132.0;
+    const leafH = 26.0;
+    const colGap = 18.0;
+    const rowGap = 56.0;
+    const leafGap = 6.0;
+    const padX = 24.0;
+    const padTop = 20.0;
+    const maxLeaves = 4;
+
+    // Per-topic leaves: key word-game terms that appear in the section's
+    // content. Fallback to a few words from the section if no terms hit.
+    final terms = material.wordGame
+        .map((w) => w.word.toUpperCase())
+        .where((w) => w.length >= 3)
+        .toList();
+    final perTopic = <List<String>>[];
+    for (final sec in sections) {
+      final upper = sec.content.toUpperCase();
+      final hits = terms.where(upper.contains).take(maxLeaves).toList();
+      if (hits.isEmpty && sec.content.trim().isNotEmpty) {
+        final parts = sec.content
+            .split(RegExp(r'\s+'))
+            .where((p) => p.isNotEmpty)
+            .toList();
+        perTopic.add([parts.take(4).join(' ')]);
+      } else {
+        perTopic.add(hits);
+      }
+    }
+    final maxLeafCount =
+        perTopic.fold<int>(0, (a, b) => b.length > a ? b.length : a);
+
+    final cols = sections.length;
+    final canvasW =
+        math.max(padX * 2 + cols * topicW + (cols - 1) * colGap, 320.0);
+    final canvasH = padTop +
+        rootH +
+        rowGap +
+        topicH +
+        rowGap +
+        (maxLeafCount * leafH +
+            (maxLeafCount > 0 ? (maxLeafCount - 1) * leafGap : 0)) +
+        24;
+
+    final rootCx = canvasW / 2;
+    final rootBottomY = padTop + rootH;
+    final topicTopY = padTop + rootH + rowGap;
+    final leafTopY = topicTopY + topicH + rowGap;
+
+    return InteractiveViewer(
+      constrained: false,
+      minScale: 0.55,
+      maxScale: 2.5,
+      boundaryMargin: const EdgeInsets.all(80),
+      child: SizedBox(
+        width: canvasW,
+        height: canvasH,
+        child: Stack(children: [
+          // Edges painted under the nodes.
+          Positioned.fill(
             child: CustomPaint(
-              size: Size(width, height),
-              painter: _TreePainter(
-                data: data,
-                rowH: rowH,
-                theme: theme,
+              painter: _EdgePainter(
+                sections: sections,
+                completed: completed,
+                perTopic: perTopic,
+                rootBottomCenter: Offset(rootCx, rootBottomY),
+                topicTopY: topicTopY,
+                topicH: topicH,
+                topicW: topicW,
+                colGap: colGap,
+                padX: padX,
+                leafTopY: leafTopY,
+                primary: theme.colorScheme.primary,
+                divider: theme.dividerColor,
               ),
             ),
           ),
-        );
-      },
+          // Root.
+          Positioned(
+            left: rootCx - rootW / 2,
+            top: padTop,
+            child: _RootNode(
+              width: rootW,
+              height: rootH,
+              title:
+                  material.title.isEmpty ? 'Study set' : material.title,
+              primary: theme.colorScheme.primary,
+            ),
+          ),
+          // Topics.
+          for (var i = 0; i < cols; i++)
+            Positioned(
+              left: padX + i * (topicW + colGap),
+              top: topicTopY,
+              child: _TopicNode(
+                width: topicW,
+                height: topicH,
+                section: sections[i],
+                index: i,
+                done: completed.contains(i),
+                current: currentSection == i,
+                primary: theme.colorScheme.primary,
+                onTap: onJumpToSection == null
+                    ? null
+                    : () => onJumpToSection!(i),
+              ),
+            ),
+          // Leaves.
+          for (var i = 0; i < cols; i++)
+            for (var j = 0; j < perTopic[i].length; j++)
+              Positioned(
+                left: padX + i * (topicW + colGap) + (topicW - leafW) / 2,
+                top: leafTopY + j * (leafH + leafGap),
+                child: _LeafChip(
+                  width: leafW,
+                  height: leafH,
+                  label: perTopic[i][j],
+                  accent: theme.colorScheme.tertiary,
+                ),
+              ),
+        ]),
+      ),
     );
   }
 }
 
-enum _Kind { root, topic, sub, leaf }
+// ─── Nodes ──────────────────────────────────────────────────────────────
 
-class _Node {
-  final int depth;
-  final _Kind kind;
-  final String label;
-  final int parent;
-  final int sectionIndex;
+class _RootNode extends StatelessWidget {
+  final double width;
+  final double height;
+  final String title;
+  final Color primary;
+  const _RootNode({
+    required this.width,
+    required this.height,
+    required this.title,
+    required this.primary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [primary, Color.lerp(primary, Colors.black, 0.20)!],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withOpacity(0.30),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Text(
+        title,
+        maxLines: 2,
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          height: 1.15,
+          letterSpacing: -0.1,
+        ),
+      ),
+    );
+  }
+}
+
+class _TopicNode extends StatelessWidget {
+  final double width;
+  final double height;
+  final StudySection section;
+  final int index;
   final bool done;
   final bool current;
-  final int qTotal;
-  final int qDone;
-  const _Node({
-    required this.depth,
-    required this.kind,
-    required this.label,
-    required this.parent,
-    this.sectionIndex = -1,
-    this.done = false,
-    this.current = false,
-    this.qTotal = 0,
-    this.qDone = 0,
+  final Color primary;
+  final VoidCallback? onTap;
+  const _TopicNode({
+    required this.width,
+    required this.height,
+    required this.section,
+    required this.index,
+    required this.done,
+    required this.current,
+    required this.primary,
+    required this.onTap,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color border = current
+        ? primary
+        : done
+            ? const Color(0xFF15803D)
+            : Colors.black.withOpacity(0.10);
+    final Color fill = current
+        ? primary.withOpacity(0.10)
+        : done
+            ? const Color(0xFF22C55E).withOpacity(0.10)
+            : Colors.white;
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: border, width: current ? 2 : 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: done
+                          ? const Color(0xFF22C55E)
+                          : primary.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: done
+                        ? const Icon(Icons.check_rounded,
+                            size: 12, color: Colors.white)
+                        : Text('${index + 1}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: primary,
+                            )),
+                  ),
+                  if (current) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: primary,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text('NOW',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          )),
+                    ),
+                  ],
+                ]),
+                Text(
+                  section.title.isEmpty
+                      ? 'Topic ${index + 1}'
+                      : section.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF1A0E12),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11.5,
+                    height: 1.15,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                Text(
+                  '${section.quiz.length} Q',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _TreeData {
-  final List<_Node> nodes;
-  final List<List<int>> related; // pairs of topic row indices
-  const _TreeData(this.nodes, this.related);
+class _LeafChip extends StatelessWidget {
+  final double width;
+  final double height;
+  final String label;
+  final Color accent;
+  const _LeafChip({
+    required this.width,
+    required this.height,
+    required this.label,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accent.withOpacity(0.30)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Color.lerp(accent, Colors.black, 0.45),
+          letterSpacing: 0.1,
+        ),
+      ),
+    );
+  }
 }
 
-class _TreePainter extends CustomPainter {
-  final _TreeData data;
-  final double rowH;
-  final ThemeData theme;
-  _TreePainter({required this.data, required this.rowH, required this.theme});
+// ─── Edges ──────────────────────────────────────────────────────────────
 
-  static const _leftPad = 16.0;
-  static const _indent = 24.0;
-
-  double _nodeX(int depth) => _leftPad + depth * _indent;
-  double _rowY(int row) => row * rowH + rowH / 2 + 12;
+class _EdgePainter extends CustomPainter {
+  final List<StudySection> sections;
+  final Set<int> completed;
+  final List<List<String>> perTopic;
+  final Offset rootBottomCenter;
+  final double topicTopY;
+  final double topicH;
+  final double topicW;
+  final double colGap;
+  final double padX;
+  final double leafTopY;
+  final Color primary;
+  final Color divider;
+  _EdgePainter({
+    required this.sections,
+    required this.completed,
+    required this.perTopic,
+    required this.rootBottomCenter,
+    required this.topicTopY,
+    required this.topicH,
+    required this.topicW,
+    required this.colGap,
+    required this.padX,
+    required this.leafTopY,
+    required this.primary,
+    required this.divider,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final divider = theme.dividerColor;
-    final primary = theme.colorScheme.primary;
-    final accent = theme.colorScheme.tertiary;
-
-    // 1) Solid hierarchy connectors (parent -> child elbow).
-    final line = Paint()
+    final brandPaint = Paint()
+      ..color = primary.withOpacity(0.55)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final donePaint = Paint()
+      ..color = const Color(0xFF22C55E)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final softPaint = Paint()
       ..color = divider
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
-    for (var i = 0; i < data.nodes.length; i++) {
-      final n = data.nodes[i];
-      if (n.parent < 0) continue;
-      final cx = _nodeX(n.depth);
-      final cy = _rowY(i);
-      final px = _nodeX(data.nodes[n.parent].depth) + 10;
-      final py = _rowY(n.parent);
-      final branchX = cx - 11;
-      final path = Path()
-        ..moveTo(branchX, py)
-        ..lineTo(branchX, cy)
-        ..lineTo(cx, cy);
-      canvas.drawPath(path, line);
+
+    // Root → each topic: smooth S-curve (root.bottom → topic.top).
+    for (var i = 0; i < sections.length; i++) {
+      final tx = padX + i * (topicW + colGap) + topicW / 2;
+      final ty = topicTopY;
+      final p = Path()
+        ..moveTo(rootBottomCenter.dx, rootBottomCenter.dy)
+        ..cubicTo(
+          rootBottomCenter.dx,
+          (rootBottomCenter.dy + ty) / 2,
+          tx,
+          (rootBottomCenter.dy + ty) / 2,
+          tx,
+          ty,
+        );
+      canvas.drawPath(p, completed.contains(i) ? donePaint : brandPaint);
     }
 
-    // 2) Dashed "related topics" lines (bowing into the left gutter).
-    final dashed = Paint()
-      ..color = accent.withOpacity(0.8)
-      ..strokeWidth = 1.6
-      ..style = PaintingStyle.stroke;
-    for (final pair in data.related) {
-      final y1 = _rowY(pair[0]);
-      final y2 = _rowY(pair[1]);
-      final x = _nodeX(1);
-      final mid = (y1 + y2) / 2;
-      final path = Path()
-        ..moveTo(x - 4, y1)
-        ..quadraticBezierTo(2, mid, x - 4, y2);
-      _drawDashed(canvas, path, dashed);
-    }
-
-    // 3) Nodes.
-    for (var i = 0; i < data.nodes.length; i++) {
-      _drawNode(canvas, size, i, data.nodes[i], primary, accent, divider);
-    }
-  }
-
-  void _drawNode(Canvas canvas, Size size, int row, _Node n, Color primary,
-      Color accent, Color divider) {
-    final x = _nodeX(n.depth);
-    final y = _rowY(row);
-    final h = rowH - 18;
-    final right = size.width - 12;
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromLTRB(x, y - h / 2, right, y + h / 2),
-      const Radius.circular(12),
-    );
-
-    Color fill;
-    switch (n.kind) {
-      case _Kind.root:
-        fill = primary.withOpacity(0.14);
-        break;
-      case _Kind.topic:
-        if (n.current) {
-          fill = primary.withOpacity(0.20);
-        } else if (n.done) {
-          fill = const Color(0xFF22C55E).withOpacity(0.22);
-        } else {
-          fill = primary.withOpacity(0.06);
-        }
-        break;
-      case _Kind.sub:
-        fill = theme.cardColor;
-        break;
-      case _Kind.leaf:
-        fill = accent.withOpacity(0.08);
-        break;
-    }
-    canvas.drawRRect(rect, Paint()..color = fill);
-    canvas.drawRRect(
-      rect,
-      Paint()
-        ..color = n.current
-            ? primary
-            : n.done
-                ? const Color(0xFF15803D)
-                : divider
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = n.current ? 2.5 : (n.done ? 2.2 : (n.kind == _Kind.topic ? 1.5 : 1)),
-    );
-
-    // Bullet / status dot.
-    final dotC = n.kind == _Kind.root
-        ? primary
-        : n.kind == _Kind.topic
-            ? (n.current
-                ? primary
-                : n.done
-                    ? const Color(0xFF15803D)
-                    : primary)
-            : n.kind == _Kind.sub
-                ? divider
-                : accent;
-    canvas.drawCircle(Offset(x + 14, y), n.current ? 6 : 5,
-        Paint()..color = dotC);
-
-    // Right badge for topics: "You are here" if current, otherwise the
-    // question count — and a green check on completed nodes.
-    var labelRight = right - 10;
-    if (n.kind == _Kind.topic) {
-      if (n.current) {
-        final tp = _text('You are here', 11, FontWeight.w800, primary);
-        tp.layout();
-        tp.paint(canvas, Offset(right - 12 - tp.width, y - tp.height / 2));
-        labelRight = right - 18 - tp.width;
-      } else if (n.done) {
-        // Draw a filled green ✓ circle on the right.
-        final cx = right - 18;
-        canvas.drawCircle(
-            Offset(cx, y), 9, Paint()..color = const Color(0xFF15803D));
-        final tp = _text('✓', 13, FontWeight.w900, Colors.white);
-        tp.layout();
-        tp.paint(canvas, Offset(cx - tp.width / 2, y - tp.height / 2));
-        labelRight = right - 32;
-      } else if (n.qTotal > 0) {
-        final badge = '${n.qDone}/${n.qTotal} Q';
-        final tp = _text(badge, 11, FontWeight.w700, primary);
-        tp.layout();
-        tp.paint(canvas, Offset(right - 12 - tp.width, y - tp.height / 2));
-        labelRight = right - 18 - tp.width;
-      }
-    }
-
-    // Label.
-    final style = n.kind == _Kind.root || n.kind == _Kind.topic
-        ? FontWeight.w700
-        : FontWeight.w500;
-    final color = n.kind == _Kind.leaf
-        ? accent
-        : (theme.textTheme.bodyLarge?.color ?? Colors.black);
-    final maxW = (labelRight - (x + 26)).clamp(40.0, size.width);
-    final tp = _text(n.label, n.kind == _Kind.root ? 15 : 13.5, style, color,
-        maxWidth: maxW);
-    tp.layout(maxWidth: maxW);
-    tp.paint(canvas, Offset(x + 26, y - tp.height / 2));
-  }
-
-  TextPainter _text(String s, double size, FontWeight w, Color c,
-      {double? maxWidth}) {
-    return TextPainter(
-      text: TextSpan(
-          text: s,
-          style: TextStyle(fontSize: size, fontWeight: w, color: c)),
-      maxLines: 1,
-      ellipsis: '…',
-      textDirection: TextDirection.ltr,
-    );
-  }
-
-  void _drawDashed(Canvas canvas, Path path, Paint paint,
-      {double dash = 6, double gap = 4}) {
-    for (final metric in path.computeMetrics()) {
-      var dist = 0.0;
-      while (dist < metric.length) {
-        final next = math.min(dist + dash, metric.length);
-        canvas.drawPath(metric.extractPath(dist, next), paint);
-        dist = next + gap;
-      }
+    // Topic → leaves: straight drop from topic.bottom to first leaf.
+    for (var i = 0; i < sections.length; i++) {
+      if (perTopic[i].isEmpty) continue;
+      final tx = padX + i * (topicW + colGap) + topicW / 2;
+      final topicBottom = topicTopY + topicH;
+      final p = Path()
+        ..moveTo(tx, topicBottom)
+        ..lineTo(tx, leafTopY);
+      canvas.drawPath(p, softPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _TreePainter old) =>
-      old.data != data || old.rowH != rowH;
+  bool shouldRepaint(covariant _EdgePainter old) =>
+      old.sections.length != sections.length ||
+      old.completed != completed ||
+      old.perTopic.length != perTopic.length;
 }

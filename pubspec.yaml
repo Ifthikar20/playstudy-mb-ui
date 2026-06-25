@@ -45,6 +45,10 @@ dependencies:
   path_provider: ^2.1.2
   path: ^1.9.0
 
+  # QR scanning — used by the link tab so users can scan a study URL from a
+  # poster, slide, or whiteboard instead of typing it.
+  mobile_scanner: ^5.2.3
+
   # AI — generate summary / quiz / game from text or link
   google_generative_ai: ^0.4.6
 

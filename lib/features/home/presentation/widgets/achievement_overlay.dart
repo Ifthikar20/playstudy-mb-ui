@@ -99,7 +99,7 @@ class _AchievementCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.bolt, color: Colors.white, size: 20),
+                  const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
                   const SizedBox(width: 6),
                   // Smooth count-up so the "+N points" feels earned.
                   TweenAnimationBuilder<double>(
@@ -261,7 +261,7 @@ class _PulsingTrophyState extends State<_PulsingTrophy>
             Transform.rotate(
               angle: (t - 0.5) * 0.12,
               child: Icon(
-                widget.rankedUp ? Icons.military_tech_outlined : Icons.bolt,
+                widget.rankedUp ? Icons.military_tech_rounded : Icons.bolt_rounded,
                 size: 40,
                 color: primary,
               ),

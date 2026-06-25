@@ -25,7 +25,9 @@ class GamesGrid extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🎮', style: TextStyle(fontSize: 56)),
+              Icon(Icons.videogame_asset_rounded,
+                  size: 56,
+                  color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 12),
               Text('No games available',
                   style: Theme.of(context).textTheme.titleLarge),

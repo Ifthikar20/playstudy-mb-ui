@@ -52,7 +52,7 @@ class SpaceShooterWebGame extends LearningGame {
   String get name => 'Space Shooter';
 
   @override
-  IconData get icon => Icons.rocket_launch;
+  IconData get icon => Icons.rocket_launch_rounded;
 
   @override
   String get description =>
@@ -85,7 +85,7 @@ class CrosswordWebGame extends LearningGame {
   String get name => 'Crossword';
 
   @override
-  IconData get icon => Icons.grid_on;
+  IconData get icon => Icons.grid_on_rounded;
 
   @override
   String get description =>
@@ -120,7 +120,7 @@ class SpaceHunterWebGame extends LearningGame {
   String get name => 'Space Hunter';
 
   @override
-  IconData get icon => Icons.rocket;
+  IconData get icon => Icons.rocket_rounded;
 
   @override
   String get description =>

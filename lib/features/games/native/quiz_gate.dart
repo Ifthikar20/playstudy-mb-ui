@@ -101,7 +101,7 @@ class _QuizDialogState extends State<_QuizDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              Icon(Icons.quiz_outlined,
+              Icon(Icons.quiz_rounded,
                   size: 20, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Expanded(
@@ -166,10 +166,10 @@ class _QuizDialogState extends State<_QuizDialog> {
                             child: Text(q.choices[i],
                                 style: theme.textTheme.bodyMedium)),
                         if (_revealed && isCorrect)
-                          const Icon(Icons.check_circle,
+                          const Icon(Icons.check_circle_rounded,
                               color: Colors.green, size: 18),
                         if (_revealed && isPicked && !isCorrect)
-                          const Icon(Icons.cancel,
+                          const Icon(Icons.cancel_rounded,
                               color: Colors.red, size: 18),
                       ]),
                     ),

@@ -291,7 +291,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
             right: 12,
             child: Row(children: [
               GameHudChip(
-                  icon: Icons.layers,
+                  icon: Icons.layers_rounded,
                   label: 'Wave $_wave',
                   color: const Color(0xFFC4C0F5)),
               const SizedBox(width: 8),
@@ -301,7 +301,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
                   color: const Color(0xFFFFD23F)),
               const Spacer(),
               GameHudChip(
-                  icon: Icons.favorite,
+                  icon: Icons.favorite_rounded,
                   label: '$_lives',
                   color: const Color(0xFFFF5A6E)),
             ]),
@@ -325,7 +325,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
                     const SizedBox(height: 18),
                     FilledButton.icon(
                       onPressed: _start,
-                      icon: const Icon(Icons.refresh),
+                      icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Play again'),
                     ),
                   ],

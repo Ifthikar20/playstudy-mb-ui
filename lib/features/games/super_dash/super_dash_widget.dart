@@ -131,7 +131,7 @@ class _HUD extends StatelessWidget {
       children: [
         _Pill(
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.directions_run, size: 16, color: Colors.white),
+            const Icon(Icons.directions_run_rounded, size: 16, color: Colors.white),
             const SizedBox(width: 6),
             Text('${meters}m',
                 style: const TextStyle(
@@ -140,7 +140,7 @@ class _HUD extends StatelessWidget {
         ),
         _Pill(
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.flag, size: 16, color: Colors.white),
+            const Icon(Icons.flag_rounded, size: 16, color: Colors.white),
             const SizedBox(width: 6),
             Text('$checkpoints',
                 style: const TextStyle(
@@ -152,7 +152,7 @@ class _HUD extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Icon(
-                i < lives ? Icons.favorite : Icons.favorite_border,
+                i < lives ? Icons.favorite_rounded : Icons.favorite_border,
                 size: 16,
                 color: i < lives ? const Color(0xFFEF4444) : Colors.white54,
               ),
@@ -220,7 +220,7 @@ class _CheckpointQuizOverlay extends StatelessWidget {
                           fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.flag, color: Color(0xFF5856D6), size: 18),
+                const Icon(Icons.flag_rounded, color: Color(0xFF5856D6), size: 18),
                 const SizedBox(width: 4),
                 const Text('Checkpoint',
                     style: TextStyle(
@@ -288,7 +288,7 @@ class _GameOverOverlay extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('💥', style: TextStyle(fontSize: 56)),
+              const Icon(Icons.flag_rounded, size: 48, color: Colors.white),
               const SizedBox(height: 12),
               const Text('Game over',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),

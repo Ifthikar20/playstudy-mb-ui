@@ -151,26 +151,67 @@ class _HeroCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        borderRadius: BorderRadius.circular(16),
-        color: scheme.primary,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(mainAxisSize: MainAxisSize.min, children: const [
-              Icon(Icons.add, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('Create a study set',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
-            ]),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        // microtask so the tap visual fires immediately, then nav happens on
+        // the next frame — keeps the button feeling instantly responsive
+        // even if the destination route is heavy.
+        onTap: () => Future.microtask(onTap),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [scheme.primary, scheme.secondary],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: scheme.primary.withOpacity(0.35),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
+          padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.20),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.auto_awesome_rounded,
+                  color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Create a study set',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      )),
+                  SizedBox(height: 2),
+                  Text('Paste a link, PDF or notes — we turn it into a quiz + game.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        height: 1.25,
+                      )),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_rounded,
+                color: Colors.white, size: 22),
+          ]),
         ),
       ),
     );
@@ -195,7 +236,7 @@ class _TodayPrepStrip extends StatelessWidget {
             color: theme.colorScheme.tertiary.withOpacity(0.18),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.event_available,
+          child: Icon(Icons.event_available_rounded,
               color: theme.colorScheme.tertiary),
         ),
         const SizedBox(width: 12),
@@ -216,7 +257,7 @@ class _TodayPrepStrip extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right),
+        const Icon(Icons.chevron_right_rounded),
       ]),
     );
   }
@@ -239,7 +280,7 @@ class _UsageStrip extends StatelessWidget {
             color: theme.colorScheme.primary.withOpacity(0.12),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.workspace_premium,
+          child: Icon(Icons.workspace_premium_rounded,
               color: theme.colorScheme.primary),
         ),
         const SizedBox(width: 12),
@@ -258,7 +299,7 @@ class _UsageStrip extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right),
+        const Icon(Icons.chevron_right_rounded),
       ]),
     );
   }
@@ -274,7 +315,7 @@ class _EmptyHero extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       onTap: onTap,
       child: Column(children: [
-        Icon(Icons.menu_book_outlined,
+        Icon(Icons.menu_book_rounded,
             size: 44, color: Theme.of(context).colorScheme.primary),
         const SizedBox(height: 12),
         Text('No study sets yet',
@@ -297,11 +338,11 @@ class StudySetCard extends StatelessWidget {
   IconData get _icon {
     switch (material.sourceKind) {
       case SourceKind.link:
-        return Icons.link;
+        return Icons.link_rounded;
       case SourceKind.file:
-        return Icons.description_outlined;
+        return Icons.description_rounded;
       case SourceKind.text:
-        return Icons.text_snippet_outlined;
+        return Icons.text_snippet_rounded;
     }
   }
 
@@ -396,15 +437,15 @@ class StudySetCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(children: [
                       _MetaChip(
-                          icon: Icons.menu_book_outlined,
+                          icon: Icons.menu_book_rounded,
                           label: '${material.keyPoints.length} pts'),
                       const SizedBox(width: 6),
                       _MetaChip(
-                          icon: Icons.quiz_outlined,
+                          icon: Icons.quiz_rounded,
                           label: '${material.quiz.length} quiz'),
                       const SizedBox(width: 6),
                       _MetaChip(
-                          icon: Icons.videogame_asset_outlined,
+                          icon: Icons.videogame_asset_rounded,
                           label: '${material.wordGame.length} words'),
                     ]),
                   ],

@@ -124,8 +124,9 @@ class LearningRepository {
   }
 
   Future<LearningMaterial> _pollUntilReady(String id) async {
-    // ~2 minutes max (60 * 2s) — generation is typically 10-40s.
-    for (var i = 0; i < 60; i++) {
+    // ~5 minutes max (150 * 2s) — long PDFs split into 3-5 chunks can take
+    // 60-90s per chunk on Anthropic, so a 9-page doc may need 3-4 minutes.
+    for (var i = 0; i < 150; i++) {
       final status = await api.dio.get('studysets/$id/status/');
       final value = status.data['status'] as String;
       debugPrint('[learning] poll $id (attempt ${i + 1}): status=$value');
@@ -136,7 +137,7 @@ class LearningRepository {
       }
       await Future.delayed(const Duration(seconds: 2));
     }
-    throw Exception('Generation timed out. Please try again.');
+    throw Exception('Generation timed out after 5 minutes. Please try again.');
   }
 
   Future<String> _upload(String path) async {

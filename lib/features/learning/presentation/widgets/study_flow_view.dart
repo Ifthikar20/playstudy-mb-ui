@@ -9,6 +9,7 @@ import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../family/data/family_repository.dart';
 import '../../data/models/learning_models.dart';
+import '../../data/quiz_progress_store.dart';
 import 'learning_tree_view.dart';
 
 /// Guided, section-by-section study loop:
@@ -29,7 +30,19 @@ class StudyFlowView extends StatefulWidget {
   State<StudyFlowView> createState() => _StudyFlowViewState();
 }
 
-const _emojis = ['📘', '🧠', '💡', '🔬', '🧩', '📐', '🌍', '⚗️', '📊', '🎯'];
+const _sectionIcons = [
+  Icons.menu_book_rounded,
+  Icons.psychology_rounded,
+  Icons.lightbulb_rounded,
+  Icons.science_rounded,
+  Icons.extension_rounded,
+  Icons.calculate_rounded,
+  Icons.public_rounded,
+  Icons.biotech_rounded,
+  Icons.insights_rounded,
+  Icons.flag_rounded,
+];
+const _emojis = ['', '', '', '', '', '', '', '', '', ''];
 
 class _Section {
   final String title;
@@ -217,11 +230,19 @@ class _StudyFlowViewState extends State<StudyFlowView> {
 
   void _choose(int i) {
     if (_revealed) return;
+    final q = _cur.questions[_qIndex];
+    final correct = i == q.correctIndex;
     setState(() {
       _selected = i;
       _revealed = true;
-      if (i == _cur.questions[_qIndex].correctIndex) _qScore++;
+      if (correct) _qScore++;
     });
+    // Share this answer with the standalone Quiz tab via the unified store so
+    // progress stays in sync between the two views.
+    final mid = widget.material.id;
+    if (mid.isNotEmpty) {
+      QuizProgressStore.markAnswered(mid, q.id, correct: correct);
+    }
   }
 
   void _nextQuestion() {
@@ -417,7 +438,7 @@ class _Header extends StatelessWidget {
                   overflow: TextOverflow.ellipsis),
             ),
             if (done)
-              const Icon(Icons.check_circle, color: Colors.green, size: 18),
+              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
           ]),
           const SizedBox(height: 6),
           ClipRRect(
@@ -464,7 +485,7 @@ class _LearningTree extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              Icon(Icons.account_tree, color: theme.colorScheme.primary),
+              Icon(Icons.account_tree_rounded, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Text('Learning tree', style: theme.textTheme.titleLarge),
               const Spacer(),
@@ -541,7 +562,7 @@ class _TreeNode extends StatelessWidget {
                   ),
                   child: Center(
                     child: isDone
-                        ? const Icon(Icons.check, color: Colors.white, size: 18)
+                        ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
                         : Text('${index + 1}',
                             style: TextStyle(
                                 fontWeight: FontWeight.w700,
@@ -560,7 +581,13 @@ class _TreeNode extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 6, bottom: 14),
                 child: Row(
                   children: [
-                    Text(emoji, style: const TextStyle(fontSize: 18)),
+                    Icon(
+                      _sectionIcons[index % _sectionIcons.length],
+                      size: 16,
+                      color: isCurrent
+                          ? theme.colorScheme.primary
+                          : const Color(0xFF6B6880),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(title,
@@ -794,7 +821,7 @@ class _NotesPane extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lightbulb_outline,
+                        Icon(Icons.lightbulb_outline_rounded,
                             color: theme.colorScheme.primary, size: 18),
                         const SizedBox(width: 8),
                         Expanded(
@@ -822,7 +849,8 @@ class _NotesPane extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        const Text('🌍', style: TextStyle(fontSize: 16)),
+                        const Icon(Icons.public_rounded,
+                            size: 16, color: Color(0xFF137A52)),
                         const SizedBox(width: 8),
                         Text(
                           'Real-world example',
@@ -859,7 +887,7 @@ class _NotesPane extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: onStartQuiz,
-              icon: const Icon(Icons.quiz_outlined),
+              icon: const Icon(Icons.quiz_rounded),
               label: Text(onStartQuiz == null
                   ? 'No quiz for this section'
                   : (completed ? 'Retake section quiz' : 'Quiz this section')),
@@ -918,7 +946,16 @@ class _QuizPane extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('✅', style: TextStyle(fontSize: 64)),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.task_alt_rounded,
+                    size: 36, color: Color(0xFF22C55E)),
+              ),
               const SizedBox(height: 12),
               Text('Section complete', style: theme.textTheme.headlineSmall),
               const SizedBox(height: 6),
@@ -931,7 +968,7 @@ class _QuizPane extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: onBackToNotes,
-                  icon: const Icon(Icons.menu_book_outlined),
+                  icon: const Icon(Icons.menu_book_rounded),
                   label: const Text('Back to notes'),
                 ),
               ),
@@ -941,12 +978,12 @@ class _QuizPane extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: onNextSection,
-                    icon: const Icon(Icons.arrow_forward),
+                    icon: const Icon(Icons.arrow_forward_rounded),
                     label: const Text('Next section'),
                   ),
                 )
               else
-                Text('That was the last section. Great work! 🎉',
+                Text('That was the last section. Great work.',
                     style: theme.textTheme.bodyMedium),
             ],
           ),
@@ -979,7 +1016,7 @@ class _QuizPane extends StatelessWidget {
             const Spacer(),
             TextButton.icon(
               onPressed: onBackToNotes,
-              icon: const Icon(Icons.menu_book_outlined, size: 16),
+              icon: const Icon(Icons.menu_book_rounded, size: 16),
               label: const Text('Notes'),
               style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1033,9 +1070,26 @@ class _QuizPane extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           SizedBox(
-            height: 40,
-            child: ElevatedButton(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
               onPressed: revealed ? onNext : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    theme.colorScheme.primary.withOpacity(0.32),
+                disabledForegroundColor: Colors.white.withOpacity(0.85),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+                elevation: 0,
+              ),
               child: Text(qIndex + 1 == total ? 'Finish section' : 'Next'),
             ),
           ),
@@ -1120,9 +1174,9 @@ class _AnswerTile extends StatelessWidget {
               ),
             ),
             if (revealed && isCorrect)
-              const Icon(Icons.check_circle, color: Colors.green, size: 18),
+              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
             if (revealed && isPicked && !isCorrect)
-              const Icon(Icons.cancel, color: Colors.red, size: 18),
+              const Icon(Icons.cancel_rounded, color: Colors.red, size: 18),
           ]),
         ),
       ),
@@ -1157,7 +1211,7 @@ class _PointsBurst extends StatelessWidget {
           ],
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.bolt, color: Colors.white, size: 20),
+          const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
           const SizedBox(width: 6),
           Text('+$points points',
               style: const TextStyle(

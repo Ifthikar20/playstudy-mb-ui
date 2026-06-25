@@ -269,7 +269,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
                   color: const Color(0xFFFFD23F)),
               const Spacer(),
               GameHudChip(
-                  icon: Icons.favorite,
+                  icon: Icons.favorite_rounded,
                   label: '${3 - _revives}',
                   color: const Color(0xFFFF5A6E)),
             ]),
@@ -293,7 +293,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
                     const SizedBox(height: 18),
                     FilledButton.icon(
                       onPressed: _flap,
-                      icon: const Icon(Icons.refresh),
+                      icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Play again'),
                     ),
                   ],

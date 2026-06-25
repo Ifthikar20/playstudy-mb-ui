@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,6 +14,7 @@ import '../../../settings/presentation/pages/offline_page.dart'
 import '../../data/models/learning_models.dart';
 import '../bloc/learning_bloc.dart';
 import '../widgets/generating_overlay.dart';
+import '../widgets/qr_scanner_sheet.dart';
 
 /// Input page: paste a link OR upload a file OR paste text, then generate
 /// summary + quiz + game.
@@ -51,6 +53,33 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     if (result != null && result.files.isNotEmpty) {
       setState(() => _file = result.files.first);
     }
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim() ?? '';
+    if (text.isEmpty) {
+      _toast('Clipboard is empty');
+      return;
+    }
+    _linkCtrl.text = text;
+    _linkCtrl.selection =
+        TextSelection.collapsed(offset: _linkCtrl.text.length);
+    setState(() {});
+  }
+
+  Future<void> _scanQr() async {
+    final value = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const QrScannerPage(),
+      ),
+    );
+    if (value == null || value.isEmpty) return;
+    _linkCtrl.text = value;
+    _linkCtrl.selection =
+        TextSelection.collapsed(offset: _linkCtrl.text.length);
+    setState(() {});
   }
 
   void _generate() {
@@ -118,7 +147,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back_rounded),
             tooltip: 'Back',
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go('/'),
@@ -127,9 +156,9 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
           bottom: TabBar(
             controller: _tab,
             tabs: const [
-              Tab(icon: Icon(Icons.link), text: 'Link'),
-              Tab(icon: Icon(Icons.upload_file_outlined), text: 'Upload'),
-              Tab(icon: Icon(Icons.text_snippet_outlined), text: 'Text'),
+              Tab(icon: Icon(Icons.link_rounded), text: 'Link'),
+              Tab(icon: Icon(Icons.upload_file_rounded), text: 'Upload'),
+              Tab(icon: Icon(Icons.text_snippet_rounded), text: 'Text'),
             ],
           ),
         ),
@@ -153,7 +182,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                     builder: (context, state) {
                       return AirbnbButton(
                         label: 'Generate learning material',
-                        icon: Icons.auto_awesome,
+                        icon: Icons.auto_awesome_rounded,
                         loading: state is Generating,
                         onPressed: _generate,
                       );
@@ -207,13 +236,43 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
             keyboardType: TextInputType.url,
             autocorrect: false,
             enableSuggestions: false,
+            autofocus: true,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              hintText: 'https://example.com/article or YouTube link',
-              prefixIcon: Icon(Icons.link),
+            decoration: InputDecoration(
+              hintText: 'https://example.com/article, PDF, or YouTube link',
+              prefixIcon: const Icon(Icons.link_rounded),
+              suffixIcon: _linkCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      tooltip: 'Clear',
+                      onPressed: () {
+                        _linkCtrl.clear();
+                        setState(() {});
+                      },
+                    ),
             ),
             onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
+          // Quick actions — paste from clipboard or scan a QR for the URL.
+          Row(children: [
+            Expanded(
+              child: _PillAction(
+                icon: Icons.content_paste_rounded,
+                label: 'Paste',
+                onTap: _pasteFromClipboard,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _PillAction(
+                icon: Icons.qr_code_scanner_rounded,
+                label: 'Scan QR',
+                onTap: _scanQr,
+              ),
+            ),
+          ]),
           const SizedBox(height: 12),
           if (_ytHost.hasMatch(_linkCtrl.text.trim()))
             Container(
@@ -223,7 +282,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(children: [
-                Icon(Icons.smart_display_outlined,
+                Icon(Icons.smart_display_rounded,
                     size: 18, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
@@ -264,7 +323,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                         ? Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.cloud_upload_outlined,
+                              Icon(Icons.cloud_upload_rounded,
                                   size: 56,
                                   color: Theme.of(context).colorScheme.primary),
                               const SizedBox(height: 12),
@@ -278,7 +337,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.description_outlined, size: 48),
+                              const Icon(Icons.description_rounded, size: 48),
                               const SizedBox(height: 12),
                               Text(_file!.name,
                                   textAlign: TextAlign.center,
@@ -328,6 +387,50 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact pill button used for the Paste / Scan helpers under the link field.
+class _PillAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _PillAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: scheme.onSurface),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 14.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -18,7 +18,7 @@ class AdventurePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/'),
         ),
@@ -203,7 +203,7 @@ class _RankRow extends StatelessWidget {
                       width: 1),
             ),
             child: Icon(
-              unlocked ? rank.icon : Icons.lock_outline,
+              unlocked ? rank.icon : Icons.lock_outline_rounded,
               size: 20,
               color: iconColor,
             ),

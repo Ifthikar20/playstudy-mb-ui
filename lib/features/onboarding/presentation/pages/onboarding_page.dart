@@ -30,7 +30,7 @@ class _Slide {
 
 const _slides = <_Slide>[
   _Slide(
-    icon: Icons.auto_awesome,
+    icon: Icons.auto_awesome_rounded,
     title: 'Turn anything into a study set',
     body:
         'Paste a link, upload a PDF or notes, or drop in text. PlayStudy turns it '
@@ -38,7 +38,7 @@ const _slides = <_Slide>[
     gradient: [Color(0xFFFF385C), Color(0xFFFF6B8A)],
   ),
   _Slide(
-    icon: Icons.school_outlined,
+    icon: Icons.school_rounded,
     title: 'Study section by section',
     body:
         'Read a section, see a real-world example, then take a short quiz on it. '
@@ -46,7 +46,7 @@ const _slides = <_Slide>[
     gradient: [Color(0xFF007AFF), Color(0xFF5AC8FA)],
   ),
   _Slide(
-    icon: Icons.videogame_asset_outlined,
+    icon: Icons.videogame_asset_rounded,
     title: 'Learn by playing',
     body:
         'Flappy, Space Hunter, a crossword and more — every game quizzes you on '
@@ -54,7 +54,7 @@ const _slides = <_Slide>[
     gradient: [Color(0xFF22C55E), Color(0xFF14B8A6)],
   ),
   _Slide(
-    icon: Icons.local_fire_department_outlined,
+    icon: Icons.local_fire_department_rounded,
     title: 'Build a streak & climb ranks',
     body:
         'Earn points, keep your streak alive, and rise through the ranks. '

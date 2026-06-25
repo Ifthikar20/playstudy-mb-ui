@@ -191,7 +191,7 @@ class _MaterialLoaderState extends State<_MaterialLoader> {
           return Scaffold(
             appBar: AppBar(
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () =>
                     context.canPop() ? context.pop() : context.go('/'),
               ),
@@ -203,7 +203,7 @@ class _MaterialLoaderState extends State<_MaterialLoader> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.cloud_off_outlined,
+                    const Icon(Icons.cloud_off_rounded,
                         size: 56, color: Colors.grey),
                     const SizedBox(height: 12),
                     const Text("Couldn't open this study set.",
@@ -215,7 +215,7 @@ class _MaterialLoaderState extends State<_MaterialLoader> {
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: _retry,
-                      icon: const Icon(Icons.refresh),
+                      icon: const Icon(Icons.refresh_rounded),
                       label: const Text('Try again'),
                     ),
                   ],

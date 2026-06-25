@@ -43,7 +43,7 @@ class _ChildDashboardPageState extends State<ChildDashboardPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/'),
         ),
@@ -70,14 +70,14 @@ class _ChildDashboardPageState extends State<ChildDashboardPage> {
                     child: _Stat(
                         label: 'Time studying',
                         value: _dur(a.secondsSpent),
-                        icon: Icons.timer_outlined)),
+                        icon: Icons.timer_rounded)),
                 const SizedBox(width: 12),
                 Expanded(
                     child: _Stat(
                         label: 'Completed',
                         value:
                             '${a.completionPct}%',
-                        icon: Icons.task_alt)),
+                        icon: Icons.task_alt_rounded)),
               ]),
               const SizedBox(height: 12),
               Row(children: [
@@ -85,13 +85,13 @@ class _ChildDashboardPageState extends State<ChildDashboardPage> {
                     child: _Stat(
                         label: 'Points',
                         value: '${a.points}',
-                        icon: Icons.bolt)),
+                        icon: Icons.bolt_rounded)),
                 const SizedBox(width: 12),
                 Expanded(
                     child: _Stat(
                         label: 'Streak',
                         value: '${a.streak}d',
-                        icon: Icons.local_fire_department)),
+                        icon: Icons.local_fire_department_rounded)),
               ]),
               const SizedBox(height: 8),
               Padding(
@@ -174,7 +174,7 @@ class _SetCardState extends State<_SetCard> {
                 Text('avg ${set.avgScorePct}%',
                     style: theme.textTheme.bodySmall),
               if (set.sections.isNotEmpty)
-                Icon(_expanded ? Icons.expand_less : Icons.expand_more,
+                Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                     size: 20, color: theme.colorScheme.onSurface.withOpacity(0.5)),
             ]),
             const SizedBox(height: 6),
@@ -204,7 +204,7 @@ class _SetCardState extends State<_SetCard> {
                   child: Row(children: [
                     Icon(
                       sec.completed
-                          ? Icons.check_circle
+                          ? Icons.check_circle_rounded
                           : Icons.radio_button_unchecked,
                       size: 16,
                       color: sec.completed ? Colors.green : theme.dividerColor,

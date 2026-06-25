@@ -131,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: 'Email',
-                        prefixIcon: Icon(Icons.mail_outline),
+                        prefixIcon: Icon(Icons.mail_outline_rounded),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -142,11 +142,11 @@ class _LoginPageState extends State<LoginPage> {
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
                         suffixIcon: IconButton(
                           icon: Icon(_obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
+                              ? Icons.visibility_rounded
+                              : Icons.visibility_off_rounded),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
@@ -211,7 +211,7 @@ class _AnimatedHeroState extends State<_AnimatedHero>
   int _tagline = 0;
 
   static const _taglines = [
-    'Turn notes into games 🎮',
+    'Turn notes into games',
     'Quizzes, arcade & flashcards',
     'PDFs & links → playable sets',
     'Learn by playing. Beat your best.',

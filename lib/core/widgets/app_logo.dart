@@ -37,7 +37,7 @@ class _Fallback extends StatelessWidget {
         color: Theme.of(context).colorScheme.primary,
         borderRadius: BorderRadius.circular(radius),
       ),
-      child: Icon(Icons.school_outlined, color: Colors.white, size: size * 0.5),
+      child: Icon(Icons.school_rounded, color: Colors.white, size: size * 0.5),
     );
   }
 }

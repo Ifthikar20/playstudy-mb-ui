@@ -98,7 +98,7 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('All done! 🎉'),
+        title: const Text('All done'),
         content: Text('You guessed $_score / ${widget.challenges.length} words.'),
         actions: [
           TextButton(
@@ -139,7 +139,7 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(children: [
-                Icon(Icons.lightbulb_outline,
+                Icon(Icons.lightbulb_outline_rounded,
                     color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
@@ -169,7 +169,7 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
           if (_won)
             _RoundBanner(
               color: Colors.green,
-              icon: Icons.check_circle,
+              icon: Icons.check_circle_rounded,
               text: 'Correct! The word is "${_current.word}".',
               onContinue: _nextRound,
               continueLabel: _round + 1 < widget.challenges.length
@@ -208,7 +208,7 @@ class _MistakeMeter extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 3),
           child: Icon(
-            used ? Icons.favorite : Icons.favorite_border,
+            used ? Icons.favorite_rounded : Icons.favorite_border,
             size: 20,
             color: used ? Colors.red : Theme.of(context).colorScheme.outline,
           ),

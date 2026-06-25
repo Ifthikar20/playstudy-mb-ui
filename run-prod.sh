@@ -171,8 +171,13 @@ BANNER
 # is easy to spot among [backend] / [games]. flutter run itself still owns
 # the foreground TTY so q/h/c interactive keys keep working.
 if command -v idevicesyslog >/dev/null 2>&1; then
+  # Allow-list: Flutter/Dart prints + our own debugPrint topics.
+  # Deny-list: noisy iOS sandbox/IOKit/kernel chatter that the syslog stream
+  # picks up but which is not actionable (Metal probing GPU props, etc.).
   ( idevicesyslog 2>/dev/null \
       | grep --line-buffered -E 'Runner|Flutter|flutter:' \
+      | grep --line-buffered -vE \
+          'iokit-get-properties|AGXAccelerator|kernel\(Sandbox\)|Sandbox: Runner' \
       | awk '{ print "[ui] " $0; fflush() }' ) &
   UI_LOG_PID=$!
   echo "==> Streaming Dart console as [ui] via idevicesyslog (pid $UI_LOG_PID)"

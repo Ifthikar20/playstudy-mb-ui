@@ -87,7 +87,7 @@ class RemoteWebGame extends LearningGame {
   String get name => def.name;
 
   @override
-  String get emoji => def.emoji.isNotEmpty ? def.emoji : '🎮';
+  String get emoji => def.emoji;
 
   @override
   IconData? get icon => _iconByName(def.icon);
@@ -160,18 +160,18 @@ IconData? _iconByName(String name) => _icons[name];
 
 const Map<String, IconData> _icons = {
   'flutter_dash': Icons.flutter_dash,
-  'rocket_launch': Icons.rocket_launch,
-  'rocket': Icons.rocket,
-  'grid_on': Icons.grid_on,
-  'spellcheck_outlined': Icons.spellcheck_outlined,
-  'casino_outlined': Icons.casino_outlined,
-  'sports_esports': Icons.sports_esports,
-  'videogame_asset_outlined': Icons.videogame_asset_outlined,
-  'extension': Icons.extension,
-  'quiz': Icons.quiz,
-  'psychology': Icons.psychology,
-  'bolt': Icons.bolt,
-  'auto_awesome': Icons.auto_awesome,
-  'flag': Icons.flag,
-  'pets': Icons.pets,
+  'rocket_launch': Icons.rocket_launch_rounded,
+  'rocket': Icons.rocket_rounded,
+  'grid_on': Icons.grid_on_rounded,
+  'spellcheck_outlined': Icons.spellcheck_rounded,
+  'casino_outlined': Icons.casino_rounded,
+  'sports_esports': Icons.sports_esports_rounded,
+  'videogame_asset_outlined': Icons.videogame_asset_rounded,
+  'extension': Icons.extension_rounded,
+  'quiz': Icons.quiz_rounded,
+  'psychology': Icons.psychology_rounded,
+  'bolt': Icons.bolt_rounded,
+  'auto_awesome': Icons.auto_awesome_rounded,
+  'flag': Icons.flag_rounded,
+  'pets': Icons.pets_rounded,
 };

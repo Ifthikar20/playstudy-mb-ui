@@ -18,12 +18,12 @@ class GeneratingOverlay extends StatefulWidget {
 class _GeneratingOverlayState extends State<GeneratingOverlay>
     with TickerProviderStateMixin {
   static const _steps = <_Step>[
-    _Step(Icons.cloud_download_outlined, 'Fetching your material…'),
-    _Step(Icons.find_in_page_outlined, 'Reading and extracting key ideas…'),
-    _Step(Icons.auto_awesome, 'Drafting clear, focused sections…'),
-    _Step(Icons.quiz_outlined, 'Writing quiz questions to test you…'),
-    _Step(Icons.spellcheck_outlined, 'Picking the most useful key words…'),
-    _Step(Icons.style_outlined, 'Polishing your study set…'),
+    _Step(Icons.cloud_download_rounded, 'Fetching your material…'),
+    _Step(Icons.find_in_page_rounded, 'Reading and extracting key ideas…'),
+    _Step(Icons.auto_awesome_rounded, 'Drafting clear, focused sections…'),
+    _Step(Icons.quiz_rounded, 'Writing quiz questions to test you…'),
+    _Step(Icons.spellcheck_rounded, 'Picking the most useful key words…'),
+    _Step(Icons.style_rounded, 'Polishing your study set…'),
   ];
 
   late final AnimationController _pulse;

@@ -76,7 +76,7 @@ class _OfflinePageState extends State<OfflinePage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
         title: const Text('Offline'),
@@ -130,7 +130,9 @@ class _OfflinePageState extends State<OfflinePage> {
                   AirbnbCard(
                     padding: const EdgeInsets.all(24),
                     child: Column(children: [
-                      const Text('📴', style: TextStyle(fontSize: 40)),
+                      Icon(Icons.cloud_off_rounded,
+                          size: 44,
+                          color: theme.colorScheme.primary),
                       const SizedBox(height: 10),
                       Text('No quizzes saved offline yet',
                           style: theme.textTheme.titleMedium),
@@ -152,14 +154,14 @@ class _OfflinePageState extends State<OfflinePage> {
                           if (i > 0)
                             Divider(height: 1, color: theme.dividerColor),
                           ListTile(
-                            leading: Icon(Icons.quiz_outlined,
+                            leading: Icon(Icons.quiz_rounded,
                                 color: theme.colorScheme.primary),
                             title: Text(_sets[i].title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                             subtitle: Text(_fmt(_sets[i].bytes)),
                             trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
+                              icon: const Icon(Icons.delete_outline_rounded),
                               tooltip: 'Free up',
                               onPressed: () => _remove(_sets[i]),
                             ),
@@ -171,7 +173,7 @@ class _OfflinePageState extends State<OfflinePage> {
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: _used == 0 ? null : _clearAll,
-                  icon: const Icon(Icons.delete_sweep_outlined),
+                  icon: const Icon(Icons.delete_sweep_rounded),
                   label: const Text('Clear all offline content'),
                 ),
               ],

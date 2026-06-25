@@ -16,13 +16,13 @@ class Rank {
 }
 
 const kRanks = <Rank>[
-  Rank('Novice', Icons.eco_outlined, 0),
-  Rank('Explorer', Icons.explore_outlined, 100),
-  Rank('Scholar', Icons.menu_book_outlined, 300),
-  Rank('Strategist', Icons.psychology_outlined, 600),
-  Rank('Sage', Icons.auto_stories_outlined, 1000),
-  Rank('Master', Icons.school_outlined, 1500),
-  Rank('Legend', Icons.workspace_premium_outlined, 2200),
+  Rank('Novice', Icons.eco_rounded, 0),
+  Rank('Explorer', Icons.explore_rounded, 100),
+  Rank('Scholar', Icons.menu_book_rounded, 300),
+  Rank('Strategist', Icons.psychology_rounded, 600),
+  Rank('Sage', Icons.auto_stories_rounded, 1000),
+  Rank('Master', Icons.school_rounded, 1500),
+  Rank('Legend', Icons.workspace_premium_rounded, 2200),
 ];
 
 /// Tracks daily streak, lifetime points, and adventure rank. Points are

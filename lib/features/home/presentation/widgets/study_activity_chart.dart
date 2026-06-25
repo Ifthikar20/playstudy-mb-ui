@@ -27,33 +27,38 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
   }
 
   Future<_ChartData> _load() async {
+    // Run BOTH calls in parallel — they're independent endpoints, so doing
+    // them serially (the old code) doubled the perceived load time.
     final api = context.read<ApiClient>();
-    List<DayActivity> days = const [];
-    int totalSeconds = 0;
-    int sectionsDone = 0;
-    int sectionsTotal = 0;
-    try {
-      final r = await api.dio
-          .get('rewards/history/', queryParameters: {'days': 14});
-      final results = (r.data['results'] as List).cast<Map<String, dynamic>>();
-      days = results.map(DayActivity.fromJson).toList();
-    } catch (e) {
+    final historyFuture = api.dio
+        .get('rewards/history/', queryParameters: {'days': 14})
+        .then((r) => (r.data['results'] as List)
+            .cast<Map<String, dynamic>>()
+            .map(DayActivity.fromJson)
+            .toList())
+        .catchError((Object e) {
       debugPrint('[home] rewards/history load failed: $e');
-    }
-    try {
-      final r = await api.dio.get('progress/me/');
+      return <DayActivity>[];
+    });
+    final progressFuture = api.dio.get('progress/me/').then((r) {
       final totals = r.data['totals'] as Map<String, dynamic>? ?? const {};
-      totalSeconds = (totals['secondsSpent'] as int?) ?? 0;
-      sectionsDone = (totals['sectionsCompleted'] as int?) ?? 0;
-      sectionsTotal = (totals['sectionsTotal'] as int?) ?? 0;
-    } catch (e) {
+      return (
+        totalSeconds: (totals['secondsSpent'] as int?) ?? 0,
+        sectionsDone: (totals['sectionsCompleted'] as int?) ?? 0,
+        sectionsTotal: (totals['sectionsTotal'] as int?) ?? 0,
+      );
+    }).catchError((Object e) {
       debugPrint('[home] progress/me load failed: $e');
-    }
+      return (totalSeconds: 0, sectionsDone: 0, sectionsTotal: 0);
+    });
+    final results = await Future.wait<dynamic>([historyFuture, progressFuture]);
+    final days = results[0] as List<DayActivity>;
+    final p = results[1] as ({int totalSeconds, int sectionsDone, int sectionsTotal});
     return _ChartData(
       days: days,
-      totalSeconds: totalSeconds,
-      sectionsDone: sectionsDone,
-      sectionsTotal: sectionsTotal,
+      totalSeconds: p.totalSeconds,
+      sectionsDone: p.sectionsDone,
+      sectionsTotal: p.sectionsTotal,
     );
   }
 
@@ -110,13 +115,20 @@ class _StudyActivityChartState extends State<StudyActivityChart> {
                   SizedBox(
                     height: 120,
                     child: snap.connectionState == ConnectionState.waiting
-                        ? const Center(
-                            child: SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2)))
+                        ? _ChartSkeleton(color: theme.colorScheme.primary)
                         : _BarChart(data: days, color: theme.colorScheme.primary),
                   ),
+                  // Mastery progress: a second view of the same data so the
+                  // user sees both *what they did* (bars) and *how far they
+                  // are* through the material (this strip).
+                  if (data.sectionsTotal > 0) ...[
+                    const SizedBox(height: 18),
+                    _MasteryStrip(
+                      done: data.sectionsDone,
+                      total: data.sectionsTotal,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
                 ],
               ),
             );
@@ -162,6 +174,116 @@ class _Metric extends StatelessWidget {
             style: theme.textTheme.titleLarge
                 ?.copyWith(color: color, fontWeight: FontWeight.w800)),
         Text(label, style: theme.textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+/// Lightweight placeholder shown while the first chart load is in flight.
+/// Renders the same shape as the real chart so layout doesn't jump.
+class _ChartSkeleton extends StatefulWidget {
+  final Color color;
+  const _ChartSkeleton({required this.color});
+
+  @override
+  State<_ChartSkeleton> createState() => _ChartSkeletonState();
+}
+
+class _ChartSkeletonState extends State<_ChartSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        final tint = widget.color
+            .withOpacity(0.08 + (_ctrl.value * 0.10));
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(14, (i) {
+            // pseudo-random heights so it looks like bars, not all identical
+            final h = 24.0 + ((i * 13) % 80);
+            return Container(
+              width: 10,
+              height: h,
+              decoration: BoxDecoration(
+                color: tint,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+/// Compact "X / Y sections — Z%" mastery bar shown under the bar chart.
+class _MasteryStrip extends StatelessWidget {
+  final int done;
+  final int total;
+  final Color color;
+  const _MasteryStrip({
+    required this.done,
+    required this.total,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final pct = total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0);
+    final pctLabel = (pct * 100).round();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Icon(Icons.task_alt_rounded, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text('Mastery',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: color,
+                letterSpacing: 0.3,
+              )),
+          const Spacer(),
+          Text(
+            '$done / $total  ·  $pctLabel%',
+            style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOut,
+            tween: Tween(begin: 0, end: pct),
+            builder: (_, v, __) => LinearProgressIndicator(
+              value: v,
+              minHeight: 8,
+              backgroundColor: color.withOpacity(0.10),
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+        ),
       ],
     );
   }

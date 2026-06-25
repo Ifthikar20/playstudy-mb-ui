@@ -42,7 +42,7 @@ class _PaywallPageState extends State<PaywallPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/'),
         ),
@@ -63,7 +63,7 @@ class _PaywallPageState extends State<PaywallPage> {
                         color: theme.colorScheme.primary,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Icon(Icons.workspace_premium,
+                      child: const Icon(Icons.workspace_premium_rounded,
                           color: Colors.white, size: 36),
                     ),
                   ),
@@ -250,12 +250,12 @@ class _Feature {
 }
 
 const _features = [
-  _Feature(Icons.all_inclusive, 'Unlimited study sets',
+  _Feature(Icons.all_inclusive_rounded, 'Unlimited study sets',
       'No daily or monthly caps.'),
-  _Feature(Icons.videogame_asset_outlined, 'Every game unlocked',
+  _Feature(Icons.videogame_asset_rounded, 'Every game unlocked',
       'Guess the Word and everything coming next.'),
-  _Feature(Icons.bolt_outlined, 'Priority generation',
+  _Feature(Icons.bolt_rounded, 'Priority generation',
       'Faster summary and quiz creation.'),
-  _Feature(Icons.cloud_sync_outlined, 'Sync across devices',
+  _Feature(Icons.cloud_sync_rounded, 'Sync across devices',
       'Your library, everywhere.'),
 ];

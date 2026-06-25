@@ -51,7 +51,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           tooltip: 'Back',
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/'),
@@ -75,7 +75,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     radius: 24,
                     backgroundColor:
                         theme.colorScheme.primary.withOpacity(0.12),
-                    child: Icon(Icons.person_outline,
+                    child: Icon(Icons.person_outline_rounded,
                         color: theme.colorScheme.primary),
                   ),
                   const SizedBox(width: 14),
@@ -103,8 +103,8 @@ class _SettingsPageState extends State<SettingsPage> {
               child: SwitchListTile.adaptive(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                 secondary: Icon(state.isLight
-                    ? Icons.light_mode_outlined
-                    : Icons.dark_mode_outlined),
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded),
                 title: const Text('Dark mode'),
                 value: !state.isLight,
                 onChanged: (_) => context.read<ThemeBloc>().add(ToggleTheme()),
@@ -121,7 +121,7 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(children: [
               SwitchListTile.adaptive(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                secondary: const Icon(Icons.notifications_outlined),
+                secondary: const Icon(Icons.notifications_rounded),
                 title: const Text('Study reminders'),
                 subtitle: const Text('Daily nudge to keep your streak'),
                 value: _notifications,
@@ -133,7 +133,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Divider(height: 1, color: theme.dividerColor),
               SwitchListTile.adaptive(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                secondary: const Icon(Icons.volume_up_outlined),
+                secondary: const Icon(Icons.volume_up_rounded),
                 title: const Text('Sound effects'),
                 value: _sound,
                 onChanged: (v) {
@@ -153,19 +153,19 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: EdgeInsets.zero,
               child: Column(children: [
                 ListTile(
-                  leading: Icon(Icons.workspace_premium,
+                  leading: Icon(Icons.workspace_premium_rounded,
                       color: theme.colorScheme.primary),
                   title: Text(sub.isPremium ? 'Premium' : 'Upgrade to Premium'),
                   subtitle: Text(sub.isPremium
                       ? 'Unlimited study sets'
                       : '${sub.remainingFree} of ${SubscriptionBloc.freeLimit} free sets left'),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => context.push('/paywall'),
                 ),
                 if (sub.isPremium) ...[
                   Divider(height: 1, color: theme.dividerColor),
                   ListTile(
-                    leading: const Icon(Icons.cancel_outlined),
+                    leading: const Icon(Icons.cancel_rounded),
                     title: const Text('Cancel subscription'),
                     onTap: () => _confirmCancelPremium(context),
                   ),
@@ -178,11 +178,11 @@ class _SettingsPageState extends State<SettingsPage> {
           AirbnbCard(
             padding: EdgeInsets.zero,
             child: ListTile(
-              leading: Icon(Icons.family_restroom_outlined,
+              leading: Icon(Icons.family_restroom_rounded,
                   color: theme.colorScheme.primary),
               title: const Text('Parents & children'),
               subtitle: const Text('Link a parent, or follow a child\'s progress'),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => context.push('/family'),
             ),
           ),
@@ -192,21 +192,21 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: EdgeInsets.zero,
             child: Column(children: [
               _LinkRow(
-                icon: Icons.replay_outlined,
+                icon: Icons.replay_rounded,
                 title: 'Replay onboarding',
                 subtitle: 'See the welcome tour again',
                 onTap: () => _replayOnboarding(context),
               ),
               Divider(height: 1, color: theme.dividerColor),
               _LinkRow(
-                icon: Icons.feedback_outlined,
+                icon: Icons.feedback_rounded,
                 title: 'Send feedback',
                 subtitle: 'Tell us what to fix or build next',
                 onTap: () => _sendFeedback(context),
               ),
               Divider(height: 1, color: theme.dividerColor),
               _LinkRow(
-                icon: Icons.help_outline,
+                icon: Icons.help_outline_rounded,
                 title: 'How PlayStudy works',
                 onTap: () => _showInfo(
                     context,
@@ -224,7 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: EdgeInsets.zero,
             child: Column(children: [
               _LinkRow(
-                icon: Icons.cleaning_services_outlined,
+                icon: Icons.cleaning_services_rounded,
                 title: 'Clear local cache',
                 subtitle: 'Reset on-device prefs and last-seen flags',
                 onTap: () => _clearCache(context),
@@ -237,21 +237,21 @@ class _SettingsPageState extends State<SettingsPage> {
             padding: EdgeInsets.zero,
             child: Column(children: [
               _LinkRow(
-                icon: Icons.privacy_tip_outlined,
+                icon: Icons.privacy_tip_rounded,
                 title: 'Privacy Policy',
                 onTap: () => _showInfo(context, 'Privacy Policy',
                     'We store only what is needed to run your study sets, rewards, and subscription. Your content is never sold.'),
               ),
               Divider(height: 1, color: theme.dividerColor),
               _LinkRow(
-                icon: Icons.description_outlined,
+                icon: Icons.description_rounded,
                 title: 'Terms of Service',
                 onTap: () => _showInfo(context, 'Terms of Service',
                     'Use PlayStudy responsibly. Generated content is for study aid and may contain errors.'),
               ),
               Divider(height: 1, color: theme.dividerColor),
               const _LinkRow(
-                icon: Icons.info_outline,
+                icon: Icons.info_outline_rounded,
                 title: 'Version',
                 trailingText: '1.0.0',
               ),
@@ -261,7 +261,7 @@ class _SettingsPageState extends State<SettingsPage> {
           AirbnbCard(
             padding: EdgeInsets.zero,
             child: ListTile(
-              leading: Icon(Icons.logout, color: theme.colorScheme.error),
+              leading: Icon(Icons.logout_rounded, color: theme.colorScheme.error),
               title: Text('Sign out',
                   style: TextStyle(color: theme.colorScheme.error)),
               onTap: () => _confirmSignOut(context),
@@ -439,7 +439,7 @@ class _StorageSettingsState extends State<_StorageSettings> {
       child: Column(children: [
         SwitchListTile.adaptive(
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-          secondary: const Icon(Icons.download_for_offline_outlined),
+          secondary: const Icon(Icons.download_for_offline_rounded),
           title: const Text('Save quizzes & games offline'),
           subtitle: const Text('Play without an internet connection'),
           value: _enabled,
@@ -485,10 +485,10 @@ class _StorageSettingsState extends State<_StorageSettings> {
         Divider(height: 1, color: theme.dividerColor),
         ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          leading: const Icon(Icons.folder_open_outlined),
+          leading: const Icon(Icons.folder_open_rounded),
           title: const Text('Manage offline content'),
           subtitle: const Text('See saved quizzes & free up space'),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () async {
             await context.push('/offline');
             if (mounted) _load(); // refresh usage after managing
@@ -534,7 +534,7 @@ class _ReadingSettings extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Icon(Icons.menu_book_outlined, color: theme.colorScheme.primary),
+                Icon(Icons.menu_book_rounded, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text('Page background', style: theme.textTheme.titleLarge),
               ]),
@@ -562,7 +562,7 @@ class _ReadingSettings extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Row(children: [
-                Icon(Icons.text_fields, color: theme.colorScheme.primary),
+                Icon(Icons.text_fields_rounded, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text('Text colour', style: theme.textTheme.titleLarge),
               ]),
@@ -596,7 +596,7 @@ class _ReadingSettings extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline,
+                    Icon(Icons.info_outline_rounded,
                         size: 18, color: theme.colorScheme.primary),
                     const SizedBox(width: 8),
                     Expanded(
@@ -650,7 +650,7 @@ class _BgSwatch extends StatelessWidget {
               ),
             ),
             child: selected
-                ? Icon(Icons.check, color: theme.colorScheme.primary, size: 22)
+                ? Icon(Icons.check_rounded, color: theme.colorScheme.primary, size: 22)
                 : null,
           ),
           const SizedBox(height: 4),
@@ -692,7 +692,7 @@ class _LinkRow extends StatelessWidget {
       subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: trailingText != null
           ? Text(trailingText!, style: Theme.of(context).textTheme.bodySmall)
-          : (onTap != null ? const Icon(Icons.chevron_right) : null),
+          : (onTap != null ? const Icon(Icons.chevron_right_rounded) : null),
       onTap: onTap,
     );
   }

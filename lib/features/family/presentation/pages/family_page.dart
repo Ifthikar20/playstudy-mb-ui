@@ -86,7 +86,7 @@ class _FamilyPageState extends State<FamilyPage> {
           textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(
             hintText: '6-character code',
-            prefixIcon: Icon(Icons.vpn_key_outlined),
+            prefixIcon: Icon(Icons.vpn_key_rounded),
           ),
         ),
         actions: [
@@ -125,7 +125,7 @@ class _FamilyPageState extends State<FamilyPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/'),
         ),
@@ -154,7 +154,7 @@ class _FamilyPageState extends State<FamilyPage> {
               if (st.children.isEmpty)
                 AirbnbCard(
                   child: Row(children: [
-                    const Icon(Icons.family_restroom_outlined),
+                    const Icon(Icons.family_restroom_rounded),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text('Not following anyone yet.',
@@ -172,10 +172,10 @@ class _FamilyPageState extends State<FamilyPage> {
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
                             tooltip: 'Unlink',
-                            icon: const Icon(Icons.link_off),
+                            icon: const Icon(Icons.link_off_rounded),
                             onPressed: () => _unlink(c.linkId),
                           ),
-                          const Icon(Icons.chevron_right),
+                          const Icon(Icons.chevron_right_rounded),
                         ]),
                         onTap: () => context.push('/family/child/${c.id}',
                             extra: c.name),
@@ -186,7 +186,7 @@ class _FamilyPageState extends State<FamilyPage> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: _enterCode,
-                  icon: const Icon(Icons.keyboard),
+                  icon: const Icon(Icons.keyboard_rounded),
                   label: const Text("Enter my child's code"),
                 ),
               ),
@@ -198,7 +198,7 @@ class _FamilyPageState extends State<FamilyPage> {
               if (st.parents.isEmpty)
                 AirbnbCard(
                   child: Row(children: [
-                    const Icon(Icons.visibility_outlined),
+                    const Icon(Icons.visibility_rounded),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text('No parent is linked yet.',
@@ -215,7 +215,7 @@ class _FamilyPageState extends State<FamilyPage> {
                         subtitle: Text(p.email),
                         trailing: IconButton(
                           tooltip: 'Remove',
-                          icon: const Icon(Icons.link_off),
+                          icon: const Icon(Icons.link_off_rounded),
                           onPressed: () => _unlink(p.linkId),
                         ),
                       ),
@@ -225,7 +225,7 @@ class _FamilyPageState extends State<FamilyPage> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _showCode,
-                  icon: const Icon(Icons.ios_share),
+                  icon: const Icon(Icons.ios_share_rounded),
                   label: const Text('Share my code with a parent'),
                 ),
               ),
@@ -271,17 +271,17 @@ class _GuideCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(Icons.info_outline, color: theme.colorScheme.primary),
+            Icon(Icons.info_outline_rounded, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Text('How linking works', style: theme.textTheme.titleLarge),
           ]),
           const SizedBox(height: 14),
-          role(Icons.school_outlined, "If you're the student", [
+          role(Icons.school_rounded, "If you're the student", [
             'Tap “Share my code” below.',
             'Read the 6-character code to your parent.',
           ]),
           const SizedBox(height: 12),
-          role(Icons.family_restroom_outlined, "If you're the parent", [
+          role(Icons.family_restroom_rounded, "If you're the parent", [
             'Sign in with your own account.',
             "Ask your child for their code, then tap “Enter my child's code”.",
           ]),
@@ -293,7 +293,7 @@ class _GuideCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(children: [
-              Icon(Icons.lock_outline, size: 16, color: theme.colorScheme.primary),
+              Icon(Icons.lock_outline_rounded, size: 16, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

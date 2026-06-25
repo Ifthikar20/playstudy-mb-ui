@@ -14,10 +14,7 @@ class GuessTheWordGame extends LearningGame {
   String get name => 'Guess the Word';
 
   @override
-  String get emoji => '🔤';
-
-  @override
-  IconData get icon => Icons.spellcheck_outlined;
+  IconData get icon => Icons.spellcheck_rounded;
 
   @override
   String get description => 'Guess hidden vocabulary from clues. 6 lives per round.';

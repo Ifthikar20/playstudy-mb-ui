@@ -31,7 +31,7 @@ class _SummaryViewState extends State<SummaryView> {
     }
     for (var i = 0; i < paras.length; i++) {
       pages.add(_SummaryPage(
-        icon: Icons.auto_awesome_outlined,
+        icon: Icons.auto_awesome_rounded,
         title: paras.length > 1 ? 'Overview (${i + 1}/${paras.length})' : 'Overview',
         body: paras[i],
       ));
@@ -40,7 +40,7 @@ class _SummaryViewState extends State<SummaryView> {
     // One page per key point.
     for (var i = 0; i < m.keyPoints.length; i++) {
       pages.add(_SummaryPage(
-        icon: Icons.lightbulb_outline,
+        icon: Icons.lightbulb_outline_rounded,
         title: 'Key point ${i + 1}',
         body: m.keyPoints[i],
       ));
@@ -179,7 +179,7 @@ class _Footer extends StatelessWidget {
             children: [
               TextButton.icon(
                 onPressed: onPrev,
-                icon: const Icon(Icons.arrow_back_ios_new, size: 16),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
                 label: const Text('Back'),
               ),
               const Spacer(),
@@ -187,7 +187,7 @@ class _Footer extends StatelessWidget {
               const Spacer(),
               TextButton.icon(
                 onPressed: onNext,
-                icon: const Icon(Icons.arrow_forward_ios, size: 16),
+                icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                 label: const Text('Next'),
               ),
             ],

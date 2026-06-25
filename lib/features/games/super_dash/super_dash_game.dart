@@ -12,10 +12,7 @@ class SuperDashGame extends LearningGame {
   String get name => 'Super Dash';
 
   @override
-  String get emoji => '🏃';
-
-  @override
-  IconData get icon => Icons.directions_run;
+  IconData get icon => Icons.directions_run_rounded;
 
   @override
   String get description =>

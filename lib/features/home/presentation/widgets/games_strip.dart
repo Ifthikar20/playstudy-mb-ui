@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/games/game_registry.dart';
-import '../../../../core/theme/app_theme.dart';
 
-/// Horizontal strip of small "stamp" tiles showcasing the games available in
-/// the app. Tapping any stamp routes the user to the New study set screen so
-/// they can create material that the games will run on.
+/// Horizontal strip of clean, Airbnb-style game cards previewing what's
+/// included in the app. Tapping any card routes the user to the New study
+/// set screen so they can create material that the games will run on.
 class GamesStrip extends StatelessWidget {
   final VoidCallback onTapAny;
   const GamesStrip({super.key, required this.onTapAny});
@@ -20,31 +19,50 @@ class GamesStrip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: 8),
+          padding: const EdgeInsets.only(left: 2, bottom: 10),
           child: Row(children: [
-            Text('Games included',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(width: 6),
-            Text('· tap to create a set',
-                style: theme.textTheme.bodySmall),
+            Text(
+              'Games included',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.2),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${games.length}',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const Spacer(),
+            Text('Tap any to create a set',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                )),
           ]),
         ),
         SizedBox(
-          height: 88,
+          height: 124,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             itemCount: games.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
               final g = games[i];
-              final accent = ThemeColors.accentPalette[
-                  i % ThemeColors.accentPalette.length];
-              return _GameStamp(
+              return _GameCard(
                 name: g.name,
                 emoji: g.icon == null ? g.emoji : null,
                 icon: g.icon,
-                accent: accent,
+                accent: g.coverColors.last,
                 onTap: onTapAny,
               );
             },
@@ -55,13 +73,13 @@ class GamesStrip extends StatelessWidget {
   }
 }
 
-class _GameStamp extends StatelessWidget {
+class _GameCard extends StatelessWidget {
   final String name;
   final String? emoji;
   final IconData? icon;
   final Color accent;
   final VoidCallback onTap;
-  const _GameStamp({
+  const _GameCard({
     required this.name,
     required this.emoji,
     required this.icon,
@@ -74,41 +92,62 @@ class _GameStamp extends StatelessWidget {
     final theme = Theme.of(context);
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: Container(
-          width: 84,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          width: 116,
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           decoration: BoxDecoration(
-            color: accent.withOpacity(0.55),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: accent, width: 1.2),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.black.withOpacity(0.06)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: 36,
-                child: Center(
-                  child: icon != null
-                      ? Icon(icon, size: 26, color: theme.colorScheme.onSurface)
-                      : Text(emoji ?? '🎮',
-                          style: const TextStyle(fontSize: 26)),
+              // Soft tinted medallion with the game's icon/emoji.
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  icon ?? Icons.videogame_asset_rounded,
+                  size: 24,
+                  color: accent,
                 ),
               ),
-              const SizedBox(height: 4),
+              const Spacer(),
               Text(
                 name,
                 maxLines: 2,
-                textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 10.5,
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   height: 1.15,
-                  color: theme.colorScheme.onSurface,
+                  fontSize: 13,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Play',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
                 ),
               ),
             ],

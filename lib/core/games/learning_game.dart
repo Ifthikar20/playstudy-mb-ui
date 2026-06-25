@@ -21,8 +21,9 @@ abstract class LearningGame {
   /// Short human-readable name shown on the game card.
   String get name;
 
-  /// Emoji shown on the game card. Use [icon] instead if you prefer.
-  String get emoji => '🎮';
+  /// Optional emoji used by callers that prefer it. Defaults to empty so
+  /// the [icon] is the canonical visual.
+  String get emoji => '';
 
   /// Optional Material icon (takes precedence over [emoji] if non-null).
   IconData? get icon => null;

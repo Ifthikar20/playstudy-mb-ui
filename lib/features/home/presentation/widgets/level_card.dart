@@ -49,7 +49,7 @@ class LevelCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.bolt, size: 14, color: theme.colorScheme.primary),
+                    Icon(Icons.bolt_rounded, size: 14, color: theme.colorScheme.primary),
                     const SizedBox(width: 2),
                     Text('Lv ${st.currentRankIndex + 1}',
                         style: theme.textTheme.bodySmall?.copyWith(
