@@ -1,62 +1,122 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Bottom-nav shell wrapping the main tab routes.
+/// Floating-dock bottom navigation — Airbnb-style: a single white pill holding
+/// the four primary tabs. The active tab tints + shows its label; inactive
+/// tabs are icon-only in muted grey.
 class AppShell extends StatelessWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
 
   static const _tabs = [
-    _Tab(path: '/', icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
-    _Tab(path: '/new', icon: Icons.add_circle_outline, activeIcon: Icons.add_circle, label: 'New'),
-    _Tab(path: '/exam', icon: Icons.event_note_outlined, activeIcon: Icons.event_note, label: 'Exam'),
-    _Tab(path: '/library', icon: Icons.library_books_outlined, activeIcon: Icons.library_books, label: 'Library'),
-    _Tab(path: '/profile', icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
+    _Tab(path: '/', icon: Icons.home_rounded, label: 'Home'),
+    _Tab(path: '/exam', icon: Icons.menu_book_rounded, label: 'Exam'),
+    _Tab(path: '/library', icon: Icons.auto_stories_rounded, label: 'Library'),
+    _Tab(path: '/profile', icon: Icons.person_rounded, label: 'Profile'),
   ];
 
-  int _indexFor(String location) {
-    for (var i = _tabs.length - 1; i >= 0; i--) {
-      if (_tabs[i].path == '/' && location == '/') return i;
-      if (_tabs[i].path != '/' && location.startsWith(_tabs[i].path)) return i;
-    }
-    return 0;
-  }
+  static const _accent = Color(0xFF6B5CE7);
+  static const _inactive = Color(0xFF8A8A93);
+
+  bool _isActive(String path, String location) =>
+      path == '/' ? location == '/' : location.startsWith(path);
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    final index = _indexFor(location);
-    final theme = Theme.of(context);
+
     return Scaffold(
       body: child,
-      bottomNavigationBar: Container(
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+          child: Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(36),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                for (final t in _tabs)
+                  _DockItem(
+                    tab: t,
+                    active: _isActive(t.path, location),
+                    onTap: () => context.go(t.path),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DockItem extends StatelessWidget {
+  final _Tab tab;
+  final bool active;
+  final VoidCallback onTap;
+  const _DockItem({required this.tab, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.symmetric(horizontal: active ? 14 : 10, vertical: 10),
         decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          border: Border(top: BorderSide(color: theme.dividerColor)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(
-                  theme.brightness == Brightness.dark ? 0.3 : 0.05),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
+          color: active ? AppShell._accent.withOpacity(0.10) : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              tab.icon,
+              size: 23,
+              color: active ? AppShell._accent : AppShell._inactive,
+            ),
+            ClipRect(
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                child: active
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 92),
+                          child: Text(
+                            tab.label,
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppShell._accent,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
           ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: BottomNavigationBar(
-            currentIndex: index,
-            onTap: (i) => context.go(_tabs[i].path),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            items: _tabs
-                .map((t) => BottomNavigationBarItem(
-                      icon: Icon(t.icon),
-                      activeIcon: Icon(t.activeIcon),
-                      label: t.label,
-                    ))
-                .toList(),
-          ),
         ),
       ),
     );
@@ -66,12 +126,10 @@ class AppShell extends StatelessWidget {
 class _Tab {
   final String path;
   final IconData icon;
-  final IconData activeIcon;
   final String label;
   const _Tab({
     required this.path,
     required this.icon,
-    required this.activeIcon,
     required this.label,
   });
 }

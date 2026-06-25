@@ -17,7 +17,7 @@ class ProfilePage extends StatelessWidget {
         title: const Text('Profile'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(Icons.settings_rounded),
             tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
           ),
@@ -62,7 +62,7 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(Icons.edit_outlined,
+                  Icon(Icons.edit_rounded,
                       size: 20,
                       color: theme.colorScheme.onSurface.withOpacity(0.5)),
                 ]),
@@ -85,7 +85,7 @@ class ProfilePage extends StatelessWidget {
                     label: '${rewards.streak} day streak',
                     color: theme.colorScheme.tertiary),
                 const Spacer(),
-                const Icon(Icons.chevron_right),
+                const Icon(Icons.chevron_right_rounded),
               ]),
             ),
           ),
@@ -105,7 +105,7 @@ class ProfilePage extends StatelessWidget {
                           : theme.colorScheme.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.workspace_premium,
+                    child: Icon(Icons.workspace_premium_rounded,
                         color: sub.isPremium
                             ? Colors.white
                             : theme.colorScheme.primary),
@@ -125,18 +125,41 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (!sub.isPremium) const Icon(Icons.chevron_right),
+                  if (!sub.isPremium) const Icon(Icons.chevron_right_rounded),
                 ]),
               );
             },
           ),
           const SizedBox(height: 16),
+          // Parental controls / family — surfaced directly on profile so it
+          // is one tap away rather than hidden under Settings.
           AirbnbCard(
             padding: EdgeInsets.zero,
             child: ListTile(
-              leading: const Icon(Icons.settings_outlined),
+              leading: Container(
+                height: 40,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.family_restroom_rounded,
+                    color: theme.colorScheme.primary),
+              ),
+              title: const Text('Parental controls'),
+              subtitle: const Text(
+                  'Link a parent, or follow a child\'s study progress'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/family'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          AirbnbCard(
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.settings_rounded),
               title: const Text('Settings'),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => context.push('/settings'),
             ),
           ),
@@ -144,7 +167,7 @@ class ProfilePage extends StatelessWidget {
           AirbnbCard(
             padding: EdgeInsets.zero,
             child: ListTile(
-              leading: Icon(Icons.logout, color: theme.colorScheme.error),
+              leading: Icon(Icons.logout_rounded, color: theme.colorScheme.error),
               title: Text('Sign out',
                   style: TextStyle(color: theme.colorScheme.error)),
               onTap: () {

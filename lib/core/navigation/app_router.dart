@@ -1,9 +1,14 @@
 // Hide Flutter's MaterialPage: this app defines its own MaterialPage widget
 // (the learning-material screen) used by the routes below.
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide MaterialPage;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/family/presentation/pages/child_dashboard_page.dart';
+import '../../features/family/presentation/pages/family_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/exam_prep/presentation/pages/create_plan_page.dart';
 import '../../features/exam_prep/presentation/pages/daily_session_page.dart';
 import '../../features/exam_prep/presentation/pages/exam_prep_home_page.dart';
@@ -16,32 +21,56 @@ import '../../features/library/presentation/pages/library_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/rewards/presentation/pages/adventure_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/settings/presentation/pages/offline_page.dart';
 import '../../features/subscription/presentation/pages/paywall_page.dart';
 import '../auth/auth_bloc.dart';
+import '../onboarding/onboarding_bloc.dart';
 import 'app_shell.dart';
 
 class AppRouter {
   /// Builds the router. Pass [authBloc] so we can redirect based on auth
   /// state and refresh the route when the user signs in / out.
-  static GoRouter create(AuthBloc authBloc) {
+  static GoRouter create(AuthBloc authBloc, OnboardingBloc onboardingBloc) {
     return GoRouter(
       initialLocation: '/',
-      refreshListenable: _BlocListenable(authBloc.stream),
+      refreshListenable:
+          _BlocListenable([authBloc.stream, onboardingBloc.stream]),
       redirect: (context, state) {
         final s = authBloc.state;
         // While the initial check is in-flight, don't redirect.
         if (s is AuthInitial || s is AuthLoading) return null;
         final loggedIn = s is Authenticated;
         final atLogin = state.matchedLocation == '/login';
-        if (!loggedIn && !atLogin) return '/login';
-        if (loggedIn && atLogin) return '/';
+        if (!loggedIn) return atLogin ? null : '/login';
+        if (atLogin) return '/';
+
+        // First login: show onboarding once (gated by the persisted flag).
+        final ob = onboardingBloc.state;
+        final atOnboarding = state.matchedLocation == '/onboarding';
+        if (ob.loaded && !ob.seen) return atOnboarding ? null : '/onboarding';
+        if (atOnboarding) return '/';
         return null;
       },
       routes: [
         GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
         GoRoute(
+          path: '/onboarding',
+          builder: (_, __) => const OnboardingPage(),
+        ),
+        GoRoute(
           path: '/paywall',
           builder: (_, __) => const PaywallPage(),
+        ),
+        GoRoute(
+          path: '/family',
+          builder: (_, __) => const FamilyPage(),
+        ),
+        GoRoute(
+          path: '/family/child/:id',
+          builder: (context, state) => ChildDashboardPage(
+            studentId: state.pathParameters['id'] ?? '',
+            studentName: (state.extra as String?) ?? 'Student',
+          ),
         ),
         GoRoute(
           path: '/adventure',
@@ -50,6 +79,10 @@ class AppRouter {
         GoRoute(
           path: '/settings',
           builder: (_, __) => const SettingsPage(),
+        ),
+        GoRoute(
+          path: '/offline',
+          builder: (_, __) => const OfflinePage(),
         ),
         ShellRoute(
           builder: (context, state, child) => AppShell(child: child),
@@ -73,31 +106,17 @@ class AppRouter {
         GoRoute(
           path: '/material/:id',
           builder: (context, state) {
-            final fromExtra = state.extra as LearningMaterial?;
-            // A full object (with quiz) passed via `extra` is used directly.
-            // Otherwise (e.g. opened from a lightweight library row) fetch the
-            // full set from the backend.
+            // Tolerate any extra type — only use it if it really is a
+            // LearningMaterial with content, otherwise fall through to fetch.
+            final extra = state.extra;
+            final fromExtra = extra is LearningMaterial ? extra : null;
             if (fromExtra != null && fromExtra.quiz.isNotEmpty) {
+              debugPrint('[router] /material/${fromExtra.id} from extra');
               return MaterialPage(material: fromExtra);
             }
             final id = state.pathParameters['id'] ?? '';
-            final repo = context.read<LearningRepository>();
-            return FutureBuilder<LearningMaterial>(
-              future: repo.fetch(id),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  return MaterialPage(material: snapshot.data!);
-                }
-                if (snapshot.hasError) {
-                  return const Scaffold(
-                    body: Center(child: Text('Study set not found')),
-                  );
-                }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              },
-            );
+            debugPrint('[router] /material/$id fetching from repo');
+            return _MaterialLoader(id: id);
           },
         ),
       ],
@@ -105,16 +124,108 @@ class AppRouter {
   }
 }
 
-/// Adapts a bloc Stream into a Listenable for GoRouter's refreshListenable.
+/// Adapts one or more bloc Streams into a Listenable for GoRouter's
+/// refreshListenable, so route redirects re-run when any of them changes.
 class _BlocListenable extends ChangeNotifier {
-  _BlocListenable(Stream stream) {
-    _sub = stream.listen((_) => notifyListeners());
+  final List<StreamSubscription> _subs = [];
+  _BlocListenable(List<Stream> streams) {
+    for (final s in streams) {
+      _subs.add(s.listen((_) => notifyListeners()));
+    }
   }
-  late final dynamic _sub;
 
   @override
   void dispose() {
-    _sub?.cancel();
+    for (final s in _subs) {
+      s.cancel();
+    }
     super.dispose();
+  }
+}
+
+/// Loads a study set by id with a friendly retry + back UI on failure, so
+/// a transient backend error never strands the user on a dead screen.
+class _MaterialLoader extends StatefulWidget {
+  final String id;
+  const _MaterialLoader({required this.id});
+
+  @override
+  State<_MaterialLoader> createState() => _MaterialLoaderState();
+}
+
+class _MaterialLoaderState extends State<_MaterialLoader> {
+  late Future<LearningMaterial> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<LearningMaterial> _load() async {
+    try {
+      final repo = context.read<LearningRepository>();
+      final m = await repo.fetch(widget.id);
+      debugPrint('[router] /material/${widget.id} loaded "${m.title}"');
+      return m;
+    } catch (e, st) {
+      debugPrint('[error] load material/${widget.id} failed: $e');
+      debugPrint('[error] $st');
+      rethrow;
+    }
+  }
+
+  void _retry() => setState(() => _future = _load());
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<LearningMaterial>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snap.hasError) {
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/'),
+              ),
+              title: const Text('Study set'),
+            ),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded,
+                        size: 56, color: Colors.grey),
+                    const SizedBox(height: 12),
+                    const Text("Couldn't open this study set.",
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 6),
+                    Text('${snap.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.grey)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _retry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        return MaterialPage(material: snap.data!);
+      },
+    );
   }
 }

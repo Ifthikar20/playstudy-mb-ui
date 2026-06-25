@@ -3,38 +3,55 @@ import 'package:google_fonts/google_fonts.dart';
 import 'reading_bloc.dart';
 import 'theme_bloc.dart';
 
-/// Airbnb-inspired design system.
-/// Light: white background, soft gray surfaces, near-black text, "Rausch"
-/// (#FF385C) brand accent. Dark: near-black surfaces, lifted Rausch.
-/// Primary CTAs use the Airbnb brand gradient. Font: Inter everywhere.
+/// Pastel design system inspired by a soft, playful tile palette.
+/// Light: off-white background, vivid indigo primary, with lime / peach /
+/// mint / sky / lavender accents used throughout cards and chips.
 class ThemeColors {
+  // Pastel accent palette (the tile colors).
+  static const Color pastelLime = Color(0xFFD6F26C);
+  static const Color pastelPeach = Color(0xFFFBC78A);
+  static const Color pastelMint = Color(0xFF8FE3B6);
+  static const Color pastelSky = Color(0xFFA8E6F0);
+  static const Color pastelLavender = Color(0xFFC4C0F5);
+  static const Color brandIndigo = Color(0xFF6B5CE7);
+
   // Light
-  static const Color lightBackground = Color(0xFFFFFFFF);
-  static const Color lightSurface = Color(0xFFF7F7F7);
-  static const Color lightPrimary = Color(0xFFFF385C); // Airbnb Rausch
-  static const Color lightSecondary = Color(0xFFE61E4D); // deep rausch
-  static const Color lightAccent = Color(0xFF008489); // Airbnb teal
-  static const Color lightTextPrimary = Color(0xFF222222); // Airbnb Hof
-  static const Color lightTextSecondary = Color(0xFF717171); // Airbnb Foggy
-  static const Color lightBorder = Color(0xFFDDDDDD); // Airbnb hairline
-  static const Color lightError = Color(0xFFC13515);
+  static const Color lightBackground = Color(0xFFFAFAFA);
+  static const Color lightSurface = Color(0xFFFFFFFF);
+  static const Color lightPrimary = brandIndigo;
+  static const Color lightSecondary = Color(0xFF7B6CF6);
+  static const Color lightAccent = pastelMint;
+  static const Color lightTextPrimary = Color(0xFF1F1B2E);
+  static const Color lightTextSecondary = Color(0xFF6B6880);
+  static const Color lightBorder = Color(0xFFE7E5F0);
+  static const Color lightError = Color(0xFFE5484D);
 
   // Dark
-  static const Color darkBackground = Color(0xFF0E0E10);
-  static const Color darkSurface = Color(0xFF1C1C1E);
-  static const Color darkPrimary = Color(0xFFFF5A6E); // lifted rausch
-  static const Color darkSecondary = Color(0xFFFF385C);
-  static const Color darkAccent = Color(0xFF00A699);
+  static const Color darkBackground = Color(0xFF0E0E14);
+  static const Color darkSurface = Color(0xFF1C1B26);
+  static const Color darkPrimary = Color(0xFF8A7EFA);
+  static const Color darkSecondary = brandIndigo;
+  static const Color darkAccent = pastelMint;
   static const Color darkTextPrimary = Color(0xFFFFFFFF);
   static const Color darkTextSecondary = Color(0xFFB0B0B0);
   static const Color darkBorder = Color(0xFF2C2C2E);
-  static const Color darkError = Color(0xFFFF6B4A);
+  static const Color darkError = Color(0xFFFF6B6E);
 
-  /// Airbnb's signature primary-CTA gradient.
+  /// Indigo gradient for primary CTAs.
   static const List<Color> brandGradient = [
-    Color(0xFFE61E4D),
-    Color(0xFFE31C5F),
-    Color(0xFFD70466),
+    Color(0xFF6B5CE7),
+    Color(0xFF7B6CF6),
+    Color(0xFF9D8DFA),
+  ];
+
+  /// Accent palette as an ordered list — handy for assigning a distinct
+  /// pastel to each card in a list (modulo length).
+  static const List<Color> accentPalette = [
+    pastelLime,
+    pastelPeach,
+    pastelMint,
+    pastelSky,
+    pastelLavender,
   ];
 
   static Color background(AppThemeMode m) =>

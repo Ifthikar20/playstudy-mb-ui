@@ -1,82 +1,115 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/auth/auth_bloc.dart';
+import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/widgets/airbnb_card.dart';
 import '../../../exam_prep/data/models/exam_plan.dart';
 import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
-import '../../../rewards/presentation/widgets/streak_card.dart';
+import '../widgets/achievement_overlay.dart';
+import '../widgets/games_strip.dart';
+import '../widgets/study_activity_chart.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  static const _key = 'last_seen_points';
+  int _lastSeen = -1;
+  bool _celebrating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkReturnReward();
+  }
+
+  // On returning to the dashboard, if points went up while we were away,
+  // celebrate the achievement (and a level-up if the rank changed).
+  Future<void> _checkReturnReward() async {
+    final prefs = await SharedPreferences.getInstance();
+    _lastSeen = prefs.getInt(_key) ?? -1;
+    if (!mounted) return;
+    final st = context.read<RewardsBloc>().state;
+    if (_lastSeen >= 0 && st.points > _lastSeen) {
+      final rankedUp = _rankIndexFor(_lastSeen) < st.currentRankIndex;
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _celebrate(st.points - _lastSeen, st, rankedUp));
+    }
+    await prefs.setInt(_key, st.points);
+  }
+
+  int _rankIndexFor(int points) {
+    var idx = 0;
+    for (var i = 0; i < kRanks.length; i++) {
+      if (points >= kRanks[i].threshold) idx = i;
+    }
+    return idx;
+  }
+
+  Future<void> _celebrate(int delta, RewardsState st, bool rankedUp) async {
+    if (_celebrating || !mounted) return;
+    _celebrating = true;
+    await showAchievement(context, delta: delta, state: st, rankedUp: rankedUp);
+    _celebrating = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          children: [
-            _Greeting(),
-            const SizedBox(height: 20),
-            const StreakCard(),
-            const SizedBox(height: 20),
-            _HeroCta(onTap: () => context.go('/new')),
-            const SizedBox(height: 20),
-            BlocBuilder<ExamPrepBloc, ExamPrepState>(
-              builder: (context, state) {
-                final today = state.plans.where((p) => p.isToday).toList();
-                if (today.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: _TodayPrepStrip(plan: today.first),
-                );
-              },
-            ),
-            BlocBuilder<SubscriptionBloc, SubscriptionState>(
-              builder: (context, sub) {
-                if (sub.isPremium || !sub.loaded) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: _UsageStrip(remaining: sub.remainingFree),
-                );
-              },
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Your study sets', style: theme.textTheme.titleLarge),
-                TextButton(
-                  onPressed: () => context.go('/library'),
-                  child: const Text('See all'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            BlocBuilder<LearningBloc, LearningState>(
-              builder: (context, state) {
-                final library = state.library;
-                if (library.isEmpty) return _EmptyHero(onTap: () => context.go('/new'));
-                return Column(
-                  children: library
-                      .take(5)
-                      .map((m) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: StudySetCard(
-                              material: m,
-                              onTap: () =>
-                                  context.go('/material/${m.id}', extra: m),
-                            ),
-                          ))
-                      .toList(),
-                );
-              },
-            ),
-          ],
+        // Catch rewards earned while the dashboard is already visible too.
+        child: BlocListener<RewardsBloc, RewardsState>(
+          listenWhen: (prev, next) => next.points > prev.points,
+          listener: (context, st) {
+            final rankedUp = _rankIndexFor(_lastSeen) < st.currentRankIndex;
+            final delta = _lastSeen >= 0 ? st.points - _lastSeen : st.lastAward;
+            _lastSeen = st.points;
+            SharedPreferences.getInstance()
+                .then((p) => p.setInt(_key, st.points));
+            if (delta > 0) _celebrate(delta, st, rankedUp);
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            children: [
+              _Greeting(),
+              const SizedBox(height: 20),
+              const StudyActivityChart(),
+              const SizedBox(height: 18),
+              GamesStrip(onTapAny: () => context.go('/new')),
+              const SizedBox(height: 18),
+              _HeroCta(onTap: () => context.go('/new')),
+              const SizedBox(height: 20),
+              BlocBuilder<ExamPrepBloc, ExamPrepState>(
+                builder: (context, state) {
+                  final today = state.plans.where((p) => p.isToday).toList();
+                  if (today.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _TodayPrepStrip(plan: today.first),
+                  );
+                },
+              ),
+              BlocBuilder<SubscriptionBloc, SubscriptionState>(
+                builder: (context, sub) {
+                  if (sub.isPremium || !sub.loaded) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _UsageStrip(remaining: sub.remainingFree),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -93,7 +126,9 @@ class _Greeting extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hi ${_first(name)} 👋', style: theme.textTheme.titleLarge),
+            Text('Hi, ${_first(name)}',
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text('What do you want to learn today?',
                 style: theme.textTheme.displaySmall),
@@ -117,50 +152,65 @@ class _HeroCta extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      borderRadius: BorderRadius.circular(24),
-      color: scheme.primary,
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Container(
+        borderRadius: BorderRadius.circular(22),
+        // microtask so the tap visual fires immediately, then nav happens on
+        // the next frame — keeps the button feeling instantly responsive
+        // even if the destination route is heavy.
+        onTap: () => Future.microtask(onTap),
+        child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [scheme.primary, scheme.secondary],
+            ),
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: scheme.primary.withOpacity(0.3),
-                blurRadius: 20,
+                color: scheme.primary.withOpacity(0.35),
+                blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
           child: Row(children: [
             Container(
-              height: 56,
-              width: 56,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withOpacity(0.20),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.add_link, color: Colors.white, size: 28),
+              child: const Icon(Icons.auto_awesome_rounded,
+                  color: Colors.white, size: 24),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Create a study set',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700)),
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      )),
                   SizedBox(height: 2),
-                  Text('Link, file, or pasted text',
-                      style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  Text('Paste a link, PDF or notes — we turn it into a quiz + game.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        height: 1.25,
+                      )),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward, color: Colors.white),
+            const Icon(Icons.arrow_forward_rounded,
+                color: Colors.white, size: 22),
           ]),
         ),
       ),
@@ -177,7 +227,7 @@ class _TodayPrepStrip extends StatelessWidget {
     final theme = Theme.of(context);
     final done = plan.resultFor(DateTime.now())?.completed ?? false;
     return AirbnbCard(
-      onTap: () => context.go('/exam/${plan.id}/today'),
+      onTap: () => context.push('/exam/${plan.id}/today'),
       child: Row(children: [
         Container(
           height: 44,
@@ -186,7 +236,7 @@ class _TodayPrepStrip extends StatelessWidget {
             color: theme.colorScheme.tertiary.withOpacity(0.18),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.event_available,
+          child: Icon(Icons.event_available_rounded,
               color: theme.colorScheme.tertiary),
         ),
         const SizedBox(width: 12),
@@ -207,7 +257,7 @@ class _TodayPrepStrip extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right),
+        const Icon(Icons.chevron_right_rounded),
       ]),
     );
   }
@@ -230,7 +280,7 @@ class _UsageStrip extends StatelessWidget {
             color: theme.colorScheme.primary.withOpacity(0.12),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.workspace_premium,
+          child: Icon(Icons.workspace_premium_rounded,
               color: theme.colorScheme.primary),
         ),
         const SizedBox(width: 12),
@@ -249,7 +299,7 @@ class _UsageStrip extends StatelessWidget {
             ],
           ),
         ),
-        const Icon(Icons.chevron_right),
+        const Icon(Icons.chevron_right_rounded),
       ]),
     );
   }
@@ -265,7 +315,8 @@ class _EmptyHero extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       onTap: onTap,
       child: Column(children: [
-        const Text('📚', style: TextStyle(fontSize: 48)),
+        Icon(Icons.menu_book_rounded,
+            size: 44, color: Theme.of(context).colorScheme.primary),
         const SizedBox(height: 12),
         Text('No study sets yet',
             style: Theme.of(context).textTheme.titleLarge),
@@ -287,11 +338,11 @@ class StudySetCard extends StatelessWidget {
   IconData get _icon {
     switch (material.sourceKind) {
       case SourceKind.link:
-        return Icons.link;
+        return Icons.link_rounded;
       case SourceKind.file:
-        return Icons.description_outlined;
+        return Icons.description_rounded;
       case SourceKind.text:
-        return Icons.text_snippet_outlined;
+        return Icons.text_snippet_rounded;
     }
   }
 
@@ -331,70 +382,70 @@ class StudySetCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Stack(children: [
-                GradientHeader(seed: material.title, icon: _icon),
+                GradientHeader(seed: material.title, icon: _icon, height: 72),
                 Positioned(
-                  top: 12,
-                  right: 12,
+                  top: 8,
+                  right: 8,
                   child: Container(
-                    height: 36,
-                    width: 36,
+                    height: 28,
+                    width: 28,
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.25),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(Icons.favorite_border,
-                        color: Colors.white, size: 20),
+                        color: Colors.white, size: 16),
                   ),
                 ),
                 Positioned(
-                  bottom: 12,
-                  left: 12,
+                  bottom: 8,
+                  left: 8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(_icon, size: 13, color: theme.colorScheme.primary),
-                      const SizedBox(width: 4),
+                      Icon(_icon, size: 11, color: theme.colorScheme.primary),
+                      const SizedBox(width: 3),
                       Text(_sourceLabel,
                           style: const TextStyle(
-                              fontSize: 11, fontWeight: FontWeight.w600)),
+                              fontSize: 10, fontWeight: FontWeight.w600)),
                     ]),
                   ),
                 ),
               ]),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(material.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleLarge),
-                    const SizedBox(height: 4),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
                     Text(
                       material.summary,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Row(children: [
                       _MetaChip(
-                          icon: Icons.menu_book_outlined,
-                          label:
-                              '${material.keyPoints.length} key points'),
-                      const SizedBox(width: 8),
+                          icon: Icons.menu_book_rounded,
+                          label: '${material.keyPoints.length} pts'),
+                      const SizedBox(width: 6),
                       _MetaChip(
-                          icon: Icons.quiz_outlined,
+                          icon: Icons.quiz_rounded,
                           label: '${material.quiz.length} quiz'),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       _MetaChip(
-                          icon: Icons.videogame_asset_outlined,
+                          icon: Icons.videogame_asset_rounded,
                           label: '${material.wordGame.length} words'),
                     ]),
                   ],
@@ -416,15 +467,19 @@ class _MetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: Theme.of(context).colorScheme.onSurface),
-        const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Icon(icon, size: 11, color: Theme.of(context).colorScheme.onSurface),
+        const SizedBox(width: 3),
+        Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(fontSize: 11)),
       ]),
     );
   }

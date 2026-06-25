@@ -1,0 +1,196 @@
+#!/usr/bin/env bash
+# Production-style run: builds a RELEASE build and installs it on your iPhone.
+#
+# By default this runs the FULL STACK locally so the installed app actually
+# works end-to-end: backend (Django) + games (static server) + auto-login,
+# with all backend and games logs streamed inline. Keep this terminal open.
+#
+#   ./run-prod.sh                      # full stack on your Mac + auto-login (default)
+#   WITH_BACKEND=0 ./run-prod.sh       # point at remote api.playstudy.app, real sign-in
+#                                      # (only useful once the prod backend is deployed)
+#   DEVICE=auto ./run-prod.sh
+set -euo pipefail
+cd "$(dirname "$0")"
+UI_DIR="$PWD"
+
+DEVICE="${DEVICE-AliIphone2024}"
+API_BASE_URL="${API_BASE_URL:-}"
+GAMES_BASE_URL="${GAMES_BASE_URL:-}"
+DEV_EMAIL="${DEV_EMAIL:-}"
+DEV_PASSWORD="${DEV_PASSWORD:-}"
+
+WITH_BACKEND="${WITH_BACKEND:-1}"
+# profile = release-like perf + Dart logs visible (default).
+# release = fully stripped; print()/debugPrint() silent.
+BUILD_MODE="${BUILD_MODE:-profile}"
+BACKEND_DIR="${BACKEND_DIR:-$UI_DIR/../ps-bk-dj}"
+LANDING_DIR="${LANDING_DIR:-$UI_DIR/../playstudy-mb-landing}"
+GAMES_PORT="${GAMES_PORT:-8080}"
+
+# --- Resolve the target device (must be a real device for an install) --------
+TARGET_ID=""
+if [[ "$DEVICE" == "auto" ]]; then
+  TARGET_ID="$(flutter devices --machine 2>/dev/null | python3 -c "import sys,json
+try: ds=json.load(sys.stdin)
+except Exception: ds=[]
+ios=[d for d in ds if 'ios' in (d.get('targetPlatform') or '') and not d.get('emulator')]
+print(ios[0]['id'] if ios else '')" 2>/dev/null || true)"
+  if [[ -z "$TARGET_ID" ]]; then
+    echo "ERROR: no physical iOS device found. Unlock your iPhone and pair it in Xcode." >&2
+    exit 1
+  fi
+else
+  TARGET_ID="$DEVICE"
+fi
+
+BACKEND_PID=""
+GAMES_PID=""
+UI_LOG_PID=""
+cleanup() {
+  [[ -n "$BACKEND_PID" ]] && kill "$BACKEND_PID" 2>/dev/null || true
+  [[ -n "$GAMES_PID" ]] && kill "$GAMES_PID" 2>/dev/null || true
+  [[ -n "$UI_LOG_PID" ]] && kill "$UI_LOG_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+# --- Optional: run the backend + games locally and auto-login ----------------
+if [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]]; then
+  LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo 127.0.0.1)"
+  API_BASE_URL="${API_BASE_URL:-http://$LAN_IP:8000}"
+  GAMES_BASE_URL="${GAMES_BASE_URL:-http://$LAN_IP:$GAMES_PORT}"
+  DEV_EMAIL="${DEV_EMAIL:-dev@playstudy.app}"
+  DEV_PASSWORD="${DEV_PASSWORD:-Devpass123!}"
+
+  if [[ ! -x "$BACKEND_DIR/setup.sh" ]]; then
+    echo "ERROR: backend not found at $BACKEND_DIR — set BACKEND_DIR=..." >&2
+    exit 1
+  fi
+  echo "==> Preparing backend (installs deps + runs migrations)"
+  ( cd "$BACKEND_DIR" && ./setup.sh --no-run )
+
+  echo "==> Starting backend on 0.0.0.0:8000"
+  (
+    cd "$BACKEND_DIR"
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    unset ANTHROPIC_API_KEY ANTHROPIC_MODEL LLM_PROVIDER \
+          DEEPSEEK_API_KEY GEMINI_API_KEY LOCAL_LLM_API_KEY 2>/dev/null || true
+    exec python manage.py runserver 0.0.0.0:8000 --noreload
+  ) > >(awk '{ print "[backend] " $0; fflush() }') 2>&1 &
+  BACKEND_PID=$!
+
+  if [[ -d "$LANDING_DIR/public/games" ]]; then
+    echo "==> Serving games from $LANDING_DIR/public on :$GAMES_PORT"
+    ( cd "$LANDING_DIR/public" && exec python3 -m http.server "$GAMES_PORT" --bind 0.0.0.0 ) \
+      > >(awk '{ print "[games] " $0; fflush() }') 2>&1 &
+    GAMES_PID=$!
+  fi
+
+  echo "==> Waiting for backend health at $API_BASE_URL/health/"
+  for _ in $(seq 1 30); do
+    if curl -sf "$API_BASE_URL/health/" >/dev/null 2>&1; then echo "    backend is up"; break; fi
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then echo "ERROR: backend exited" >&2; exit 1; fi
+    sleep 1
+  done
+
+  # Make the dev user unlimited so testing isn't blocked by FREE_GENERATION_LIMIT.
+  echo "==> Marking $DEV_EMAIL as premium (unlimited generations)"
+  (
+    cd "$BACKEND_DIR"
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from apps.subscriptions.models import Subscription
+U = get_user_model()
+u = U.objects.filter(email='$DEV_EMAIL').first()
+if u:
+    sub, _ = Subscription.objects.get_or_create(user=u)
+    sub.is_premium = True
+    sub.expires_at = None
+    sub.usage_count = 0
+    sub.save()
+    print('   dev user is premium, usage_count reset')
+else:
+    print('   WARNING: dev user not found yet')
+" 2>&1 | sed 's/^/    /'
+  )
+fi
+
+# --- Prepare the Flutter project ---------------------------------------------
+echo "==> Preparing release build"
+flutter pub get
+if [[ ! -f ios/Runner.xcodeproj/project.pbxproj ]]; then
+  echo "    iOS project missing — running 'flutter create --platforms=ios .'"
+  flutter create --platforms=ios .
+fi
+echo "    warming up Xcode…"
+open -g ios/Runner.xcworkspace 2>/dev/null || true
+sleep 8
+
+# --- Build flags + optional auto-login ---------------------------------------
+DEFINES=()
+[[ -n "$API_BASE_URL" ]] && DEFINES+=(--dart-define=API_BASE_URL="$API_BASE_URL")
+[[ -n "$GAMES_BASE_URL" ]] && DEFINES+=(--dart-define=GAMES_BASE_URL="$GAMES_BASE_URL")
+
+LOGIN_NOTE="real sign-in (no dev auto-login)"
+CREDS_LINE=""
+if [[ -n "$DEV_EMAIL" && -n "$DEV_PASSWORD" ]]; then
+  DEFINES+=(--dart-define=DEV_EMAIL="$DEV_EMAIL" --dart-define=DEV_PASSWORD="$DEV_PASSWORD")
+  LOGIN_NOTE="auto-login as $DEV_EMAIL"
+  CREDS_LINE="
+   Email   : $DEV_EMAIL
+   Password: $DEV_PASSWORD"
+  _base="${API_BASE_URL:-https://api.playstudy.app}"
+  if curl -sf -X POST "$_base/api/v1/auth/email/" \
+        -H 'Content-Type: application/json' \
+        -d "{\"email\":\"$DEV_EMAIL\",\"password\":\"$DEV_PASSWORD\",\"name\":\"Dev\"}" \
+        >/dev/null 2>&1; then
+    echo "==> Seeded login on $_base"
+  else
+    echo "WARNING: couldn't reach $_base to seed the account." >&2
+  fi
+fi
+
+cat <<BANNER
+
+  ┌──────────────────────────────────────────────────────────┐
+  │  PlayStudy — install ($BUILD_MODE build)                     │
+  ├──────────────────────────────────────────────────────────┤
+     Backend : ${API_BASE_URL:-https://api.playstudy.app (app default)}
+     Games   : ${GAMES_BASE_URL:-https://playstudy.app (app default)}
+     Device  : $TARGET_ID
+     Login   : $LOGIN_NOTE$CREDS_LINE
+  └──────────────────────────────────────────────────────────┘
+$( [[ "$WITH_BACKEND" != "0" && -n "$WITH_BACKEND" ]] && echo "  Keep this terminal open — [backend] / [games] / Dart UI logs all stream below." )
+  Tip: press 'q' to detach. Switch to fully-stripped release with BUILD_MODE=release.
+
+BANNER
+
+# Background Dart console tail — prefixes every Dart line with [ui] so it
+# is easy to spot among [backend] / [games]. flutter run itself still owns
+# the foreground TTY so q/h/c interactive keys keep working.
+if command -v idevicesyslog >/dev/null 2>&1; then
+  # Allow-list: Flutter/Dart prints + our own debugPrint topics.
+  # Deny-list: noisy iOS sandbox/IOKit/kernel chatter that the syslog stream
+  # picks up but which is not actionable (Metal probing GPU props, etc.).
+  ( idevicesyslog 2>/dev/null \
+      | grep --line-buffered -E 'Runner|Flutter|flutter:' \
+      | grep --line-buffered -vE \
+          'iokit-get-properties|AGXAccelerator|kernel\(Sandbox\)|Sandbox: Runner' \
+      | awk '{ print "[ui] " $0; fflush() }' ) &
+  UI_LOG_PID=$!
+  echo "==> Streaming Dart console as [ui] via idevicesyslog (pid $UI_LOG_PID)"
+else
+  ( flutter logs -d "$TARGET_ID" 2>/dev/null \
+      | awk '{ print "[ui] " $0; fflush() }' ) &
+  UI_LOG_PID=$!
+  echo "==> Streaming Dart console as [ui] via flutter logs (pid $UI_LOG_PID)"
+  echo "    tip: brew install libimobiledevice for cleaner [ui] output"
+fi
+
+# The ${arr[@]+...} form is safe under `set -u` when DEFINES is empty (Bash 3.2).
+# Dart print()/debugPrint() are stripped in --release; --profile keeps them
+# so UI logs stream here alongside [backend] / [games]. flutter run keeps its
+# interactive key prompt because stdout is not piped through anything.
+flutter run "--$BUILD_MODE" -d "$TARGET_ID" ${DEFINES[@]+"${DEFINES[@]}"}

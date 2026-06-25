@@ -12,14 +12,21 @@ class SuperDashGame extends LearningGame {
   String get name => 'Super Dash';
 
   @override
-  String get emoji => '🏃';
-
-  @override
-  IconData get icon => Icons.directions_run;
+  IconData get icon => Icons.directions_run_rounded;
 
   @override
   String get description =>
       'Endless runner — answer a quiz to pass each checkpoint.';
+
+  @override
+  List<Color> get coverColors =>
+      const [Color(0xFF8FE3B6), Color(0xFF6B5CE7)];
+
+  @override
+  GameDifficulty get difficulty => GameDifficulty.medium;
+
+  @override
+  int questionCount(LearningMaterial m) => m.quiz.length;
 
   @override
   bool canPlay(LearningMaterial material) => material.quiz.isNotEmpty;

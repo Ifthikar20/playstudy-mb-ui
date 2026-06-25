@@ -1,7 +1,16 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../family/data/family_repository.dart';
 import '../../data/models/learning_models.dart';
+import '../../data/quiz_progress_store.dart';
+import 'learning_tree_view.dart';
 
 /// Guided, section-by-section study loop:
 ///   read the section's notes  ->  quiz just that section  ->  back to the
@@ -21,17 +30,35 @@ class StudyFlowView extends StatefulWidget {
   State<StudyFlowView> createState() => _StudyFlowViewState();
 }
 
-const _emojis = ['📘', '🧠', '💡', '🔬', '🧩', '📐', '🌍', '⚗️', '📊', '🎯'];
+const _sectionIcons = [
+  Icons.menu_book_rounded,
+  Icons.psychology_rounded,
+  Icons.lightbulb_rounded,
+  Icons.science_rounded,
+  Icons.extension_rounded,
+  Icons.calculate_rounded,
+  Icons.public_rounded,
+  Icons.biotech_rounded,
+  Icons.insights_rounded,
+  Icons.flag_rounded,
+];
+const _emojis = ['', '', '', '', '', '', '', '', '', ''];
 
 class _Section {
   final String title;
   final String emoji;
-  final List<String> notes;
+  final List<String> notes; // fallback bullets (old study sets)
+  final String content; // readable chunk (new sectioned content)
+  final String example; // real-world example ("Explain further")
+  final List<String> keyTerms; // terms to highlight
   final List<QuizQuestion> questions;
   const _Section({
     required this.title,
     required this.emoji,
     required this.notes,
+    this.content = '',
+    this.example = '',
+    this.keyTerms = const [],
     required this.questions,
   });
 }
@@ -40,8 +67,79 @@ class _StudyFlowViewState extends State<StudyFlowView> {
   late final List<_Section> _sections = _build();
   final Set<int> _completed = {};
 
+  // Time tracking: a heartbeat every 15s credits the current section so the
+  // parent analytics board can show how long was spent on each section.
+  static const _hbSeconds = 15;
+  Timer? _heartbeat;
+
   int _section = 0;
   bool _inQuiz = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartbeat = Timer.periodic(const Duration(seconds: _hbSeconds), _tick);
+    _restore();
+  }
+
+  String get _progressKey => 'study_progress_${widget.material.id}';
+
+  Future<void> _restore() async {
+    if (widget.material.id.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_progressKey);
+    if (raw == null || !mounted) return;
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final savedSection =
+          (data['section'] as int?)?.clamp(0, _sections.length - 1) ?? 0;
+      final savedCompleted = (data['completed'] as List?)
+              ?.cast<int>()
+              .where((i) => i >= 0 && i < _sections.length) ??
+          const <int>[];
+      setState(() {
+        _section = savedSection;
+        _completed
+          ..clear()
+          ..addAll(savedCompleted);
+      });
+    } catch (_) {
+      // Stored shape changed — ignore and start fresh.
+    }
+  }
+
+  Future<void> _save() async {
+    if (widget.material.id.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _progressKey,
+      jsonEncode({
+        'section': _section,
+        'completed': _completed.toList(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }),
+    );
+  }
+
+  @override
+  void dispose() {
+    _heartbeat?.cancel();
+    super.dispose();
+  }
+
+  void _tick(Timer _) {
+    final m = widget.material;
+    if (!mounted || m.sections.isEmpty || m.id.isEmpty) return;
+    context
+        .read<FamilyRepository>()
+        .heartbeat(
+          studySetId: m.id,
+          sectionIndex: _section,
+          sectionTitle: _cur.title,
+          seconds: _hbSeconds,
+        )
+        .catchError((_) {}); // progress logging must never disrupt studying
+  }
 
   // Per-section quiz state.
   int _qIndex = 0;
@@ -53,7 +151,23 @@ class _StudyFlowViewState extends State<StudyFlowView> {
   List<_Section> _build() {
     final m = widget.material;
 
-    // Group questions by their topic tag, preserving first-seen order.
+    // Preferred: server-provided sections (fuller content + example + quiz).
+    if (m.sections.isNotEmpty) {
+      return [
+        for (var i = 0; i < m.sections.length; i++)
+          _Section(
+            title: m.sections[i].title,
+            emoji: _emojis[i % _emojis.length],
+            notes: const [],
+            content: m.sections[i].content,
+            example: m.sections[i].example,
+            keyTerms: m.sections[i].keyTerms,
+            questions: m.sections[i].quiz,
+          ),
+      ];
+    }
+
+    // Fallback (older study sets without sections): group by quiz topic.
     final order = <String>[];
     final byTopic = <String, List<QuizQuestion>>{};
     for (final q in m.quiz) {
@@ -116,11 +230,19 @@ class _StudyFlowViewState extends State<StudyFlowView> {
 
   void _choose(int i) {
     if (_revealed) return;
+    final q = _cur.questions[_qIndex];
+    final correct = i == q.correctIndex;
     setState(() {
       _selected = i;
       _revealed = true;
-      if (i == _cur.questions[_qIndex].correctIndex) _qScore++;
+      if (correct) _qScore++;
     });
+    // Share this answer with the standalone Quiz tab via the unified store so
+    // progress stays in sync between the two views.
+    final mid = widget.material.id;
+    if (mid.isNotEmpty) {
+      QuizProgressStore.markAnswered(mid, q.id, correct: correct);
+    }
   }
 
   void _nextQuestion() {
@@ -135,6 +257,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
         _quizDone = true;
         _completed.add(_section);
       });
+      _save();
       context.read<RewardsBloc>().add(RecordActivity(
             points: 5 + _qScore * 5,
             reason: 'Finished a quiz',
@@ -144,6 +267,20 @@ class _StudyFlowViewState extends State<StudyFlowView> {
               'section': _cur.title,
             },
           ));
+      // Record section completion + score for the parent analytics board.
+      final m = widget.material;
+      if (m.sections.isNotEmpty && m.id.isNotEmpty) {
+        context
+            .read<FamilyRepository>()
+            .completeSection(
+              studySetId: m.id,
+              sectionIndex: _section,
+              sectionTitle: _cur.title,
+              correct: _qScore,
+              total: _cur.questions.length,
+            )
+            .catchError((_) {});
+      }
     }
   }
 
@@ -155,7 +292,60 @@ class _StudyFlowViewState extends State<StudyFlowView> {
         _section++;
         _inQuiz = false;
       });
+      _save();
     }
+  }
+
+  void _showTree() {
+    // Use the full graphical tree when the set has server sections; otherwise
+    // fall back to the simple list (older sets derived from quiz topics).
+    if (widget.material.sections.isNotEmpty) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (treeCtx) => Scaffold(
+          appBar: AppBar(title: const Text('Learning tree')),
+          body: LearningTreeView(
+            material: widget.material,
+            completed: _completed,
+            currentSection: _section,
+            onJumpToSection: (i) {
+              Navigator.of(treeCtx).pop();
+              if (mounted) {
+                setState(() {
+                  _section = i;
+                  _inQuiz = false;
+                });
+                _save();
+              }
+            },
+          ),
+        ),
+      ));
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => _LearningTree(
+        titles: _sections.map((s) => s.title).toList(),
+        emojis: _sections.map((s) => s.emoji).toList(),
+        completed: _completed,
+        current: _section,
+        onJump: (i) {
+          Navigator.of(sheetCtx).pop();
+          if (mounted) {
+            setState(() {
+              _section = i;
+              _inQuiz = false;
+            });
+            _save();
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -170,8 +360,8 @@ class _StudyFlowViewState extends State<StudyFlowView> {
           section: _section,
           total: _sections.length,
           title: _cur.title,
-          emoji: _cur.emoji,
           done: _completed.contains(_section),
+          completedCount: _completed.length,
         ),
         Expanded(
           child: _inQuiz
@@ -191,6 +381,11 @@ class _StudyFlowViewState extends State<StudyFlowView> {
               : _NotesPane(
                   section: _cur,
                   completed: _completed.contains(_section),
+                  // Prefer the section's own key terms; fall back to the
+                  // vocab words for older study sets without them.
+                  keyTerms: _cur.keyTerms.isNotEmpty
+                      ? _cur.keyTerms
+                      : widget.material.wordGame.map((w) => w.word).toList(),
                   onStartQuiz: _cur.questions.isEmpty ? null : _startQuiz,
                 ),
         ),
@@ -203,48 +398,54 @@ class _Header extends StatelessWidget {
   final int section;
   final int total;
   final String title;
-  final String emoji;
   final bool done;
+  final int completedCount;
   const _Header({
     required this.section,
     required this.total,
     required this.title,
-    required this.emoji,
     required this.done,
+    required this.completedCount,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text(emoji, style: const TextStyle(fontSize: 28)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Section ${section + 1} of $total',
-                      style: theme.textTheme.bodySmall),
-                  Text(title,
-                      style: theme.textTheme.titleLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ],
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
               ),
+              child: Text('${section + 1}/$total',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700)),
             ),
-            if (done) const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(title,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            ),
+            if (done)
+              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
           ]),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
-              value: (section + 1) / total,
-              minHeight: 4,
+              value: total == 0 ? 0 : completedCount / total,
+              minHeight: 3,
               backgroundColor: theme.dividerColor,
             ),
           ),
@@ -254,72 +455,439 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _NotesPane extends StatelessWidget {
-  final _Section section;
-  final bool completed;
-  final VoidCallback? onStartQuiz;
-  const _NotesPane({
-    required this.section,
+/// Graphical progress map: a vertical tree of section nodes showing what's done,
+/// where you are, and how much is left.
+class _LearningTree extends StatelessWidget {
+  final List<String> titles;
+  final List<String> emojis;
+  final Set<int> completed;
+  final int current;
+  final ValueChanged<int> onJump;
+  const _LearningTree({
+    required this.titles,
+    required this.emojis,
     required this.completed,
-    required this.onStartQuiz,
+    required this.current,
+    required this.onJump,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final total = titles.length;
+    final doneCount = completed.length;
+    final left = total - doneCount;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.account_tree_rounded, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text('Learning tree', style: theme.textTheme.titleLarge),
+              const Spacer(),
+              Text('$doneCount done • $left left', style: theme.textTheme.bodySmall),
+            ]),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (var i = 0; i < total; i++)
+                      _TreeNode(
+                        index: i,
+                        title: titles[i],
+                        emoji: emojis[i],
+                        isDone: completed.contains(i),
+                        isCurrent: i == current,
+                        isLast: i == total - 1,
+                        onTap: () => onJump(i),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TreeNode extends StatelessWidget {
+  final int index;
+  final String title;
+  final String emoji;
+  final bool isDone;
+  final bool isCurrent;
+  final bool isLast;
+  final VoidCallback onTap;
+  const _TreeNode({
+    required this.index,
+    required this.title,
+    required this.emoji,
+    required this.isDone,
+    required this.isCurrent,
+    required this.isLast,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final nodeColor = isDone
+        ? Colors.green
+        : isCurrent
+            ? theme.colorScheme.primary
+            : theme.dividerColor;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: isDone || isCurrent ? nodeColor : theme.cardColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: nodeColor, width: 2),
+                  ),
+                  child: Center(
+                    child: isDone
+                        ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
+                        : Text('${index + 1}',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: isCurrent ? Colors.white : null)),
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(width: 2, color: theme.dividerColor),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 14),
+                child: Row(
+                  children: [
+                    Icon(
+                      _sectionIcons[index % _sectionIcons.length],
+                      size: 16,
+                      color: isCurrent
+                          ? theme.colorScheme.primary
+                          : const Color(0xFF6B6880),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(title,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: isCurrent ? FontWeight.w700 : null,
+                            color: isCurrent ? theme.colorScheme.primary : null,
+                          )),
+                    ),
+                    if (isCurrent)
+                      Text('you are here', style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotesPane extends StatelessWidget {
+  final _Section section;
+  final bool completed;
+  final List<String> keyTerms;
+  final VoidCallback? onStartQuiz;
+  const _NotesPane({
+    required this.section,
+    required this.completed,
+    required this.keyTerms,
+    required this.onStartQuiz,
+  });
+
+  // Soft highlighter shades, like a marker behind dark text. Each key term
+  // keeps a consistent colour throughout the section.
+  static const _highlighters = [
+    Color(0xFFFFF1A8), // yellow
+    Color(0xFFC8F0D6), // mint
+    Color(0xFFBEE6F2), // sky
+    Color(0xFFFAD1E2), // pink
+    Color(0xFFE4DEFB), // lavender
+  ];
+
+  // The reading body uses a serif so it feels like a page, distinct from the
+  // app's sans-serif chrome.
+  TextStyle _readingBase(ThemeData theme) => GoogleFonts.lora(
+        textStyle: theme.textTheme.bodyLarge?.copyWith(
+          height: 1.6,
+          fontSize: 16,
+          color: theme.colorScheme.onSurface,
+        ),
+      );
+
+  String _stripMd(String s) =>
+      s.replaceAll('**', '').replaceAll('__', '').replaceAll('`', '');
+
+  /// Rich text where each key term gets its own highlighter colour.
+  TextSpan _highlight(String raw, ThemeData theme) {
+    final text = _stripMd(raw);
+    final base = _readingBase(theme);
+    final terms = keyTerms
+        .map((t) => _stripMd(t).trim())
+        .where((t) => t.length >= 3)
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    if (terms.isEmpty) return TextSpan(text: text, style: base);
+    final colorOf = <String, Color>{};
+    for (var i = 0; i < terms.length; i++) {
+      colorOf[terms[i].toLowerCase()] = _highlighters[i % _highlighters.length];
+    }
+    final pattern = RegExp(
+        '(' + terms.map(RegExp.escape).join('|') + ')',
+        caseSensitive: false);
+    final spans = <TextSpan>[];
+    var i = 0;
+    for (final m in pattern.allMatches(text)) {
+      if (m.start > i) spans.add(TextSpan(text: text.substring(i, m.start)));
+      final match = text.substring(m.start, m.end);
+      spans.add(TextSpan(
+        text: match,
+        style: TextStyle(
+          backgroundColor: colorOf[match.toLowerCase()] ?? _highlighters.first,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF1F1B2E),
+        ),
+      ));
+      i = m.end;
+    }
+    if (i < text.length) spans.add(TextSpan(text: text.substring(i)));
+    return TextSpan(style: base, children: spans);
+  }
+
+  // --- Markdown-ish content parsing into renderable blocks -----------------
+
+  List<_Block> _parse(String content) {
+    final lines = content.replaceAll('\r\n', '\n').split('\n');
+    final blocks = <_Block>[];
+    final para = <String>[];
+    void flush() {
+      if (para.isNotEmpty) {
+        blocks.add(_Block(_BlockKind.paragraph, para.join(' ').trim()));
+        para.clear();
+      }
+    }
+
+    for (final rawLine in lines) {
+      final t = rawLine.trim();
+      if (t.isEmpty) {
+        flush();
+        continue;
+      }
+      final head = RegExp(r'^#{1,6}\s+(.*)$').firstMatch(t);
+      final num = RegExp(r'^(\d+)[.)]\s+(.*)$').firstMatch(t);
+      final bullet = RegExp(r'^[-*•]\s+(.*)$').firstMatch(t);
+      if (head != null) {
+        flush();
+        blocks.add(_Block(_BlockKind.heading, head.group(1)!.trim()));
+      } else if (num != null) {
+        flush();
+        blocks.add(_Block(_BlockKind.numbered, num.group(2)!.trim(),
+            number: int.tryParse(num.group(1)!) ?? blocks.length + 1));
+      } else if (bullet != null) {
+        flush();
+        blocks.add(_Block(_BlockKind.bullet, bullet.group(1)!.trim()));
+      } else {
+        para.add(t);
+      }
+    }
+    flush();
+    return blocks;
+  }
+
+  Widget _blockWidget(_Block b, ThemeData theme, int bulletColorIndex) {
+    switch (b.kind) {
+      case _BlockKind.heading:
+        return Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 6),
+          child: Text(
+            _stripMd(b.text),
+            style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.primary),
+          ),
+        );
+      case _BlockKind.bullet:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8, right: 12),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color:
+                      _highlighters[bulletColorIndex % _highlighters.length],
+                  shape: BoxShape.circle,
+                  border: Border.all(color: theme.colorScheme.primary, width: 1.4),
+                ),
+              ),
+              Expanded(child: RichText(text: _highlight(b.text, theme))),
+            ],
+          ),
+        );
+      case _BlockKind.numbered:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 2, right: 12),
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Text('${b.number}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.primary)),
+              ),
+              Expanded(child: RichText(text: _highlight(b.text, theme))),
+            ],
+          ),
+        );
+      case _BlockKind.paragraph:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: RichText(text: _highlight(b.text, theme)),
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Parse the content into bullets / numbered steps / paragraphs.
+    final blocks = _parse(section.content);
+    var bulletColor = 0;
     return Column(
       children: [
         Expanded(
+          // The slim _Header above already shows the section title — no need
+          // to repeat it here. Use a plain ListView with tight paddings so
+          // the body is mostly content.
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
             children: [
+              // Elegant body: bullets, numbered steps and paragraphs, with the
+              // section's key terms highlighted in marker colours.
+              for (final b in blocks)
+                _blockWidget(b, theme,
+                    b.kind == _BlockKind.bullet ? bulletColor++ : 0),
+              // Fallback bullets for older sets without section content.
               for (final note in section.notes)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.lightbulb_outline,
-                            color: theme.colorScheme.primary, size: 20),
-                        const SizedBox(width: 12),
+                        Icon(Icons.lightbulb_outline_rounded,
+                            color: theme.colorScheme.primary, size: 18),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(note,
-                              style: theme.textTheme.bodyLarge
-                                  ?.copyWith(height: 1.5)),
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(height: 1.45)),
                         ),
                       ],
                     ),
                   ),
                 ),
-              // Elaborative prompt (tap to reveal) — encode by self-explaining.
-              Card(
-                color: theme.colorScheme.primary.withOpacity(0.06),
-                child: ExpansionTile(
-                  leading: Icon(Icons.psychology_outlined,
-                      color: theme.colorScheme.primary),
-                  title: const Text('Explain it back'),
-                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  children: [
-                    Text(
-                      'Before the quiz, say each point out loud in your own '
-                      'words and connect it to something you already know. '
-                      'Elaborating like this makes it stick.',
-                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-                    ),
-                  ],
+              // Real-world example at the bottom of the section — a concrete
+              // anchor the learner is also quizzed on.
+              if (section.example.trim().isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: ThemeColors.pastelMint.withOpacity(0.20),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: ThemeColors.pastelMint.withOpacity(0.6)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        const Icon(Icons.public_rounded,
+                            size: 16, color: Color(0xFF137A52)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Real-world example',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF137A52),
+                              letterSpacing: 0.3),
+                        ),
+                      ]),
+                      const SizedBox(height: 8),
+                      Text(
+                        _stripMd(section.example),
+                        style: GoogleFonts.lora(
+                          textStyle: theme.textTheme.bodyMedium?.copyWith(
+                              height: 1.5,
+                              fontStyle: FontStyle.italic,
+                              color: theme.colorScheme.onSurface),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('You’ll be quizzed on this too.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withOpacity(0.6))),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: onStartQuiz,
-              icon: const Icon(Icons.quiz_outlined),
+              icon: const Icon(Icons.quiz_rounded),
               label: Text(onStartQuiz == null
                   ? 'No quiz for this section'
                   : (completed ? 'Retake section quiz' : 'Quiz this section')),
@@ -329,6 +897,15 @@ class _NotesPane extends StatelessWidget {
       ],
     );
   }
+}
+
+enum _BlockKind { heading, bullet, numbered, paragraph }
+
+class _Block {
+  final _BlockKind kind;
+  final String text;
+  final int number;
+  const _Block(this.kind, this.text, {this.number = 0});
 }
 
 class _QuizPane extends StatelessWidget {
@@ -369,18 +946,29 @@ class _QuizPane extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('✅', style: TextStyle(fontSize: 64)),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.task_alt_rounded,
+                    size: 36, color: Color(0xFF22C55E)),
+              ),
               const SizedBox(height: 12),
               Text('Section complete', style: theme.textTheme.headlineSmall),
               const SizedBox(height: 6),
               Text('You scored $score / ${section.questions.length}',
                   style: theme.textTheme.bodyLarge),
+              const SizedBox(height: 16),
+              _PointsBurst(points: 5 + score * 5),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: onBackToNotes,
-                  icon: const Icon(Icons.menu_book_outlined),
+                  icon: const Icon(Icons.menu_book_rounded),
                   label: const Text('Back to notes'),
                 ),
               ),
@@ -390,12 +978,12 @@ class _QuizPane extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: onNextSection,
-                    icon: const Icon(Icons.arrow_forward),
+                    icon: const Icon(Icons.arrow_forward_rounded),
                     label: const Text('Next section'),
                   ),
                 )
               else
-                Text('That was the last section. Great work! 🎉',
+                Text('That was the last section. Great work.',
                     style: theme.textTheme.bodyMedium),
             ],
           ),
@@ -406,83 +994,259 @@ class _QuizPane extends StatelessWidget {
     final q = section.questions[qIndex];
     final total = section.questions.length;
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          LinearProgressIndicator(value: (qIndex + 1) / total),
-          const SizedBox(height: 16),
           Row(children: [
-            Text('Question ${qIndex + 1} of $total',
-                style: theme.textTheme.bodySmall),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text('${qIndex + 1}/$total',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 8),
+            _DifficultyBadge(difficulty: q.difficulty),
             const Spacer(),
-            TextButton(onPressed: onBackToNotes, child: const Text('Notes')),
+            TextButton.icon(
+              onPressed: onBackToNotes,
+              icon: const Icon(Icons.menu_book_rounded, size: 16),
+              label: const Text('Notes'),
+              style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 32)),
+            ),
           ]),
           const SizedBox(height: 8),
-          Text(q.prompt, style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 20),
+          Text(
+            q.prompt,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700, height: 1.25),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          // Compact answer tiles — natural height (~46px each). Scrolls only
+          // if the choice list is unusually long.
           Expanded(
-            child: ListView(
-              children: [
-                ...List.generate(q.choices.length, (i) {
-                  final isCorrect = i == q.correctIndex;
-                  final isPicked = i == selected;
-                  Color? bg;
-                  if (revealed) {
-                    if (isCorrect) {
-                      bg = Colors.green.withOpacity(0.12);
-                    } else if (isPicked) {
-                      bg = Colors.red.withOpacity(0.12);
-                    }
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Material(
-                      color: bg ?? theme.colorScheme.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: theme.dividerColor),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => onChoose(i),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(children: [
-                            Expanded(
-                                child: Text(q.choices[i],
-                                    style: theme.textTheme.bodyLarge)),
-                            if (revealed && isCorrect)
-                              const Icon(Icons.check_circle, color: Colors.green),
-                            if (revealed && isPicked && !isCorrect)
-                              const Icon(Icons.cancel, color: Colors.red),
-                          ]),
-                        ),
-                      ),
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < q.choices.length; i++) ...[
+                    _AnswerTile(
+                      letter: String.fromCharCode(65 + i),
+                      text: q.choices[i],
+                      isCorrect: i == q.correctIndex,
+                      isPicked: i == selected,
+                      revealed: revealed,
+                      onTap: () => onChoose(i),
                     ),
-                  );
-                }),
-                if (revealed && q.explanation != null && q.explanation!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text('Why: ${q.explanation!}',
-                          style: theme.textTheme.bodyMedium),
-                    ),
-                  ),
-              ],
+                    if (i != q.choices.length - 1)
+                      const SizedBox(height: 6),
+                  ],
+                ],
+              ),
             ),
           ),
-          ElevatedButton(
-            onPressed: revealed ? onNext : null,
-            child: Text(qIndex + 1 == total ? 'Finish section' : 'Next'),
+          if (revealed && q.explanation != null && q.explanation!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('Why: ${q.explanation!}',
+                  style: theme.textTheme.bodySmall),
+            ),
+          ],
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              onPressed: revealed ? onNext : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    theme.colorScheme.primary.withOpacity(0.32),
+                disabledForegroundColor: Colors.white.withOpacity(0.85),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+                elevation: 0,
+              ),
+              child: Text(qIndex + 1 == total ? 'Finish section' : 'Next'),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnswerTile extends StatelessWidget {
+  final String letter;
+  final String text;
+  final bool isCorrect;
+  final bool isPicked;
+  final bool revealed;
+  final VoidCallback onTap;
+  const _AnswerTile({
+    required this.letter,
+    required this.text,
+    required this.isCorrect,
+    required this.isPicked,
+    required this.revealed,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Color? bg;
+    Color border = theme.dividerColor;
+    if (revealed) {
+      if (isCorrect) {
+        bg = Colors.green.withOpacity(0.12);
+        border = Colors.green;
+      } else if (isPicked) {
+        bg = Colors.red.withOpacity(0.10);
+        border = Colors.red;
+      }
+    }
+    return Material(
+      color: bg ?? theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: border),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(children: [
+            Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(letter,
+                  style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              // FittedBox auto-shrinks long answers so they always fit on
+              // one line at the tile's fixed height.
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Text(
+                    text,
+                    style: theme.textTheme.bodyMedium,
+                    maxLines: 3,
+                  ),
+                ),
+              ),
+            ),
+            if (revealed && isCorrect)
+              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
+            if (revealed && isPicked && !isCorrect)
+              const Icon(Icons.cancel_rounded, color: Colors.red, size: 18),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// Celebratory "+N points" pill that pops in when a milestone is reached.
+class _PointsBurst extends StatelessWidget {
+  final int points;
+  const _PointsBurst({required this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 550),
+      curve: Curves.elasticOut,
+      tween: Tween(begin: 0, end: 1),
+      builder: (context, t, child) => Transform.scale(scale: t, child: child),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF6B5CE7), Color(0xFF9D8DFA)]),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6B5CE7).withOpacity(0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 6),
+          Text('+$points points',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _DifficultyBadge extends StatelessWidget {
+  final QuizDifficulty difficulty;
+  const _DifficultyBadge({required this.difficulty});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, label) = switch (difficulty) {
+      QuizDifficulty.easy => (const Color(0xFF22C55E), 'Easy'),
+      QuizDifficulty.medium => (const Color(0xFFF59E0B), 'Medium'),
+      QuizDifficulty.hard => (const Color(0xFFEF4444), 'Challenge'),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.45), width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3),
       ),
     );
   }

@@ -53,7 +53,7 @@ class StreakCard extends StatelessWidget {
                           ),
                           Text(
                             activeToday
-                                ? 'Active today — nice! 🔥'
+                                ? 'Active today — nice work.'
                                 : 'Study today to keep it active',
                             style: theme.textTheme.bodySmall,
                           ),
@@ -73,8 +73,8 @@ class StreakCard extends StatelessWidget {
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
-                    Text(state.currentRank.emoji,
-                        style: const TextStyle(fontSize: 16)),
+                    Icon(state.currentRank.icon,
+                        size: 16, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: ClipRRect(
@@ -123,9 +123,14 @@ class _Flame extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Center(
-        child: Text(
-          active ? '🔥' : '🕯️',
-          style: const TextStyle(fontSize: 26),
+        child: Icon(
+          active
+              ? Icons.local_fire_department_rounded
+              : Icons.bedtime_rounded,
+          size: 26,
+          color: active
+              ? const Color(0xFFFF6B00)
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

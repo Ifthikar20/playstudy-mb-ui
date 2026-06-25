@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/models/learning_models.dart';
@@ -74,13 +75,17 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
     on<LoadLibrary>((event, emit) async {
       try {
         await repository.loadLibrary();
+        debugPrint('[learning] Library loaded (${repository.library.length} sets)');
         emit(LibraryReady(repository.library));
-      } catch (e) {
+      } catch (e, st) {
+        debugPrint('[error] LoadLibrary failed: $e');
+        debugPrint('[error] $st');
         emit(LearningError(apiErrorMessage(e), repository.library));
       }
     });
 
     on<GenerateMaterial>((event, emit) async {
+      debugPrint('[learning] Generate kind=${event.sourceKind.name} ref=${event.sourceRef}');
       emit(Generating(repository.library));
       try {
         final m = await repository.generate(
@@ -88,8 +93,11 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
           sourceRef: event.sourceRef,
           titleHint: event.titleHint,
         );
+        debugPrint('[learning] Generate SUCCESS id=${m.id} title="${m.title}"');
         emit(GenerateSuccess(material: m, library: repository.library));
-      } catch (e) {
+      } catch (e, st) {
+        debugPrint('[learning] Generate FAILED: $e');
+        debugPrint('[error] $st');
         emit(LearningError(apiErrorMessage(e), repository.library));
       }
     });
@@ -97,7 +105,10 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
     on<DeleteMaterial>((event, emit) async {
       try {
         await repository.delete(event.id);
-      } catch (_) {
+        debugPrint('[learning] Deleted ${event.id}');
+      } catch (e, st) {
+        debugPrint('[error] Delete ${event.id} failed: $e');
+        debugPrint('[error] $st');
         // best-effort; fall through to re-emit current library
       }
       emit(LibraryReady(repository.library));

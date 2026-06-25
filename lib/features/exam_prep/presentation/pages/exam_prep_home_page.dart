@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/widgets/airbnb_card.dart';
 import '../../data/models/exam_plan.dart';
 import '../bloc/exam_prep_bloc.dart';
-import '../widgets/plan_calendar.dart';
+import '../widgets/exam_progress_summary.dart';
+import '../widgets/plan_progress_simple.dart';
 
 /// Exam tab: lists all exam plans + a calendar view per plan.
 class ExamPrepHomePage extends StatelessWidget {
@@ -19,8 +20,8 @@ class ExamPrepHomePage extends StatelessWidget {
         title: const Text('Exam prep'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.go('/exam/new'),
+            icon: const Icon(Icons.add_rounded),
+            onPressed: () => context.push('/exam/new'),
           ),
         ],
       ),
@@ -30,11 +31,13 @@ class ExamPrepHomePage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (state.plans.isEmpty) {
-            return _Empty(onTap: () => context.go('/exam/new'));
+            return _Empty(onTap: () => context.push('/exam/new'));
           }
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
             children: [
+              ExamProgressSummary(plans: state.plans),
+              const SizedBox(height: 22),
               Text("Today's plan",
                   style: theme.textTheme.titleLarge),
               const SizedBox(height: 12),
@@ -71,7 +74,9 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('📅', style: TextStyle(fontSize: 56)),
+            Icon(Icons.event_rounded,
+                size: 56,
+                color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 12),
             Text('No exam plans yet',
                 style: Theme.of(context).textTheme.titleLarge),
@@ -103,7 +108,7 @@ class _TodayCard extends StatelessWidget {
       color: theme.colorScheme.primary,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => context.go('/exam/${plan.id}/today'),
+        onTap: () => context.push('/exam/${plan.id}/today'),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -150,7 +155,7 @@ class _TodayCard extends StatelessWidget {
                   style: const TextStyle(color: Colors.white70)),
               const SizedBox(height: 16),
               Row(children: [
-                const Icon(Icons.assignment_outlined,
+                const Icon(Icons.assignment_rounded,
                     color: Colors.white, size: 18),
                 const SizedBox(width: 6),
                 Text('${plan.questionsPerDay} questions today',
@@ -159,7 +164,7 @@ class _TodayCard extends StatelessWidget {
                 const Spacer(),
                 Text(done ? 'Tap to review' : 'Tap to start',
                     style: const TextStyle(color: Colors.white)),
-                const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
               ]),
             ],
           ),
@@ -195,44 +200,16 @@ class _PlanCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_outline_rounded),
               onPressed: () => context
                   .read<ExamPrepBloc>()
                   .add(DeletePlan(plan.id)),
             ),
           ]),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: plan.progress,
-              minHeight: 8,
-              backgroundColor: theme.dividerColor,
-              valueColor:
-                  AlwaysStoppedAnimation(theme.colorScheme.primary),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${plan.completedDays} of ${plan.totalDays} days done • ${plan.daysUntilExam}d to exam',
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: plan.topics
-                .map((t) => Chip(
-                      label: Text(t,
-                          style: const TextStyle(fontSize: 11)),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize:
-                          MaterialTapTargetSize.shrinkWrap,
-                    ))
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-          PlanCalendar(plan: plan),
+          const SizedBox(height: 14),
+          // Simple coverage bar + per-topic list. Tap a topic to re-read
+          // its section content in a bottom sheet.
+          PlanProgressSimple(plan: plan),
         ],
       ),
     );

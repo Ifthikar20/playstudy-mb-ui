@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
+import '../data/game_score_scope.dart';
 
 /// Guess the Word — a flame-powered minigame.
 /// Flame renders an animated stage with the revealed letters; Flutter renders
@@ -52,6 +53,7 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
       if (_solved) {
         _won = true;
         _score++;
+        GameScoreScope.report(context, _score);
         _engine.celebrate();
         context.read<RewardsBloc>().add(RecordActivity(
               points: 15 - _mistakes * 2,
@@ -95,14 +97,14 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
   void _showFinal() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('All done! 🎉'),
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('All done'),
         content: Text('You guessed $_score / ${widget.challenges.length} words.'),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              _restart();
+              Navigator.of(dialogCtx).pop();
+              if (mounted) _restart();
             },
             child: const Text('Play again'),
           ),
@@ -137,7 +139,7 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(children: [
-                Icon(Icons.lightbulb_outline,
+                Icon(Icons.lightbulb_outline_rounded,
                     color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
@@ -167,7 +169,7 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
           if (_won)
             _RoundBanner(
               color: Colors.green,
-              icon: Icons.check_circle,
+              icon: Icons.check_circle_rounded,
               text: 'Correct! The word is "${_current.word}".',
               onContinue: _nextRound,
               continueLabel: _round + 1 < widget.challenges.length
@@ -206,7 +208,7 @@ class _MistakeMeter extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 3),
           child: Icon(
-            used ? Icons.favorite : Icons.favorite_border,
+            used ? Icons.favorite_rounded : Icons.favorite_border,
             size: 20,
             color: used ? Colors.red : Theme.of(context).colorScheme.outline,
           ),

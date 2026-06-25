@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,11 +15,14 @@ import 'core/network/token_store.dart';
 import 'core/rewards/rewards_bloc.dart';
 import 'core/subscription/subscription_bloc.dart';
 import 'core/theme/app_theme.dart';
+import 'core/onboarding/onboarding_bloc.dart';
 import 'core/theme/reading_bloc.dart';
 import 'core/theme/theme_bloc.dart';
 import 'features/exam_prep/data/repositories/exam_prep_repository.dart';
+import 'features/family/data/family_repository.dart';
 import 'features/exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import 'features/games/guess_the_word/guess_the_word_game.dart';
+import 'features/games/remote/games_manifest_repository.dart';
 import 'features/games/super_dash/super_dash_game.dart';
 import 'features/games/web/web_games.dart';
 import 'features/learning/data/repositories/learning_repository.dart';
@@ -25,20 +31,40 @@ import 'features/learning/presentation/bloc/learning_bloc.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Catch framework + async errors so a single faulty widget can't kill the
+  // app silently — log them with a clear prefix so they surface in [ui].
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('[error] FlutterError: ${details.exceptionAsString()}');
+    if (details.stack != null) debugPrint('[error] ${details.stack}');
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[error] Uncaught: $error');
+    debugPrint('[error] $stack');
+    return true;
+  };
+
   PaintingBinding.instance.imageCache.maximumSize = 30;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 50 * 1024 * 1024;
 
   AppConfig.initialize();
 
-  // Register all built-in games. To add a new game, write a class that
-  // extends LearningGame and add one line here. The UI picks it up
+  // Register all built-in (native, offline-capable) games. To add one, write a
+  // class that extends LearningGame and add a line here. The UI picks it up
   // automatically via GameRegistry — no other files need changing.
   GameRegistry.instance.register(GuessTheWordGame());
   GameRegistry.instance.register(SuperDashGame());
   GameRegistry.instance.register(FlappyWebGame());
   GameRegistry.instance.register(SpaceShooterWebGame());
+  GameRegistry.instance.register(CrosswordWebGame());
+  GameRegistry.instance.register(SpaceHunterWebGame());
 
   await Hive.initFlutter();
+
+  // Then publish server-managed web games on top: the backend manifest can add
+  // a game (or pull a broken one) with no app release. Falls back to the last
+  // cached manifest offline, and never blocks startup if the fetch fails.
+  await GamesManifestRepository().registerInto(GameRegistry.instance);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -64,11 +90,14 @@ class PlayStudyApp extends StatelessWidget {
         RepositoryProvider<ApiClient>.value(value: api),
         RepositoryProvider(create: (_) => LearningRepository(api)),
         RepositoryProvider(create: (_) => ExamPrepRepository(api)),
+        RepositoryProvider(create: (_) => FamilyRepository(api)),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => ThemeBloc()..add(LoadTheme())),
           BlocProvider(create: (_) => ReadingBloc()..add(LoadReading())),
+          BlocProvider(
+              create: (_) => OnboardingBloc()..add(LoadOnboarding())),
           BlocProvider(
             create: (_) =>
                 AuthBloc(api: api, tokens: tokens)..add(AuthCheckRequested()),
@@ -89,7 +118,10 @@ class PlayStudyApp extends StatelessWidget {
         // (which would reset navigation state).
         child: Builder(
           builder: (context) {
-            final router = AppRouter.create(context.read<AuthBloc>());
+            final router = AppRouter.create(
+              context.read<AuthBloc>(),
+              context.read<OnboardingBloc>(),
+            );
             // Hydrate per-user data whenever auth state flips to signed-in,
             // and reset it on sign-out. Centralizing this here keeps the
             // individual blocs unaware of each other.

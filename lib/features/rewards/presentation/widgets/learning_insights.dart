@@ -79,21 +79,21 @@ class _LearningInsightsState extends State<LearningInsights> {
                         _Metric(
                           label: 'Points this week',
                           value: '$earnedThisWeek',
-                          icon: Icons.bolt,
+                          icon: Icons.bolt_rounded,
                           color: theme.colorScheme.primary,
                         ),
                         const SizedBox(height: 10),
                         _Metric(
                           label: 'Current streak',
                           value: '${widget.state.streak} days',
-                          icon: Icons.local_fire_department,
+                          icon: Icons.local_fire_department_rounded,
                           color: theme.colorScheme.tertiary,
                         ),
                         const SizedBox(height: 10),
                         _Metric(
                           label: 'Active days (14d)',
                           value: '$activeDays',
-                          icon: Icons.calendar_today,
+                          icon: Icons.calendar_today_rounded,
                           color: theme.colorScheme.secondary,
                         ),
                       ],
@@ -178,8 +178,8 @@ class _RankRing extends StatelessWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(state.currentRank.emoji,
-                  style: const TextStyle(fontSize: 26)),
+              Icon(state.currentRank.icon,
+                  size: 26, color: Theme.of(context).colorScheme.primary),
               Text('${(progress * 100).round()}%',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(fontWeight: FontWeight.w700)),
