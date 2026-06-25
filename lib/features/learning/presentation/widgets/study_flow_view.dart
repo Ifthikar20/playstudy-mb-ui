@@ -3,8 +3,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../family/data/family_repository.dart';
 import '../../data/models/learning_models.dart';
 import 'learning_tree_view.dart';
@@ -35,6 +37,7 @@ class _Section {
   final List<String> notes; // fallback bullets (old study sets)
   final String content; // readable chunk (new sectioned content)
   final String example; // real-world example ("Explain further")
+  final List<String> keyTerms; // terms to highlight
   final List<QuizQuestion> questions;
   const _Section({
     required this.title,
@@ -42,6 +45,7 @@ class _Section {
     required this.notes,
     this.content = '',
     this.example = '',
+    this.keyTerms = const [],
     required this.questions,
   });
 }
@@ -144,6 +148,7 @@ class _StudyFlowViewState extends State<StudyFlowView> {
             notes: const [],
             content: m.sections[i].content,
             example: m.sections[i].example,
+            keyTerms: m.sections[i].keyTerms,
             questions: m.sections[i].quiz,
           ),
       ];
@@ -355,7 +360,11 @@ class _StudyFlowViewState extends State<StudyFlowView> {
               : _NotesPane(
                   section: _cur,
                   completed: _completed.contains(_section),
-                  keyTerms: widget.material.wordGame.map((w) => w.word).toList(),
+                  // Prefer the section's own key terms; fall back to the
+                  // vocab words for older study sets without them.
+                  keyTerms: _cur.keyTerms.isNotEmpty
+                      ? _cur.keyTerms
+                      : widget.material.wordGame.map((w) => w.word).toList(),
                   onStartQuiz: _cur.questions.isEmpty ? null : _startQuiz,
                 ),
         ),
@@ -585,26 +594,59 @@ class _NotesPane extends StatelessWidget {
     required this.onStartQuiz,
   });
 
-  /// Build a TextSpan where any key term is bolded/coloured (case-insensitive).
-  TextSpan _highlight(String text, ThemeData theme) {
+  // Soft highlighter shades, like a marker behind dark text. Each key term
+  // keeps a consistent colour throughout the section.
+  static const _highlighters = [
+    Color(0xFFFFF1A8), // yellow
+    Color(0xFFC8F0D6), // mint
+    Color(0xFFBEE6F2), // sky
+    Color(0xFFFAD1E2), // pink
+    Color(0xFFE4DEFB), // lavender
+  ];
+
+  // The reading body uses a serif so it feels like a page, distinct from the
+  // app's sans-serif chrome.
+  TextStyle _readingBase(ThemeData theme) => GoogleFonts.lora(
+        textStyle: theme.textTheme.bodyLarge?.copyWith(
+          height: 1.6,
+          fontSize: 16,
+          color: theme.colorScheme.onSurface,
+        ),
+      );
+
+  String _stripMd(String s) =>
+      s.replaceAll('**', '').replaceAll('__', '').replaceAll('`', '');
+
+  /// Rich text where each key term gets its own highlighter colour.
+  TextSpan _highlight(String raw, ThemeData theme) {
+    final text = _stripMd(raw);
+    final base = _readingBase(theme);
     final terms = keyTerms
-        .map((t) => t.trim())
+        .map((t) => _stripMd(t).trim())
         .where((t) => t.length >= 3)
+        .toSet()
         .toList()
       ..sort((a, b) => b.length.compareTo(a.length));
-    final base = theme.textTheme.bodyLarge?.copyWith(height: 1.55);
     if (terms.isEmpty) return TextSpan(text: text, style: base);
+    final colorOf = <String, Color>{};
+    for (var i = 0; i < terms.length; i++) {
+      colorOf[terms[i].toLowerCase()] = _highlighters[i % _highlighters.length];
+    }
     final pattern = RegExp(
-        r'\b(' + terms.map(RegExp.escape).join('|') + r')\b',
+        '(' + terms.map(RegExp.escape).join('|') + ')',
         caseSensitive: false);
     final spans = <TextSpan>[];
     var i = 0;
     for (final m in pattern.allMatches(text)) {
       if (m.start > i) spans.add(TextSpan(text: text.substring(i, m.start)));
+      final match = text.substring(m.start, m.end);
       spans.add(TextSpan(
-        text: text.substring(m.start, m.end),
+        text: match,
         style: TextStyle(
-            fontWeight: FontWeight.w700, color: theme.colorScheme.primary),
+          backgroundColor: colorOf[match.toLowerCase()] ?? _highlighters.first,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF1F1B2E),
+        ),
       ));
       i = m.end;
     }
@@ -612,15 +654,118 @@ class _NotesPane extends StatelessWidget {
     return TextSpan(style: base, children: spans);
   }
 
+  // --- Markdown-ish content parsing into renderable blocks -----------------
+
+  List<_Block> _parse(String content) {
+    final lines = content.replaceAll('\r\n', '\n').split('\n');
+    final blocks = <_Block>[];
+    final para = <String>[];
+    void flush() {
+      if (para.isNotEmpty) {
+        blocks.add(_Block(_BlockKind.paragraph, para.join(' ').trim()));
+        para.clear();
+      }
+    }
+
+    for (final rawLine in lines) {
+      final t = rawLine.trim();
+      if (t.isEmpty) {
+        flush();
+        continue;
+      }
+      final head = RegExp(r'^#{1,6}\s+(.*)$').firstMatch(t);
+      final num = RegExp(r'^(\d+)[.)]\s+(.*)$').firstMatch(t);
+      final bullet = RegExp(r'^[-*•]\s+(.*)$').firstMatch(t);
+      if (head != null) {
+        flush();
+        blocks.add(_Block(_BlockKind.heading, head.group(1)!.trim()));
+      } else if (num != null) {
+        flush();
+        blocks.add(_Block(_BlockKind.numbered, num.group(2)!.trim(),
+            number: int.tryParse(num.group(1)!) ?? blocks.length + 1));
+      } else if (bullet != null) {
+        flush();
+        blocks.add(_Block(_BlockKind.bullet, bullet.group(1)!.trim()));
+      } else {
+        para.add(t);
+      }
+    }
+    flush();
+    return blocks;
+  }
+
+  Widget _blockWidget(_Block b, ThemeData theme, int bulletColorIndex) {
+    switch (b.kind) {
+      case _BlockKind.heading:
+        return Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 6),
+          child: Text(
+            _stripMd(b.text),
+            style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.primary),
+          ),
+        );
+      case _BlockKind.bullet:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8, right: 12),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color:
+                      _highlighters[bulletColorIndex % _highlighters.length],
+                  shape: BoxShape.circle,
+                  border: Border.all(color: theme.colorScheme.primary, width: 1.4),
+                ),
+              ),
+              Expanded(child: RichText(text: _highlight(b.text, theme))),
+            ],
+          ),
+        );
+      case _BlockKind.numbered:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 2, right: 12),
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Text('${b.number}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.primary)),
+              ),
+              Expanded(child: RichText(text: _highlight(b.text, theme))),
+            ],
+          ),
+        );
+      case _BlockKind.paragraph:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: RichText(text: _highlight(b.text, theme)),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Split the content into paragraph "sub-sections".
-    final paras = section.content
-        .split(RegExp(r'\n\s*\n|\n'))
-        .map((p) => p.trim())
-        .where((p) => p.isNotEmpty)
-        .toList();
+    // Parse the content into bullets / numbered steps / paragraphs.
+    final blocks = _parse(section.content);
+    var bulletColor = 0;
     return Column(
       children: [
         Expanded(
@@ -630,16 +775,11 @@ class _NotesPane extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
             children: [
-              // Plain text body — paragraphs only, no card chrome.
-              for (final para in paras)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: DefaultTextStyle.merge(
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(height: 1.5, fontSize: 15),
-                    child: RichText(text: _highlight(para, theme)),
-                  ),
-                ),
+              // Elegant body: bullets, numbered steps and paragraphs, with the
+              // section's key terms highlighted in marker colours.
+              for (final b in blocks)
+                _blockWidget(b, theme,
+                    b.kind == _BlockKind.bullet ? bulletColor++ : 0),
               // Fallback bullets for older sets without section content.
               for (final note in section.notes)
                 Padding(
@@ -666,37 +806,47 @@ class _NotesPane extends StatelessWidget {
                     ),
                   ),
                 ),
-              // "Further understanding" — a real-world example or a key
-              // term explained, so the reader has something concrete to
-               // anchor the section's ideas to.
+              // Real-world example at the bottom of the section — a concrete
+              // anchor the learner is also quizzed on.
               if (section.example.trim().isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(10),
+                    color: ThemeColors.pastelMint.withOpacity(0.20),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: ThemeColors.pastelMint.withOpacity(0.6)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        Icon(Icons.lightbulb_outline,
-                            size: 16, color: theme.colorScheme.primary),
-                        const SizedBox(width: 6),
+                        const Text('🌍', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 8),
                         Text(
-                          'Further understanding',
+                          'Real-world example',
                           style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.primary,
-                              letterSpacing: 0.2),
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF137A52),
+                              letterSpacing: 0.3),
                         ),
                       ]),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
-                        section.example,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(height: 1.45, fontSize: 13),
+                        _stripMd(section.example),
+                        style: GoogleFonts.lora(
+                          textStyle: theme.textTheme.bodyMedium?.copyWith(
+                              height: 1.5,
+                              fontStyle: FontStyle.italic,
+                              color: theme.colorScheme.onSurface),
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      Text('You’ll be quizzed on this too.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withOpacity(0.6))),
                     ],
                   ),
                 ),
@@ -719,6 +869,15 @@ class _NotesPane extends StatelessWidget {
       ],
     );
   }
+}
+
+enum _BlockKind { heading, bullet, numbered, paragraph }
+
+class _Block {
+  final _BlockKind kind;
+  final String text;
+  final int number;
+  const _Block(this.kind, this.text, {this.number = 0});
 }
 
 class _QuizPane extends StatelessWidget {

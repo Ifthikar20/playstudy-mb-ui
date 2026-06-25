@@ -94,22 +94,25 @@ class StudySection extends Equatable {
   final String title;
   final String content;
   final String example;
+  final List<String> keyTerms; // terms to highlight in [content]
   final List<QuizQuestion> quiz;
 
   const StudySection({
     required this.title,
     required this.content,
     required this.example,
+    this.keyTerms = const [],
     required this.quiz,
   });
 
   @override
-  List<Object?> get props => [title, content, example, quiz];
+  List<Object?> get props => [title, content, example, keyTerms, quiz];
 
   static StudySection fromJson(Map<String, dynamic> j) => StudySection(
         title: j['title'] as String? ?? 'Section',
         content: j['content'] as String? ?? '',
         example: j['example'] as String? ?? '',
+        keyTerms: (j['keyTerms'] as List? ?? const []).cast<String>(),
         quiz: (j['quiz'] as List? ?? const [])
             .map((e) => QuizQuestion.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -119,6 +122,7 @@ class StudySection extends Equatable {
         'title': title,
         'content': content,
         'example': example,
+        'keyTerms': keyTerms,
         'quiz': quiz.map((q) => q.toJson()).toList(),
       };
 }
