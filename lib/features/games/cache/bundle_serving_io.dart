@@ -6,32 +6,35 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Mobile/desktop offline support for S3-hosted games.
+import '../../../core/storage/storage_prefs.dart';
+
+/// Mobile/desktop offline support for S3-hosted games — with a hard storage
+/// budget so downloads can't crowd the device.
 ///
-/// We are NOT streaming: a bundle is downloaded once to the app's cache
-/// directory (mirroring the host layout `/games/<slug>/<version>/…` plus the
-/// shared `/playstudy-sdk.js`) and then served to the WebView by a tiny local
-/// HTTP server on 127.0.0.1. Because the version is immutable, a cached bundle
-/// is never re-downloaded, and the game runs with no network — fully offline.
-///
-/// If a bundle isn't cached yet and we're offline, [resolveBase] falls back to
-/// the online origin (which will simply fail to load until the user is online
-/// once to populate the cache).
+/// We are NOT streaming: a bundle is downloaded once to the app cache
+/// (mirroring `/games/<slug>/<version>/…` + the shared `/playstudy-sdk.js`)
+/// and served to the WebView from a local 127.0.0.1 HTTP server. Immutable
+/// versions are cached once. Total bundle size is kept under the user's limit
+/// ([StoragePrefs.limitBytes]) via LRU eviction. When the user turns offline
+/// off, nothing is stored — games stream from the origin instead.
 class BundleServing {
   static final Dio _dio = Dio();
   static HttpServer? _server;
   static String? _root;
 
-  /// The base URL to load `<base>/games/<slug>/<version>/index.html` from now:
-  /// the local server if the bundle is cached/cacheable, else the online origin.
+  /// The base URL to load the bundle from now: the local server if cached/
+  /// cacheable (and offline is enabled), else the online origin.
   static Future<String> resolveBase({
     required String slug,
     required String version,
     required String onlineBase,
   }) async {
+    if (!await StoragePrefs.offlineEnabled()) return onlineBase;
     try {
       final root = await _cacheRoot();
       if (await _ensureCached(root, slug, version, onlineBase)) {
+        await _touch(root, slug, version);
+        await _enforceBudget(root);
         return await _ensureServer(root);
       }
     } catch (e) {
@@ -40,17 +43,43 @@ class BundleServing {
     return onlineBase;
   }
 
-  /// Download a bundle ahead of time so it's available offline later. Safe to
-  /// call on every launch — cached (immutable) versions are skipped.
+  /// Pre-download a bundle for offline use. Skips when offline is off or the
+  /// cache is already at the budget (so prewarming never overfills).
   static Future<void> prewarm({
     required String slug,
     required String version,
     required String onlineBase,
   }) async {
     try {
-      await _ensureCached(await _cacheRoot(), slug, version, onlineBase);
+      if (!await StoragePrefs.offlineEnabled()) return;
+      final root = await _cacheRoot();
+      final gamesDir = '$root/games';
+      if (await _dirSize(gamesDir) >= await StoragePrefs.limitBytes()) return;
+      if (await _ensureCached(root, slug, version, onlineBase)) {
+        await _touch(root, slug, version);
+      }
     } catch (e) {
       debugPrint('[games] prewarm $slug@$version failed: $e');
+    }
+  }
+
+  /// Bytes currently used by the on-device game cache.
+  static Future<int> usageBytes() async {
+    try {
+      return await _dirSize(await _cacheRoot());
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Delete all downloaded bundles (and the SDK). The library/study data is a
+  /// separate, tiny cache and is not touched here.
+  static Future<void> clearDownloads() async {
+    try {
+      final dir = Directory(await _cacheRoot());
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (e) {
+      debugPrint('[games] clearDownloads failed: $e');
     }
   }
 
@@ -59,8 +88,6 @@ class BundleServing {
     return '${dir.path}/games_cache';
   }
 
-  /// Ensures the bundle's files (+ the SDK) are on disk. Returns true if the
-  /// bundle's index.html is present afterwards.
   static Future<bool> _ensureCached(
     String root,
     String slug,
@@ -70,30 +97,19 @@ class BundleServing {
     final bundleDir = '$root/games/$slug/$version';
     final index = File('$bundleDir/index.html');
     if (await index.exists()) {
-      // Immutable version already cached. Make sure the (shared) SDK is too.
       await _ensureSdk(root, onlineBase);
       return true;
     }
-    // Needs the network to populate the cache the first time.
     final files = await _fileList(onlineBase, slug, version);
     for (final f in files) {
-      await _download(
-        '$onlineBase/games/$slug/$version/$f',
-        '$bundleDir/$f',
-      );
+      await _download('$onlineBase/games/$slug/$version/$f', '$bundleDir/$f');
     }
     await _ensureSdk(root, onlineBase, force: true);
     return index.exists();
   }
 
-  /// The bundle's file list comes from an optional `bundle.json`
-  /// (`{"files": ["index.html", "assets/…", …]}`). Falls back to just
-  /// index.html so single-file games work with no extra metadata.
   static Future<List<String>> _fileList(
-    String base,
-    String slug,
-    String version,
-  ) async {
+      String base, String slug, String version) async {
     try {
       final r = await _dio.get<String>(
         '$base/games/$slug/$version/bundle.json',
@@ -111,16 +127,13 @@ class BundleServing {
     }
   }
 
-  static Future<void> _ensureSdk(
-    String root,
-    String base, {
-    bool force = false,
-  }) async {
+  static Future<void> _ensureSdk(String root, String base,
+      {bool force = false}) async {
     final sdk = File('$root/playstudy-sdk.js');
     if (!force && await sdk.exists()) return;
     try {
       await _download('$base/playstudy-sdk.js', '$root/playstudy-sdk.js');
-    } catch (_) {/* SDK may be vendored in the bundle; non-fatal */}
+    } catch (_) {/* may be vendored in the bundle */}
   }
 
   static Future<void> _download(String url, String path) async {
@@ -132,6 +145,67 @@ class BundleServing {
     );
     await file.writeAsBytes(resp.data ?? const []);
   }
+
+  // --- LRU index + budget enforcement --------------------------------------
+
+  static String _indexPath(String root) => '$root/.access.json';
+
+  static Future<Map<String, int>> _loadIndex(String root) async {
+    try {
+      final f = File(_indexPath(root));
+      if (!await f.exists()) return {};
+      final m = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+      return m.map((k, v) => MapEntry(k, (v as num).toInt()));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> _touch(String root, String slug, String version) async {
+    final idx = await _loadIndex(root);
+    idx['$slug/$version'] = DateTime.now().millisecondsSinceEpoch;
+    try {
+      await File(_indexPath(root)).writeAsString(jsonEncode(idx));
+    } catch (_) {}
+  }
+
+  /// Evict least-recently-used bundles until total bundle size is under budget.
+  static Future<void> _enforceBudget(String root) async {
+    final limit = await StoragePrefs.limitBytes();
+    var total = await _dirSize('$root/games');
+    if (total <= limit) return;
+    final idx = await _loadIndex(root);
+    final ordered = idx.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value)); // oldest first
+    for (final e in ordered) {
+      if (total <= limit) break;
+      final dir = Directory('$root/games/${e.key}');
+      if (await dir.exists()) {
+        total -= await _dirSize(dir.path);
+        await dir.delete(recursive: true);
+      }
+      idx.remove(e.key);
+    }
+    try {
+      await File(_indexPath(root)).writeAsString(jsonEncode(idx));
+    } catch (_) {}
+  }
+
+  static Future<int> _dirSize(String path) async {
+    final dir = Directory(path);
+    if (!await dir.exists()) return 0;
+    var total = 0;
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is File) {
+        try {
+          total += await entity.length();
+        } catch (_) {}
+      }
+    }
+    return total;
+  }
+
+  // --- local server --------------------------------------------------------
 
   static Future<String> _ensureServer(String root) async {
     final existing = _server;

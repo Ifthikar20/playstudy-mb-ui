@@ -103,6 +103,17 @@ class LearningCache {
     }
   }
 
+  /// Drops all cached full materials (keeps the lightweight library index).
+  Future<void> clearMaterials() async {
+    try {
+      await _ensureOpen();
+      await _materials!.clear();
+      await _index!.clear();
+    } catch (e) {
+      debugPrint('[learning] clearMaterials failed: $e');
+    }
+  }
+
   /// Evicts the least-recently-used full materials beyond the cap. The library
   /// row stays, so the set still shows — it just re-downloads when next opened.
   Future<void> _evict() async {
