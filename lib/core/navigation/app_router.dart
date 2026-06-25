@@ -157,6 +157,7 @@ class _MaterialLoaderState extends State<_MaterialLoader> {
   LearningMaterial? _material;
   Object? _error;
   Timer? _poll;
+  int _refreshAttempt = 0;
 
   @override
   void initState() {
@@ -195,8 +196,17 @@ class _MaterialLoaderState extends State<_MaterialLoader> {
   // the moment the set is ready or failed.
   void _scheduleRefresh(LearningMaterial m) {
     _poll?.cancel();
-    if (!m.isGenerating) return;
-    _poll = Timer(const Duration(seconds: 2), _refresh);
+    if (!m.isGenerating) {
+      _refreshAttempt = 0;
+      return;
+    }
+    // Back off as the wait grows: snappy for the first refreshes, then ease to
+    // 3s so a long generation doesn't hammer the endpoint.
+    final delay = _refreshAttempt < 6
+        ? const Duration(milliseconds: 1500)
+        : const Duration(seconds: 3);
+    _refreshAttempt++;
+    _poll = Timer(delay, _refresh);
   }
 
   Future<void> _refresh() async {

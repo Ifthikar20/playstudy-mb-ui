@@ -131,14 +131,17 @@ class LearningRepository {
 
   Future<LearningMaterial> _pollUntilReady(
       String id, void Function(GenerationUpdate)? onUpdate) async {
-    // ~5 minutes max (150 * 2s). Generation fans out into one batch per chunk
-    // that complete independently, so `progress` climbs and the instant
-    // preview lands within a few seconds — surfaced via [onUpdate].
-    for (var i = 0; i < 150; i++) {
+    // Generation fans out into one batch per chunk that complete independently,
+    // so `progress` climbs and the instant preview lands within a few seconds.
+    // Poll fast at first to catch the preview quickly, then back off to cut
+    // request load on a long doc. Bounded by a 5-minute deadline.
+    final deadline = DateTime.now().add(const Duration(minutes: 5));
+    var attempt = 0;
+    while (DateTime.now().isBefore(deadline)) {
       final data = (await api.dio.get('studysets/$id/status/')).data
           as Map<String, dynamic>;
       final value = data['status'] as String;
-      debugPrint('[learning] poll $id (attempt ${i + 1}): status=$value');
+      debugPrint('[learning] poll $id (attempt ${attempt + 1}): status=$value');
 
       if (onUpdate != null) {
         final previewJson = data['preview'] as Map<String, dynamic>?;
@@ -159,9 +162,18 @@ class LearningRepository {
       if (value == 'failed') {
         throw Exception((data['error'] ?? 'Generation failed').toString());
       }
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(_pollDelay(attempt));
+      attempt++;
     }
     throw Exception('Generation timed out after 5 minutes. Please try again.');
+  }
+
+  /// Adaptive backoff: 1.5s for the first few polls (catch the preview fast),
+  /// then 3s, then 5s once it's clearly a longer job.
+  static Duration _pollDelay(int attempt) {
+    if (attempt < 5) return const Duration(milliseconds: 1500);
+    if (attempt < 15) return const Duration(seconds: 3);
+    return const Duration(seconds: 5);
   }
 
   // Photos snapped on a phone are often 4-12 MB at 4000px+. Uploading them raw
