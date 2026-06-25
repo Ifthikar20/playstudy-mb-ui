@@ -3,13 +3,30 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../data/models/learning_models.dart';
+
 /// Full-screen friendly waiting screen shown while a study set is being
-/// generated. Cycles through reassuring status messages on a timer and
-/// pulses a brand-colored hero icon so the wait does not feel frozen.
+/// generated. Until the instant preview arrives it cycles reassuring status
+/// messages and pulses a hero icon; once [preview] lands it shows the real
+/// outline / summary / key terms with a live progress bar, so the user has
+/// genuine content to read within seconds.
 class GeneratingOverlay extends StatefulWidget {
   /// Optional title hint shown in the subtitle ("Working on: ...").
   final String? subject;
-  const GeneratingOverlay({super.key, this.subject});
+
+  /// Instant, no-AI preview of the source. Null until the backend has
+  /// extracted the text (the first couple of seconds).
+  final StudyPreview? preview;
+
+  /// Fraction of AI batches complete, 0..1 (0 shows an indeterminate bar).
+  final double progress;
+
+  const GeneratingOverlay({
+    super.key,
+    this.subject,
+    this.preview,
+    this.progress = 0,
+  });
 
   @override
   State<GeneratingOverlay> createState() => _GeneratingOverlayState();
@@ -56,6 +73,134 @@ class _GeneratingOverlayState extends State<GeneratingOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final preview = widget.preview;
+    if (preview != null && !preview.isEmpty) {
+      return _buildPreview(context, preview);
+    }
+    return _buildWaiting(context);
+  }
+
+  /// Rich state: real content (outline / summary / key terms) plus a live
+  /// progress bar while the AI study set finishes in the background.
+  Widget _buildPreview(BuildContext context, StudyPreview preview) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final pct = (widget.progress.clamp(0.0, 1.0) * 100).round();
+    return Container(
+      color: theme.colorScheme.surface.withOpacity(0.99),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Icon(Icons.auto_awesome_rounded, color: primary, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Building your study set…',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                    ),
+                    if (widget.progress > 0)
+                      Text('$pct%',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color: primary, fontWeight: FontWeight.w700)),
+                  ]),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: widget.progress > 0 ? widget.progress : null,
+                      minHeight: 8,
+                      backgroundColor: primary.withOpacity(0.12),
+                      valueColor: AlwaysStoppedAnimation<Color>(primary),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Quizzes and games are being written. Here\'s a head start:',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.hintColor),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+                children: [
+                  if (preview.summary.isNotEmpty) ...[
+                    _SectionLabel('Quick summary', Icons.notes_rounded, primary),
+                    const SizedBox(height: 8),
+                    ...preview.summary.map((s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(s, style: theme.textTheme.bodyMedium),
+                        )),
+                    const SizedBox(height: 20),
+                  ],
+                  if (preview.keyTerms.isNotEmpty) ...[
+                    _SectionLabel('Key terms', Icons.sell_rounded, primary),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: preview.keyTerms
+                          .map((t) => Chip(
+                                label: Text(t),
+                                backgroundColor: primary.withOpacity(0.10),
+                                side: BorderSide(
+                                    color: primary.withOpacity(0.25)),
+                                visualDensity: VisualDensity.compact,
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (preview.outline.isNotEmpty) ...[
+                    _SectionLabel('Outline', Icons.list_alt_rounded, primary),
+                    const SizedBox(height: 8),
+                    ...preview.outline.map((o) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6, right: 8),
+                                child: Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                      color: primary, shape: BoxShape.circle),
+                                ),
+                              ),
+                              Expanded(
+                                  child: Text(o,
+                                      style: theme.textTheme.bodyMedium)),
+                            ],
+                          ),
+                        )),
+                    const SizedBox(height: 12),
+                  ],
+                  if (preview.wordCount > 0)
+                    Text(
+                      '${preview.wordCount} words · ~${preview.readingMinutes} min read',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.hintColor),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWaiting(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
     final step = _steps[_step];
@@ -118,6 +263,26 @@ class _Step {
   final IconData icon;
   final String label;
   const _Step(this.icon, this.label);
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  const _SectionLabel(this.label, this.icon, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Icon(icon, size: 18, color: color),
+      const SizedBox(width: 8),
+      Text(label,
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700)),
+    ]);
+  }
 }
 
 class _HeroIcon extends StatelessWidget {

@@ -53,6 +53,16 @@ class Generating extends LearningState {
   const Generating(super.library);
 }
 
+/// Emitted repeatedly while generating: carries progress + the instant preview
+/// so the UI can show useful content within seconds instead of a blind spinner.
+class GenerationInProgress extends LearningState {
+  final GenerationUpdate update;
+  const GenerationInProgress(this.update, List<LearningMaterial> library)
+      : super(library);
+  @override
+  List<Object?> get props => [update, library];
+}
+
 class GenerateSuccess extends LearningState {
   final LearningMaterial material;
   const GenerateSuccess({required this.material, required List<LearningMaterial> library})
@@ -92,6 +102,11 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
           sourceKind: event.sourceKind,
           sourceRef: event.sourceRef,
           titleHint: event.titleHint,
+          onUpdate: (u) {
+            if (!emit.isDone) {
+              emit(GenerationInProgress(u, repository.library));
+            }
+          },
         );
         debugPrint('[learning] Generate SUCCESS id=${m.id} title="${m.title}"');
         emit(GenerateSuccess(material: m, library: repository.library));

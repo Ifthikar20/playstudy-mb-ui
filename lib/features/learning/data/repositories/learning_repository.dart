@@ -79,6 +79,7 @@ class LearningRepository {
     required SourceKind sourceKind,
     required String sourceRef,
     String? titleHint,
+    void Function(GenerationUpdate update)? onUpdate,
   }) async {
     var ref = sourceRef;
     if (sourceKind == SourceKind.file) {
@@ -99,7 +100,7 @@ class LearningRepository {
 
     final id = create.data['id'] as String;
     debugPrint('[learning] Created study set $id (HTTP ${create.statusCode}), polling status…');
-    final material = await _pollUntilReady(id);
+    final material = await _pollUntilReady(id, onUpdate);
     debugPrint('[learning] Study set $id ready: "${material.title}"');
     _library.insert(0, material);
     await _cache.saveMaterial(material);
@@ -128,17 +129,32 @@ class LearningRepository {
     return list.map(QuizQuestion.fromJson).toList();
   }
 
-  Future<LearningMaterial> _pollUntilReady(String id) async {
-    // ~5 minutes max (150 * 2s) — long PDFs split into 3-5 chunks can take
-    // 60-90s per chunk on Anthropic, so a 9-page doc may need 3-4 minutes.
+  Future<LearningMaterial> _pollUntilReady(
+      String id, void Function(GenerationUpdate)? onUpdate) async {
+    // ~5 minutes max (150 * 2s). Generation fans out into one batch per chunk
+    // that complete independently, so `progress` climbs and the instant
+    // preview lands within a few seconds — surfaced via [onUpdate].
     for (var i = 0; i < 150; i++) {
-      final status = await api.dio.get('studysets/$id/status/');
-      final value = status.data['status'] as String;
+      final data = (await api.dio.get('studysets/$id/status/')).data
+          as Map<String, dynamic>;
+      final value = data['status'] as String;
       debugPrint('[learning] poll $id (attempt ${i + 1}): status=$value');
+
+      if (onUpdate != null) {
+        final previewJson = data['preview'] as Map<String, dynamic>?;
+        final preview = (previewJson == null || previewJson.isEmpty)
+            ? null
+            : StudyPreview.fromJson(previewJson);
+        onUpdate(GenerationUpdate(
+          status: value,
+          progress: (data['progress'] as num?)?.toDouble() ?? 0,
+          preview: preview,
+        ));
+      }
+
       if (value == 'ready') return fetch(id);
       if (value == 'failed') {
-        throw Exception(
-            (status.data['error'] ?? 'Generation failed').toString());
+        throw Exception((data['error'] ?? 'Generation failed').toString());
       }
       await Future.delayed(const Duration(seconds: 2));
     }

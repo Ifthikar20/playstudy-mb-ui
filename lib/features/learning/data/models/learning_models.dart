@@ -88,6 +88,65 @@ class WordChallenge extends Equatable {
 /// Source of the uploaded content.
 enum SourceKind { link, file, text }
 
+/// Instant, no-AI preview of the source, computed server-side from the
+/// extracted text and shown within seconds while the full study set generates.
+/// Mirrors the backend `preview` JSON.
+class StudyPreview extends Equatable {
+  final int wordCount;
+  final int readingMinutes;
+  final List<String> outline;
+  final List<String> keyTerms;
+  final List<String> summary;
+
+  const StudyPreview({
+    this.wordCount = 0,
+    this.readingMinutes = 0,
+    this.outline = const [],
+    this.keyTerms = const [],
+    this.summary = const [],
+  });
+
+  bool get isEmpty =>
+      outline.isEmpty &&
+      keyTerms.isEmpty &&
+      summary.isEmpty &&
+      wordCount == 0;
+
+  @override
+  List<Object?> get props =>
+      [wordCount, readingMinutes, outline, keyTerms, summary];
+
+  static StudyPreview fromJson(Map<String, dynamic> j) => StudyPreview(
+        wordCount: j['wordCount'] as int? ?? 0,
+        readingMinutes: j['readingMinutes'] as int? ?? 0,
+        outline: (j['outline'] as List? ?? const []).cast<String>(),
+        keyTerms: (j['keyTerms'] as List? ?? const []).cast<String>(),
+        summary: (j['summary'] as List? ?? const []).cast<String>(),
+      );
+}
+
+/// A progress tick emitted while a study set is generating: how far along the
+/// batches are, plus the instant [preview] once the backend has computed it.
+class GenerationUpdate extends Equatable {
+  /// pending | processing | partial | ready | failed
+  final String status;
+
+  /// Fraction of batches complete, 0..1.
+  final double progress;
+
+  /// Null until the backend has extracted the text and built the preview.
+  final StudyPreview? preview;
+
+  const GenerationUpdate({
+    required this.status,
+    this.progress = 0,
+    this.preview,
+  });
+
+  @override
+  List<Object?> get props => [status, progress, preview];
+}
+
 /// One readable chunk of the study material: condensed content, a real-world
 /// example, and its own quiz (count scales with the section's complexity).
 class StudySection extends Equatable {

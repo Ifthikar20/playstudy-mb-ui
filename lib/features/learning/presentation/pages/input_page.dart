@@ -183,7 +183,8 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                       return AirbnbButton(
                         label: 'Generate learning material',
                         icon: Icons.auto_awesome_rounded,
-                        loading: state is Generating,
+                        loading:
+                            state is Generating || state is GenerationInProgress,
                         onPressed: _generate,
                       );
                     },
@@ -192,10 +193,21 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
               ],
             ),
             // Friendly full-screen waiting UI while the backend generates.
+            // Shows the instant preview (outline / summary / key terms) as soon
+            // as it arrives, with a live progress bar, so the user has real
+            // content to read within seconds instead of a blind spinner.
             BlocBuilder<LearningBloc, LearningState>(
-              buildWhen: (a, b) => (a is Generating) != (b is Generating),
+              buildWhen: (a, b) {
+                bool busy(LearningState s) =>
+                    s is Generating || s is GenerationInProgress;
+                return busy(a) != busy(b) || b is GenerationInProgress;
+              },
               builder: (context, state) {
-                if (state is! Generating) return const SizedBox.shrink();
+                final busy =
+                    state is Generating || state is GenerationInProgress;
+                if (!busy) return const SizedBox.shrink();
+                final update =
+                    state is GenerationInProgress ? state.update : null;
                 final subject = _tab.index == 0
                     ? _linkCtrl.text.trim()
                     : _tab.index == 1
@@ -203,7 +215,10 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                         : 'Your pasted notes';
                 return Positioned.fill(
                   child: GeneratingOverlay(
-                      subject: subject.isEmpty ? null : subject),
+                    subject: subject.isEmpty ? null : subject,
+                    preview: update?.preview,
+                    progress: update?.progress ?? 0,
+                  ),
                 );
               },
             ),
