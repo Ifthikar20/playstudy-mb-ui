@@ -154,78 +154,185 @@ class _MaterialLoader extends StatefulWidget {
 }
 
 class _MaterialLoaderState extends State<_MaterialLoader> {
-  late Future<LearningMaterial> _future;
+  LearningMaterial? _material;
+  Object? _error;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _load();
   }
 
-  Future<LearningMaterial> _load() async {
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
     try {
       final repo = context.read<LearningRepository>();
       final m = await repo.fetch(widget.id);
-      debugPrint('[router] /material/${widget.id} loaded "${m.title}"');
-      return m;
+      debugPrint(
+          '[router] /material/${widget.id} loaded "${m.title}" (${m.status})');
+      if (!mounted) return;
+      setState(() {
+        _material = m;
+        _error = null;
+      });
+      _scheduleRefresh(m);
     } catch (e, st) {
       debugPrint('[error] load material/${widget.id} failed: $e');
       debugPrint('[error] $st');
-      rethrow;
+      if (!mounted) return;
+      setState(() => _error = e);
     }
   }
 
-  void _retry() => setState(() => _future = _load());
+  // While the set is still generating (opened early), re-fetch every couple of
+  // seconds so newly-finished sections and quiz questions appear live. Stops
+  // the moment the set is ready or failed.
+  void _scheduleRefresh(LearningMaterial m) {
+    _poll?.cancel();
+    if (!m.isGenerating) return;
+    _poll = Timer(const Duration(seconds: 2), _refresh);
+  }
+
+  Future<void> _refresh() async {
+    if (!mounted) return;
+    try {
+      final repo = context.read<LearningRepository>();
+      final m = await repo.fetch(widget.id);
+      if (!mounted) return;
+      setState(() => _material = m);
+      _scheduleRefresh(m);
+    } catch (_) {
+      // Transient error — keep trying while we're still on screen.
+      if (mounted && _material != null) _scheduleRefresh(_material!);
+    }
+  }
+
+  void _retry() {
+    setState(() {
+      _error = null;
+      _material = null;
+    });
+    _load();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<LearningMaterial>(
-      future: _future,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snap.hasError) {
-          return Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () =>
-                    context.canPop() ? context.pop() : context.go('/'),
-              ),
-              title: const Text('Study set'),
-            ),
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.cloud_off_rounded,
-                        size: 56, color: Colors.grey),
-                    const SizedBox(height: 12),
-                    const Text("Couldn't open this study set.",
-                        textAlign: TextAlign.center),
-                    const SizedBox(height: 6),
-                    Text('${snap.error}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.grey)),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: _retry,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Try again'),
-                    ),
-                  ],
+    final error = _error;
+    if (error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/'),
+          ),
+          title: const Text('Study set'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_rounded,
+                    size: 56, color: Colors.grey),
+                const SizedBox(height: 12),
+                const Text("Couldn't open this study set.",
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 6),
+                Text('$error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.grey)),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _retry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Try again'),
                 ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final m = _material;
+    if (m == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Stack(
+      children: [
+        MaterialPage(material: m),
+        if (m.isGenerating)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _BuildingBanner(sectionCount: m.sections.length),
+          ),
+      ],
+    );
+  }
+}
+
+/// Slim "still generating" strip shown over a study set opened early, so the
+/// user knows more sections are still arriving.
+class _BuildingBanner extends StatelessWidget {
+  final int sectionCount;
+  const _BuildingBanner({required this.sectionCount});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Center(
+          child: Material(
+            elevation: 3,
+            borderRadius: BorderRadius.circular(24),
+            color: primary,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      sectionCount > 0
+                          ? 'Adding more… $sectionCount section${sectionCount == 1 ? '' : 's'} ready'
+                          : 'Building your study set…',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
             ),
-          );
-        }
-        return MaterialPage(material: snap.data!);
-      },
+          ),
+        ),
+      ),
     );
   }
 }

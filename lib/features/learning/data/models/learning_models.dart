@@ -128,6 +128,9 @@ class StudyPreview extends Equatable {
 /// A progress tick emitted while a study set is generating: how far along the
 /// batches are, plus the instant [preview] once the backend has computed it.
 class GenerationUpdate extends Equatable {
+  /// The study set id, so the UI can open it for early studying.
+  final String id;
+
   /// pending | processing | partial | ready | failed
   final String status;
 
@@ -141,14 +144,22 @@ class GenerationUpdate extends Equatable {
   final List<String> sectionTitles;
 
   const GenerationUpdate({
+    required this.id,
     required this.status,
     this.progress = 0,
     this.preview,
     this.sectionTitles = const [],
   });
 
+  /// True once at least one real AI section is ready and generation is still
+  /// running — the point at which "Start studying now" becomes useful.
+  bool get canStartEarly =>
+      sectionTitles.isNotEmpty &&
+      status != 'ready' &&
+      status != 'failed';
+
   @override
-  List<Object?> get props => [status, progress, preview, sectionTitles];
+  List<Object?> get props => [id, status, progress, preview, sectionTitles];
 }
 
 /// One readable chunk of the study material: condensed content, a real-world
@@ -204,6 +215,10 @@ class LearningMaterial extends Equatable {
   final List<StudySection> sections;
   final DateTime createdAt;
 
+  /// Generation status: pending | processing | partial | ready | failed.
+  /// Defaults to 'ready' so cached/offline rows behave as complete.
+  final String status;
+
   const LearningMaterial({
     required this.id,
     required this.title,
@@ -216,7 +231,12 @@ class LearningMaterial extends Equatable {
     required this.topics,
     required this.sections,
     required this.createdAt,
+    this.status = 'ready',
   });
+
+  /// Still being generated — the material screen should keep refreshing.
+  bool get isGenerating =>
+      status == 'pending' || status == 'processing' || status == 'partial';
 
   /// Quiz questions filtered to the given topics (or all if empty).
   List<QuizQuestion> quizForTopics(List<String> filter) {
@@ -227,7 +247,7 @@ class LearningMaterial extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, sections, createdAt];
+      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, sections, createdAt, status];
 
   static SourceKind _kindFrom(String? raw) {
     switch (raw) {
@@ -261,6 +281,7 @@ class LearningMaterial extends Equatable {
             .toList(),
         createdAt:
             DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+        status: j['status'] as String? ?? 'ready',
       );
 
   /// Round-trips with [fromJson] for local (offline) persistence.
@@ -276,5 +297,6 @@ class LearningMaterial extends Equatable {
         'topics': topics,
         'sections': sections.map((s) => s.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
+        'status': status,
       };
 }

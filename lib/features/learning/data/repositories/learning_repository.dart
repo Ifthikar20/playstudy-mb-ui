@@ -146,6 +146,7 @@ class LearningRepository {
             ? null
             : StudyPreview.fromJson(previewJson);
         onUpdate(GenerationUpdate(
+          id: id,
           status: value,
           progress: (data['progress'] as num?)?.toDouble() ?? 0,
           preview: preview,

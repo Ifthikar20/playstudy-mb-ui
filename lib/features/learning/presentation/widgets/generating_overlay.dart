@@ -24,12 +24,17 @@ class GeneratingOverlay extends StatefulWidget {
   /// Titles of the real AI sections written so far — checked off live.
   final List<String> sectionTitles;
 
+  /// When non-null and at least one section is ready, shows a "Start studying
+  /// now" action that opens the partial set while the rest keeps generating.
+  final VoidCallback? onStartNow;
+
   const GeneratingOverlay({
     super.key,
     this.subject,
     this.preview,
     this.progress = 0,
     this.sectionTitles = const [],
+    this.onStartNow,
   });
 
   @override
@@ -222,6 +227,21 @@ class _GeneratingOverlayState extends State<GeneratingOverlay>
                 ],
               ),
             ),
+            if (widget.onStartNow != null && widget.sectionTitles.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: widget.onStartNow,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Start studying now'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
