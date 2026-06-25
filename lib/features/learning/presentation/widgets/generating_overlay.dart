@@ -21,11 +21,15 @@ class GeneratingOverlay extends StatefulWidget {
   /// Fraction of AI batches complete, 0..1 (0 shows an indeterminate bar).
   final double progress;
 
+  /// Titles of the real AI sections written so far — checked off live.
+  final List<String> sectionTitles;
+
   const GeneratingOverlay({
     super.key,
     this.subject,
     this.preview,
     this.progress = 0,
+    this.sectionTitles = const [],
   });
 
   @override
@@ -133,6 +137,30 @@ class _GeneratingOverlayState extends State<GeneratingOverlay>
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
                 children: [
+                  if (widget.sectionTitles.isNotEmpty) ...[
+                    _SectionLabel(
+                        'Sections ready', Icons.check_circle_rounded, primary),
+                    const SizedBox(height: 8),
+                    ...widget.sectionTitles.map((t) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2, right: 8),
+                                child: Icon(Icons.check_circle_rounded,
+                                    size: 18, color: primary),
+                              ),
+                              Expanded(
+                                  child: Text(t,
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                              fontWeight: FontWeight.w600))),
+                            ],
+                          ),
+                        )),
+                    const SizedBox(height: 20),
+                  ],
                   if (preview.summary.isNotEmpty) ...[
                     _SectionLabel('Quick summary', Icons.notes_rounded, primary),
                     const SizedBox(height: 8),

@@ -149,6 +149,8 @@ class LearningRepository {
           status: value,
           progress: (data['progress'] as num?)?.toDouble() ?? 0,
           preview: preview,
+          sectionTitles:
+              (data['keyPoints'] as List? ?? const []).cast<String>(),
         ));
       }
 

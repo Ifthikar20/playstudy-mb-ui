@@ -218,6 +218,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                     subject: subject.isEmpty ? null : subject,
                     preview: update?.preview,
                     progress: update?.progress ?? 0,
+                    sectionTitles: update?.sectionTitles ?? const [],
                   ),
                 );
               },

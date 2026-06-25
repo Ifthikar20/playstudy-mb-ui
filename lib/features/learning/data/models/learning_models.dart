@@ -137,14 +137,18 @@ class GenerationUpdate extends Equatable {
   /// Null until the backend has extracted the text and built the preview.
   final StudyPreview? preview;
 
+  /// Titles of the real AI sections generated so far — grows as batches land.
+  final List<String> sectionTitles;
+
   const GenerationUpdate({
     required this.status,
     this.progress = 0,
     this.preview,
+    this.sectionTitles = const [],
   });
 
   @override
-  List<Object?> get props => [status, progress, preview];
+  List<Object?> get props => [status, progress, preview, sectionTitles];
 }
 
 /// One readable chunk of the study material: condensed content, a real-world
