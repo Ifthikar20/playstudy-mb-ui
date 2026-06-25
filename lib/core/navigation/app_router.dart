@@ -269,6 +269,49 @@ class _MaterialLoaderState extends State<_MaterialLoader> {
       );
     }
 
+    // Generation failed server-side with nothing usable — show a clear message
+    // instead of an empty study screen.
+    if (m.status == 'failed' && m.sections.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/'),
+          ),
+          title: const Text('Study set'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    size: 56, color: Colors.grey),
+                const SizedBox(height: 12),
+                const Text("This study set couldn't be generated.",
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 6),
+                const Text(
+                    'The source may not have had enough readable text. '
+                    'Try another file or link.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () =>
+                      context.canPop() ? context.pop() : context.go('/'),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('Go back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Stack(
       children: [
         MaterialPage(material: m),
