@@ -1,5 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/network/api_client.dart';
@@ -140,9 +145,58 @@ class LearningRepository {
     throw Exception('Generation timed out after 5 minutes. Please try again.');
   }
 
+  // Photos snapped on a phone are often 4-12 MB at 4000px+. Uploading them raw
+  // is slow on mobile data and forces the server to OCR a huge image. We
+  // downscale + re-encode images client-side first so the upload is much
+  // smaller (and OCR faster) without touching legibility for note text.
+  static const _imageExts = {'png', 'jpg', 'jpeg'};
+  static const _maxImageDimension = 2600;
+  static const _imageJpegQuality = 85;
+
   Future<String> _upload(String path) async {
-    final form = FormData.fromMap({'file': await MultipartFile.fromFile(path)});
+    final form = await _buildUploadForm(path);
     final response = await api.dio.post('uploads/', data: form);
     return response.data['key'] as String;
+  }
+
+  Future<FormData> _buildUploadForm(String path) async {
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    if (_imageExts.contains(ext)) {
+      try {
+        final original = await File(path).readAsBytes();
+        // Decode/resize/encode is CPU-heavy — run it off the UI isolate.
+        final compressed = await compute(_compressImage, original);
+        if (compressed != null && compressed.length < original.length) {
+          debugPrint(
+              '[learning] image compressed ${original.length} -> ${compressed.length} bytes');
+          return FormData.fromMap({
+            'file': MultipartFile.fromBytes(
+              compressed,
+              filename: '${p.basenameWithoutExtension(path)}.jpg',
+            ),
+          });
+        }
+      } catch (e) {
+        // Any failure (unsupported encoding, OOM) falls back to the raw file
+        // so uploads never break just because compression couldn't run.
+        debugPrint('[learning] image compression skipped: $e');
+      }
+    }
+    return FormData.fromMap({'file': await MultipartFile.fromFile(path)});
+  }
+
+  /// Top-level-safe (static) so it can run in a background isolate via
+  /// [compute]. Returns null when the bytes aren't a decodable image.
+  static Uint8List? _compressImage(Uint8List bytes) {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return null;
+    var image = decoded;
+    final longest = image.width > image.height ? image.width : image.height;
+    if (longest > _maxImageDimension) {
+      image = image.width >= image.height
+          ? img.copyResize(image, width: _maxImageDimension)
+          : img.copyResize(image, height: _maxImageDimension);
+    }
+    return Uint8List.fromList(img.encodeJpg(image, quality: _imageJpegQuality));
   }
 }

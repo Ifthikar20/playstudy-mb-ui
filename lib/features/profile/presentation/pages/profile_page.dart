@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/auth/auth_bloc.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
 import '../../../../core/subscription/subscription_bloc.dart';
@@ -131,6 +132,12 @@ class ProfilePage extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
+          // Usage this month — how many generations the user has consumed
+          // against their monthly allowance (premium = unlimited).
+          BlocBuilder<SubscriptionBloc, SubscriptionState>(
+            builder: (context, sub) => _UsageCard(sub: sub),
+          ),
+          const SizedBox(height: 16),
           // Parental controls / family — surfaced directly on profile so it
           // is one tap away rather than hidden under Settings.
           AirbnbCard(
@@ -211,6 +218,86 @@ class ProfilePage extends StatelessWidget {
     if (name != null && name.isNotEmpty && name != current) {
       authBloc.add(UpdateProfile(name: name));
     }
+  }
+}
+
+/// Shows how much of the monthly generation allowance the user has consumed.
+/// Premium users see an "unlimited" state; free users get a progress bar plus
+/// the reset date so usage is transparent right on the profile.
+class _UsageCard extends StatelessWidget {
+  final SubscriptionState sub;
+  const _UsageCard({required this.sub});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (sub.isPremium) {
+      return AirbnbCard(
+        child: Row(children: [
+          Icon(Icons.all_inclusive_rounded, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Usage this month', style: theme.textTheme.titleMedium),
+                Text('Unlimited study sets',
+                    style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ]),
+      );
+    }
+
+    final limit = sub.usageLimit <= 0 ? 1 : sub.usageLimit;
+    final used = sub.usageCount.clamp(0, limit);
+    final fraction = (used / limit).clamp(0.0, 1.0);
+    final nearLimit = used >= limit;
+    final barColor =
+        nearLimit ? theme.colorScheme.error : theme.colorScheme.primary;
+    final resets = sub.resetsAt;
+
+    return AirbnbCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.donut_large_rounded, color: barColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('Usage this month',
+                  style: theme.textTheme.titleMedium),
+            ),
+            Text('$used / $limit',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 8,
+              backgroundColor: theme.colorScheme.primary.withOpacity(0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            nearLimit
+                ? 'No free study sets left this month'
+                : '${sub.remainingFree} free study set${sub.remainingFree == 1 ? '' : 's'} left this month',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (resets != null)
+            Text('Resets ${DateFormat.MMMMd().format(resets)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6))),
+        ],
+      ),
+    );
   }
 }
 

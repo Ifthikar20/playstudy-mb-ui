@@ -45,6 +45,11 @@ dependencies:
   path_provider: ^2.1.2
   path: ^1.9.0
 
+  # Image compression — downscale/re-encode photos client-side before upload
+  # (pure Dart, no native build step) so snaps of notes upload fast and OCR
+  # quickly server-side.
+  image: ^4.2.0
+
   # QR scanning — used by the link tab so users can scan a study URL from a
   # poster, slide, or whiteboard instead of typing it.
   mobile_scanner: ^5.2.3
