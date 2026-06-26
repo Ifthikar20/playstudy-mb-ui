@@ -49,8 +49,8 @@ const _slides = <_Slide>[
     icon: Icons.videogame_asset_rounded,
     title: 'Learn by playing',
     body:
-        'Flappy, Space Hunter, a crossword and more — every game quizzes you on '
-        'your own material, so playing is studying.',
+        'Ride along with Pip in Flappy Pip, Space Hunter, a crossword and more — '
+        'every game quizzes you on your own material, so playing is studying.',
     gradient: [Color(0xFF22C55E), Color(0xFF14B8A6)],
   ),
   _Slide(
