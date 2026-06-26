@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/data/quiz_progress_store.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
@@ -147,7 +148,7 @@ class _PlanProgressBodyState extends State<_PlanProgressBody> {
               Text('$overallPct%',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: theme.colorScheme.primary,
+                    color: ThemeColors.brandIndigo,
                   )),
             ]),
             const SizedBox(height: 6),
@@ -161,9 +162,9 @@ class _PlanProgressBodyState extends State<_PlanProgressBody> {
                   value: v,
                   minHeight: 6,
                   backgroundColor:
-                      theme.colorScheme.primary.withOpacity(0.10),
+                      ThemeColors.brandIndigo.withOpacity(0.10),
                   valueColor: AlwaysStoppedAnimation(
-                      theme.colorScheme.primary),
+                      ThemeColors.brandIndigo),
                 ),
               ),
             ),
@@ -402,10 +403,10 @@ class _TopicReader extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.06),
+                            color: ThemeColors.brandIndigo.withOpacity(0.06),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: theme.colorScheme.primary.withOpacity(0.18),
+                              color: ThemeColors.brandIndigo.withOpacity(0.18),
                             ),
                           ),
                           child: Column(
@@ -414,11 +415,11 @@ class _TopicReader extends StatelessWidget {
                               Row(children: [
                                 Icon(Icons.lightbulb_rounded,
                                     size: 16,
-                                    color: theme.colorScheme.primary),
+                                    color: ThemeColors.brandIndigo),
                                 const SizedBox(width: 6),
                                 Text('FURTHER UNDERSTANDING',
                                     style: TextStyle(
-                                      color: theme.colorScheme.primary,
+                                      color: ThemeColors.brandIndigo,
                                       fontWeight: FontWeight.w800,
                                       fontSize: 11,
                                       letterSpacing: 0.4,

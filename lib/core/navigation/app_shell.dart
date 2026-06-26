@@ -15,7 +15,7 @@ class AppShell extends StatelessWidget {
     _Tab(path: '/profile', icon: Icons.person_rounded, label: 'Profile'),
   ];
 
-  static const _accent = Color(0xFF6B5CE7);
+  static const _accent = Color(0xFF1A1A1A);
   static const _inactive = Color(0xFF8A8A93);
 
   bool _isActive(String path, String location) =>

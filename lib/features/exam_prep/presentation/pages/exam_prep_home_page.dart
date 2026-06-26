@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/airbnb_card.dart';
 import '../../data/models/exam_plan.dart';
 import '../bloc/exam_prep_bloc.dart';
@@ -76,7 +77,7 @@ class _Empty extends StatelessWidget {
           children: [
             Icon(Icons.event_rounded,
                 size: 56,
-                color: Theme.of(context).colorScheme.primary),
+                color: ThemeColors.brandIndigo),
             const SizedBox(height: 12),
             Text('No exam plans yet',
                 style: Theme.of(context).textTheme.titleLarge),
@@ -105,7 +106,7 @@ class _TodayCard extends StatelessWidget {
     final done = plan.resultFor(DateTime.now())?.completed ?? false;
     return Material(
       borderRadius: BorderRadius.circular(20),
-      color: theme.colorScheme.primary,
+      color: ThemeColors.brandIndigo,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () => context.push('/exam/${plan.id}/today'),
@@ -115,7 +116,7 @@ class _TodayCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: theme.colorScheme.primary.withOpacity(0.3),
+                color: ThemeColors.brandIndigo.withOpacity(0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),

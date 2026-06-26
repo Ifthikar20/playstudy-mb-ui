@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/onboarding/onboarding_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
 
 /// First-login walkthrough of how PlayStudy works. Clean white (Airbnb-style)
 /// background with swipe-driven parallax animations. Shown once, then the
@@ -228,11 +227,11 @@ class _OnboardingPageState extends State<OnboardingPage>
                 height: 54,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: ThemeColors.brandGradient),
+                    color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF385C).withOpacity(0.35),
+                        color: Colors.black.withOpacity(0.22),
                         blurRadius: 18,
                         offset: const Offset(0, 8),
                       ),

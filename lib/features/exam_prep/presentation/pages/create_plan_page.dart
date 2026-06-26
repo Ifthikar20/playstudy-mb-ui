@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
 import '../bloc/exam_prep_bloc.dart';
@@ -374,7 +375,7 @@ class _MaterialRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
+    final primary = ThemeColors.brandIndigo;
     final topics = material.topics.length;
     return Material(
       color: Colors.transparent,
@@ -621,7 +622,7 @@ class _EmptyLibraryPrompt extends StatelessWidget {
       ),
       child: Column(children: [
         Icon(Icons.auto_stories_rounded,
-            size: 38, color: theme.colorScheme.primary),
+            size: 38, color: ThemeColors.brandIndigo),
         const SizedBox(height: 10),
         Text('No study sets yet',
             style: theme.textTheme.titleMedium
@@ -684,10 +685,10 @@ class _SubmitBar extends StatelessWidget {
             child: FilledButton(
               onPressed: enabled ? onSubmit : null,
               style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
+                backgroundColor: ThemeColors.brandIndigo,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor:
-                    theme.colorScheme.primary.withOpacity(0.32),
+                    ThemeColors.brandIndigo.withOpacity(0.32),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),

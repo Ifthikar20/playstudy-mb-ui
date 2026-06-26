@@ -60,13 +60,13 @@ class GradientHeader extends StatelessWidget {
   });
 
   // Soft pastel palette — each card picks a tile based on its title seed.
+  // Purple tiles removed to keep the look simple/neutral; brand purple is
+  // reserved for the exam area.
   static const _palettes = [
     [Color(0xFFD6F26C), Color(0xFFB8E04C)], // lime
     [Color(0xFFFBC78A), Color(0xFFF5A971)], // peach
     [Color(0xFF8FE3B6), Color(0xFF6FCFA0)], // mint
     [Color(0xFFA8E6F0), Color(0xFF82D0E0)], // sky
-    [Color(0xFFC4C0F5), Color(0xFFA5A0F0)], // lavender
-    [Color(0xFF9D8DFA), Color(0xFF6B5CE7)], // indigo (brand)
   ];
 
   List<Color> get _colors {
