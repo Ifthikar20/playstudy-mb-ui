@@ -68,7 +68,9 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
   int _bonesEaten = 0;
   int _best = 0;
   int _revives = 0;
-  int _nextQuizAt = 3;
+  // First quiz only after a few pipes, then spaced out (see _score + N below)
+  // so questions are earned by scoring rather than firing constantly.
+  int _nextQuizAt = 5;
   bool _busy = false; // a quiz dialog is open
 
   @override
@@ -105,7 +107,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
     _score = 0;
     _bonesEaten = 0;
     _revives = 0;
-    _nextQuizAt = 3;
+    _nextQuizAt = 5;
     _dist = 0;
     _gate.resetStats();
     _seedDecor();
@@ -321,7 +323,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
         GameScoreScope.report(context, _score);
         _pop(_bird.x + 18, _bird.y - 24, '+1', const Color(0xFFFFE08A));
         if (_gate.hasQuestions && _score >= _nextQuizAt) {
-          _nextQuizAt = _score + 3;
+          _nextQuizAt = _score + 6;
           _askPlayQuestion();
           return;
         }

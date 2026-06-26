@@ -16,11 +16,11 @@ class SuperDashGame extends LearningGame {
 
   @override
   String get description =>
-      'Endless runner — answer a quiz to pass each checkpoint.';
+      'Run with Pip across hills and changing lands — clear quiz checkpoints.';
 
   @override
   List<Color> get coverColors =>
-      const [Color(0xFF8FE3B6), Color(0xFF6B5CE7)];
+      const [Color(0xFF8FD3FF), Color(0xFF2E9E4F)];
 
   @override
   GameDifficulty get difficulty => GameDifficulty.medium;

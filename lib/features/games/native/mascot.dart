@@ -233,6 +233,98 @@ class Mascot {
     head(canvas, center, r,
         earFlap: earFlap, blink: blink, tilt: tilt, look: look);
   }
+
+  /// A complete **side-view running Pip**, centred at [center] with body scale
+  /// [r] (roughly the head radius). Used by Super Dash.
+  ///  * [runPhase] advances the gallop cycle (legs, tail wag, body bob).
+  ///  * [airborne]  0..1 tucks the legs in for a jump.
+  ///  * [earFlap]  -1..1 flutters the ears (e.g. on take-off).
+  static void runner(
+    Canvas canvas,
+    Offset center,
+    double r, {
+    double runPhase = 0,
+    double airborne = 0,
+    double earFlap = 0,
+  }) {
+    final sw = r * 0.13;
+    final double tuck = airborne.clamp(0.0, 1.0).toDouble();
+    final bob = math.sin(runPhase * 2) * r * 0.07 * (1 - tuck);
+    final bodyC = Offset(center.dx, center.dy + bob);
+
+    final hipBack = Offset(bodyC.dx - r * 0.6, bodyC.dy + r * 0.42);
+    final hipFront = Offset(bodyC.dx + r * 0.5, bodyC.dy + r * 0.42);
+
+    // ---- Tail (behind body, wagging) --------------------------------------
+    final wag = math.sin(runPhase * 1.6) * 0.6;
+    final tail = Path()
+      ..moveTo(bodyC.dx - r * 0.95, bodyC.dy - r * 0.05)
+      ..quadraticBezierTo(bodyC.dx - r * 1.5, bodyC.dy - r * (0.55 + wag),
+          bodyC.dx - r * 1.15, bodyC.dy - r * (1.0 + wag))
+      ..quadraticBezierTo(
+          bodyC.dx - r * 1.0, bodyC.dy - r * 0.45, bodyC.dx - r * 0.7, bodyC.dy)
+      ..close();
+    _fs(canvas, tail, orange, sw);
+
+    // ---- Far legs (diagonal gait, drawn darker behind the body) -----------
+    _leg(canvas, hipBack, r, runPhase + math.pi, tuck, orangeDark, sw);
+    _leg(canvas, hipFront, r, runPhase, tuck, orangeDark, sw);
+
+    // ---- Body + cream belly -----------------------------------------------
+    final body = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Rect.fromCenter(center: bodyC, width: r * 2.05, height: r * 1.35),
+        Radius.circular(r * 0.62),
+      ));
+    _fs(canvas, body, orange, sw);
+    canvas.save();
+    canvas.clipPath(body);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+            center: Offset(bodyC.dx + r * 0.15, bodyC.dy + r * 0.5),
+            width: r * 1.6,
+            height: r * 0.95),
+        Radius.circular(r * 0.5),
+      ),
+      Paint()..color = cream,
+    );
+    canvas.restore();
+    canvas.drawPath(body, _stroke(sw));
+
+    // ---- Near legs --------------------------------------------------------
+    _leg(canvas, hipBack, r, runPhase, tuck, orange, sw);
+    _leg(canvas, hipFront, r, runPhase + math.pi, tuck, orange, sw);
+
+    // ---- Head at the front, looking ahead ---------------------------------
+    head(canvas, Offset(bodyC.dx + r * 1.02, bodyC.dy - r * 0.5), r * 0.8,
+        earFlap: earFlap, look: 0.35, tilt: -0.04);
+  }
+
+  /// One bent (thigh + shin) leg used by [runner], swinging with [phase].
+  static void _leg(Canvas canvas, Offset hip, double r, double phase,
+      double tuck, Color color, double sw) {
+    final swing = math.sin(phase) * (1 - tuck) * 0.9;
+    final reach = math.cos(phase);
+    final knee =
+        Offset(hip.dx + swing * r * 0.35, hip.dy + r * 0.5 - tuck * r * 0.3);
+    final lift = math.max(0.0, reach) * (1 - tuck) * r * 0.45;
+    final foot = Offset(
+        knee.dx + swing * r * 0.4, knee.dy + r * 0.5 - lift - tuck * r * 0.5);
+    final legPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = sw * 2.2
+      ..color = color;
+    final path = Path()
+      ..moveTo(hip.dx, hip.dy)
+      ..lineTo(knee.dx, knee.dy)
+      ..lineTo(foot.dx, foot.dy);
+    canvas.drawPath(path, legPaint);
+    canvas.drawCircle(foot, r * 0.17, Paint()..color = color);
+    canvas.drawCircle(foot, r * 0.17, _stroke(sw * 0.7));
+  }
 }
 
 /// Small deterministic helper for a gentle idle wobble from a time value.
