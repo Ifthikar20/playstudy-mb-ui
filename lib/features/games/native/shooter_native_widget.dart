@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../../core/games/game_stage.dart';
 import '../../learning/data/models/learning_models.dart';
 import '../data/game_score_scope.dart';
 import 'mascot.dart';
@@ -127,6 +128,8 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
   void _endRun() {
     _best = math.max(_best, _score);
     _state = 'over';
+    // Tell the host the run is finished so reopening starts a fresh game.
+    GameStageScope.maybeOf(context)?.markFinished();
   }
 
   _Planet _newPlanet({bool seedTop = false}) {

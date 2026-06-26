@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/games/game_registry.dart';
+import '../../../../core/games/game_stage.dart';
 import '../../../../core/games/learning_game.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/pressable.dart';
@@ -197,14 +198,7 @@ class _GamesLibraryTab extends StatelessWidget {
       },
     );
     if (material == null || !context.mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(game.name)),
-          body: game.build(context, material),
-        ),
-      ),
-    );
+    launchGameFullscreen(context, game: game, material: material);
   }
 }
 
