@@ -26,9 +26,12 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     try {
       final response = await api.dio.get('subscription/');
       final d = response.data as Map<String, dynamic>;
+      final resetsRaw = d['usageResetsAt'] as String?;
       emit(SubscriptionState(
         isPremium: d['isPremium'] as bool? ?? false,
         usageCount: d['usageCount'] as int? ?? 0,
+        usageLimit: d['usageLimit'] as int? ?? freeLimit,
+        resetsAt: resetsRaw == null ? null : DateTime.tryParse(resetsRaw),
       ));
     } catch (_) {
       emit(const SubscriptionState(isPremium: false, usageCount: 0));
@@ -70,36 +73,57 @@ class CancelPremium extends SubscriptionEvent {}
 
 class SubscriptionState extends Equatable {
   final bool isPremium;
+
+  /// Generations used in the CURRENT monthly window (server-owned; resets to 0
+  /// each month).
   final int usageCount;
+
+  /// Free generations allowed per month. Mirrors the server's
+  /// FREE_GENERATION_LIMIT; falls back to [SubscriptionBloc.freeLimit] offline.
+  final int usageLimit;
+
+  /// When [usageCount] rolls back to 0 (first day of next month). Null until
+  /// the subscription has been loaded from the server.
+  final DateTime? resetsAt;
+
   final bool loaded;
 
   const SubscriptionState({
     required this.isPremium,
     required this.usageCount,
+    this.usageLimit = SubscriptionBloc.freeLimit,
+    this.resetsAt,
     this.loaded = true,
   });
 
   const SubscriptionState.unknown()
       : isPremium = false,
         usageCount = 0,
+        usageLimit = SubscriptionBloc.freeLimit,
+        resetsAt = null,
         loaded = false;
 
   /// Returns true when this user can generate another study set.
-  bool get canGenerate =>
-      isPremium || usageCount < SubscriptionBloc.freeLimit;
+  bool get canGenerate => isPremium || usageCount < usageLimit;
 
-  /// How many free generations remain.
-  int get remainingFree =>
-      (SubscriptionBloc.freeLimit - usageCount).clamp(0, SubscriptionBloc.freeLimit);
+  /// How many free generations remain this month.
+  int get remainingFree => (usageLimit - usageCount).clamp(0, usageLimit);
 
-  SubscriptionState copyWith({bool? isPremium, int? usageCount}) {
+  SubscriptionState copyWith({
+    bool? isPremium,
+    int? usageCount,
+    int? usageLimit,
+    DateTime? resetsAt,
+  }) {
     return SubscriptionState(
       isPremium: isPremium ?? this.isPremium,
       usageCount: usageCount ?? this.usageCount,
+      usageLimit: usageLimit ?? this.usageLimit,
+      resetsAt: resetsAt ?? this.resetsAt,
       loaded: true,
     );
   }
 
   @override
-  List<Object?> get props => [isPremium, usageCount, loaded];
+  List<Object?> get props => [isPremium, usageCount, usageLimit, resetsAt, loaded];
 }

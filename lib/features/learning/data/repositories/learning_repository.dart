@@ -1,5 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/network/api_client.dart';
@@ -74,6 +79,7 @@ class LearningRepository {
     required SourceKind sourceKind,
     required String sourceRef,
     String? titleHint,
+    void Function(GenerationUpdate update)? onUpdate,
   }) async {
     var ref = sourceRef;
     if (sourceKind == SourceKind.file) {
@@ -94,7 +100,7 @@ class LearningRepository {
 
     final id = create.data['id'] as String;
     debugPrint('[learning] Created study set $id (HTTP ${create.statusCode}), polling status…');
-    final material = await _pollUntilReady(id);
+    final material = await _pollUntilReady(id, onUpdate);
     debugPrint('[learning] Study set $id ready: "${material.title}"');
     _library.insert(0, material);
     await _cache.saveMaterial(material);
@@ -123,26 +129,105 @@ class LearningRepository {
     return list.map(QuizQuestion.fromJson).toList();
   }
 
-  Future<LearningMaterial> _pollUntilReady(String id) async {
-    // ~5 minutes max (150 * 2s) — long PDFs split into 3-5 chunks can take
-    // 60-90s per chunk on Anthropic, so a 9-page doc may need 3-4 minutes.
-    for (var i = 0; i < 150; i++) {
-      final status = await api.dio.get('studysets/$id/status/');
-      final value = status.data['status'] as String;
-      debugPrint('[learning] poll $id (attempt ${i + 1}): status=$value');
+  Future<LearningMaterial> _pollUntilReady(
+      String id, void Function(GenerationUpdate)? onUpdate) async {
+    // Generation fans out into one batch per chunk that complete independently,
+    // so `progress` climbs and the instant preview lands within a few seconds.
+    // Poll fast at first to catch the preview quickly, then back off to cut
+    // request load on a long doc. Bounded by a 5-minute deadline.
+    final deadline = DateTime.now().add(const Duration(minutes: 5));
+    var attempt = 0;
+    while (DateTime.now().isBefore(deadline)) {
+      final data = (await api.dio.get('studysets/$id/status/')).data
+          as Map<String, dynamic>;
+      final value = data['status'] as String;
+      debugPrint('[learning] poll $id (attempt ${attempt + 1}): status=$value');
+
+      if (onUpdate != null) {
+        final previewJson = data['preview'] as Map<String, dynamic>?;
+        final preview = (previewJson == null || previewJson.isEmpty)
+            ? null
+            : StudyPreview.fromJson(previewJson);
+        onUpdate(GenerationUpdate(
+          id: id,
+          status: value,
+          progress: (data['progress'] as num?)?.toDouble() ?? 0,
+          preview: preview,
+          sectionTitles:
+              (data['keyPoints'] as List? ?? const []).cast<String>(),
+        ));
+      }
+
       if (value == 'ready') return fetch(id);
       if (value == 'failed') {
-        throw Exception(
-            (status.data['error'] ?? 'Generation failed').toString());
+        throw Exception((data['error'] ?? 'Generation failed').toString());
       }
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(_pollDelay(attempt));
+      attempt++;
     }
     throw Exception('Generation timed out after 5 minutes. Please try again.');
   }
 
+  /// Adaptive backoff: 1.5s for the first few polls (catch the preview fast),
+  /// then 3s, then 5s once it's clearly a longer job.
+  static Duration _pollDelay(int attempt) {
+    if (attempt < 5) return const Duration(milliseconds: 1500);
+    if (attempt < 15) return const Duration(seconds: 3);
+    return const Duration(seconds: 5);
+  }
+
+  // Photos snapped on a phone are often 4-12 MB at 4000px+. Uploading them raw
+  // is slow on mobile data and forces the server to OCR a huge image. We
+  // downscale + re-encode images client-side first so the upload is much
+  // smaller (and OCR faster) without touching legibility for note text.
+  static const _imageExts = {'png', 'jpg', 'jpeg'};
+  static const _maxImageDimension = 2600;
+  static const _imageJpegQuality = 85;
+
   Future<String> _upload(String path) async {
-    final form = FormData.fromMap({'file': await MultipartFile.fromFile(path)});
+    final form = await _buildUploadForm(path);
     final response = await api.dio.post('uploads/', data: form);
     return response.data['key'] as String;
+  }
+
+  Future<FormData> _buildUploadForm(String path) async {
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    if (_imageExts.contains(ext)) {
+      try {
+        final original = await File(path).readAsBytes();
+        // Decode/resize/encode is CPU-heavy — run it off the UI isolate.
+        final compressed = await compute(_compressImage, original);
+        if (compressed != null && compressed.length < original.length) {
+          debugPrint(
+              '[learning] image compressed ${original.length} -> ${compressed.length} bytes');
+          return FormData.fromMap({
+            'file': MultipartFile.fromBytes(
+              compressed,
+              filename: '${p.basenameWithoutExtension(path)}.jpg',
+            ),
+          });
+        }
+      } catch (e) {
+        // Any failure (unsupported encoding, OOM) falls back to the raw file
+        // so uploads never break just because compression couldn't run.
+        debugPrint('[learning] image compression skipped: $e');
+      }
+    }
+    return FormData.fromMap({'file': await MultipartFile.fromFile(path)});
+  }
+
+  /// Top-level-safe (static) so it can run in a background isolate via
+  /// [compute]. Returns null when the bytes aren't a decodable image.
+  static Uint8List? _compressImage(Uint8List bytes) {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return null;
+    var image = decoded;
+    final longest = image.width > image.height ? image.width : image.height;
+    if (longest > _maxImageDimension) {
+      image = image.width >= image.height
+          ? img.copyResize(image, width: _maxImageDimension)
+          : img.copyResize(image, height: _maxImageDimension);
+    }
+    return Uint8List.fromList(img.encodeJpg(image, quality: _imageJpegQuality));
   }
 }

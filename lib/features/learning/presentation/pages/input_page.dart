@@ -31,6 +31,10 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
   final _textCtrl = TextEditingController();
   PlatformFile? _file;
 
+  // Set when the user taps "Start studying now" and we open the partial set,
+  // so the bloc's eventual success doesn't push the material screen a 2nd time.
+  bool _openedEarly = false;
+
   @override
   void initState() {
     super.initState();
@@ -88,6 +92,7 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
       context.push('/paywall');
       return;
     }
+    _openedEarly = false; // fresh run — allow auto-open on completion again
     final bloc = context.read<LearningBloc>();
     switch (_tab.index) {
       case 0:
@@ -123,17 +128,30 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// Open the partial study set now; it keeps generating in the background and
+  /// the material screen refreshes itself until it's complete.
+  void _startStudyingNow(String id) {
+    if (_openedEarly) return;
+    setState(() => _openedEarly = true);
+    debugPrint('[input] start studying early -> /material/$id');
+    context.push('/material/$id');
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<LearningBloc, LearningState>(
       listener: (context, state) {
         if (state is GenerateSuccess) {
-          debugPrint('[input] GenerateSuccess -> push /material/${state.material.id}');
           // Usage + the creation reward are applied server-side on success —
           // re-read both rather than reporting points from the client.
           context.read<SubscriptionBloc>().add(LoadSubscription());
           context.read<RewardsBloc>().add(LoadRewards());
-          context.push('/material/${state.material.id}', extra: state.material);
+          // Only auto-open if the user didn't already jump in early; the
+          // material screen they're on refreshes itself to the final set.
+          if (!_openedEarly) {
+            debugPrint('[input] GenerateSuccess -> push /material/${state.material.id}');
+            context.push('/material/${state.material.id}', extra: state.material);
+          }
           // If saving this new quiz filled offline storage, tell the user so
           // they're not confused, and offer to free space.
           OfflineStore.isFull().then((full) {
@@ -183,7 +201,8 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                       return AirbnbButton(
                         label: 'Generate learning material',
                         icon: Icons.auto_awesome_rounded,
-                        loading: state is Generating,
+                        loading:
+                            state is Generating || state is GenerationInProgress,
                         onPressed: _generate,
                       );
                     },
@@ -192,10 +211,21 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
               ],
             ),
             // Friendly full-screen waiting UI while the backend generates.
+            // Shows the instant preview (outline / summary / key terms) as soon
+            // as it arrives, with a live progress bar, so the user has real
+            // content to read within seconds instead of a blind spinner.
             BlocBuilder<LearningBloc, LearningState>(
-              buildWhen: (a, b) => (a is Generating) != (b is Generating),
+              buildWhen: (a, b) {
+                bool busy(LearningState s) =>
+                    s is Generating || s is GenerationInProgress;
+                return busy(a) != busy(b) || b is GenerationInProgress;
+              },
               builder: (context, state) {
-                if (state is! Generating) return const SizedBox.shrink();
+                final busy =
+                    state is Generating || state is GenerationInProgress;
+                if (!busy) return const SizedBox.shrink();
+                final update =
+                    state is GenerationInProgress ? state.update : null;
                 final subject = _tab.index == 0
                     ? _linkCtrl.text.trim()
                     : _tab.index == 1
@@ -203,7 +233,14 @@ class _InputPageState extends State<InputPage> with SingleTickerProviderStateMix
                         : 'Your pasted notes';
                 return Positioned.fill(
                   child: GeneratingOverlay(
-                      subject: subject.isEmpty ? null : subject),
+                    subject: subject.isEmpty ? null : subject,
+                    preview: update?.preview,
+                    progress: update?.progress ?? 0,
+                    sectionTitles: update?.sectionTitles ?? const [],
+                    onStartNow: (update != null && update.canStartEarly)
+                        ? () => _startStudyingNow(update.id)
+                        : null,
+                  ),
                 );
               },
             ),

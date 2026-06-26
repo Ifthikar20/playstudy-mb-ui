@@ -88,6 +88,80 @@ class WordChallenge extends Equatable {
 /// Source of the uploaded content.
 enum SourceKind { link, file, text }
 
+/// Instant, no-AI preview of the source, computed server-side from the
+/// extracted text and shown within seconds while the full study set generates.
+/// Mirrors the backend `preview` JSON.
+class StudyPreview extends Equatable {
+  final int wordCount;
+  final int readingMinutes;
+  final List<String> outline;
+  final List<String> keyTerms;
+  final List<String> summary;
+
+  const StudyPreview({
+    this.wordCount = 0,
+    this.readingMinutes = 0,
+    this.outline = const [],
+    this.keyTerms = const [],
+    this.summary = const [],
+  });
+
+  bool get isEmpty =>
+      outline.isEmpty &&
+      keyTerms.isEmpty &&
+      summary.isEmpty &&
+      wordCount == 0;
+
+  @override
+  List<Object?> get props =>
+      [wordCount, readingMinutes, outline, keyTerms, summary];
+
+  static StudyPreview fromJson(Map<String, dynamic> j) => StudyPreview(
+        wordCount: j['wordCount'] as int? ?? 0,
+        readingMinutes: j['readingMinutes'] as int? ?? 0,
+        outline: (j['outline'] as List? ?? const []).cast<String>(),
+        keyTerms: (j['keyTerms'] as List? ?? const []).cast<String>(),
+        summary: (j['summary'] as List? ?? const []).cast<String>(),
+      );
+}
+
+/// A progress tick emitted while a study set is generating: how far along the
+/// batches are, plus the instant [preview] once the backend has computed it.
+class GenerationUpdate extends Equatable {
+  /// The study set id, so the UI can open it for early studying.
+  final String id;
+
+  /// pending | processing | partial | ready | failed
+  final String status;
+
+  /// Fraction of batches complete, 0..1.
+  final double progress;
+
+  /// Null until the backend has extracted the text and built the preview.
+  final StudyPreview? preview;
+
+  /// Titles of the real AI sections generated so far — grows as batches land.
+  final List<String> sectionTitles;
+
+  const GenerationUpdate({
+    required this.id,
+    required this.status,
+    this.progress = 0,
+    this.preview,
+    this.sectionTitles = const [],
+  });
+
+  /// True once at least one real AI section is ready and generation is still
+  /// running — the point at which "Start studying now" becomes useful.
+  bool get canStartEarly =>
+      sectionTitles.isNotEmpty &&
+      status != 'ready' &&
+      status != 'failed';
+
+  @override
+  List<Object?> get props => [id, status, progress, preview, sectionTitles];
+}
+
 /// One readable chunk of the study material: condensed content, a real-world
 /// example, and its own quiz (count scales with the section's complexity).
 class StudySection extends Equatable {
@@ -141,6 +215,10 @@ class LearningMaterial extends Equatable {
   final List<StudySection> sections;
   final DateTime createdAt;
 
+  /// Generation status: pending | processing | partial | ready | failed.
+  /// Defaults to 'ready' so cached/offline rows behave as complete.
+  final String status;
+
   const LearningMaterial({
     required this.id,
     required this.title,
@@ -153,7 +231,12 @@ class LearningMaterial extends Equatable {
     required this.topics,
     required this.sections,
     required this.createdAt,
+    this.status = 'ready',
   });
+
+  /// Still being generated — the material screen should keep refreshing.
+  bool get isGenerating =>
+      status == 'pending' || status == 'processing' || status == 'partial';
 
   /// Quiz questions filtered to the given topics (or all if empty).
   List<QuizQuestion> quizForTopics(List<String> filter) {
@@ -164,7 +247,7 @@ class LearningMaterial extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, sections, createdAt];
+      [id, title, sourceKind, sourceRef, summary, keyPoints, quiz, wordGame, topics, sections, createdAt, status];
 
   static SourceKind _kindFrom(String? raw) {
     switch (raw) {
@@ -198,6 +281,7 @@ class LearningMaterial extends Equatable {
             .toList(),
         createdAt:
             DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+        status: j['status'] as String? ?? 'ready',
       );
 
   /// Round-trips with [fromJson] for local (offline) persistence.
@@ -213,5 +297,6 @@ class LearningMaterial extends Equatable {
         'topics': topics,
         'sections': sections.map((s) => s.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
+        'status': status,
       };
 }

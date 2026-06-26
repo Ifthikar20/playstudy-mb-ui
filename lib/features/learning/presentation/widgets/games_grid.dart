@@ -15,6 +15,36 @@ class GamesGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // While the set is still generating (opened early), games can have a
+    // sparse word/quiz list — hold them until everything has landed so a game
+    // never launches with half its content.
+    if (material.isGenerating) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              const SizedBox(height: 16),
+              Text('Games are getting ready',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(
+                  'They unlock as soon as your study set finishes generating. '
+                  'You can keep reading and quizzing in the meantime.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      );
+    }
+
     final games = GameRegistry.instance.availableFor(material);
     if (games.isEmpty) {
       return Center(
