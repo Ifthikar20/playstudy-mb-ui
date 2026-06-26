@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/learning_models.dart';
 import '../widgets/games_grid.dart';
 import '../widgets/learning_tree_view.dart';
@@ -15,7 +18,7 @@ class MaterialPage extends StatelessWidget {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
         appBar: AppBar(title: const Text('Learning tree')),
-        body: LearningTreeView(material: material),
+        body: _TreeProgressLoader(material: material),
       ),
     ));
   }
@@ -161,6 +164,56 @@ class _PillTab extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Loads the saved study progress (the same SharedPreferences blob the study
+/// flow writes) so the standalone tree view also shows completed (green) and
+/// current (yellow) sections.
+class _TreeProgressLoader extends StatefulWidget {
+  final LearningMaterial material;
+  const _TreeProgressLoader({required this.material});
+
+  @override
+  State<_TreeProgressLoader> createState() => _TreeProgressLoaderState();
+}
+
+class _TreeProgressLoaderState extends State<_TreeProgressLoader> {
+  Set<int> _completed = const {};
+  int? _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.material.id.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('study_progress_${widget.material.id}');
+    if (raw == null || !mounted) return;
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final completed =
+          (data['completed'] as List?)?.cast<int>().toSet() ?? <int>{};
+      final section = data['section'] as int?;
+      setState(() {
+        _completed = completed;
+        _current = section;
+      });
+    } catch (_) {
+      // Stored shape changed — show the tree without progress.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LearningTreeView(
+      material: widget.material,
+      completed: _completed,
+      currentSection: _current,
     );
   }
 }
