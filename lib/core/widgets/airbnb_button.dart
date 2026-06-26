@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// Airbnb-style primary CTA: full-width by default, brand gradient fill,
+/// Airbnb-style primary CTA: full-width by default, solid near-black fill,
 /// bold white label, generous tap target, and a built-in loading state.
 class AirbnbButton extends StatelessWidget {
   final String label;
@@ -64,11 +64,7 @@ class AirbnbButton extends StatelessWidget {
           onTap: enabled ? onPressed : null,
           child: Ink(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: ThemeColors.brandGradient,
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: const Color(0xFF1A1A1A),
               borderRadius: BorderRadius.circular(AppTheme.buttonRadius),
             ),
             child: Container(

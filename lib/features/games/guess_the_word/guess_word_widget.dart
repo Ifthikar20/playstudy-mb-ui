@@ -3,6 +3,7 @@ import 'package:flame/game.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/games/game_stage.dart';
 import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
 import '../data/game_score_scope.dart';
@@ -95,6 +96,8 @@ class _GuessWordWidgetState extends State<GuessWordWidget> {
   }
 
   void _showFinal() {
+    // Went through every word — the game is complete; a fresh game next time.
+    GameStageScope.maybeOf(context)?.markFinished();
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(

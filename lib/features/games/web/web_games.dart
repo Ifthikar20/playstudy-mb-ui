@@ -16,14 +16,15 @@ class FlappyWebGame extends LearningGame {
   String get id => 'flappy_web';
 
   @override
-  String get name => 'Flappy Quiz';
+  String get name => 'Flappy Pip';
 
   @override
   IconData get icon => Icons.flutter_dash;
 
   @override
   String get description =>
-      'Tap to fly through the gaps — answer a question to revive.';
+      'Ride Pip the pup on a flappy bird through swaying pipes and changing '
+      'skies — grab bones, dodge bees, answer to revive.';
 
   @override
   List<Color> get coverColors =>
@@ -56,7 +57,8 @@ class SpaceShooterWebGame extends LearningGame {
 
   @override
   String get description =>
-      'Blast waves of invaders — answer a question to launch the next wave.';
+      'Pip pilots the hero ship against waves of invaders — grab power-ups and '
+      'answer a question to launch the next wave.';
 
   @override
   List<Color> get coverColors =>
@@ -73,7 +75,7 @@ class SpaceShooterWebGame extends LearningGame {
 
   @override
   Widget build(BuildContext context, LearningMaterial material) {
-    return ShooterNativeWidget(quiz: material.quiz);
+    return ShooterNativeWidget(quiz: material.quiz, intensity: 1.0);
   }
 }
 
@@ -110,8 +112,9 @@ class CrosswordWebGame extends LearningGame {
   }
 }
 
-/// Space Hunter is a tougher variant of the space shooter (more waves, faster
-/// fire). Reuses the native shooter so it works offline like the rest.
+/// Space Hunter is a tougher variant of the space shooter (relentless waves,
+/// faster fire, meaner bosses). Reuses the native shooter — turned up to a
+/// higher [ShooterNativeWidget.intensity] — so it works offline like the rest.
 class SpaceHunterWebGame extends LearningGame {
   @override
   String get id => 'space_hunter_web';
@@ -124,7 +127,8 @@ class SpaceHunterWebGame extends LearningGame {
 
   @override
   String get description =>
-      'Survive relentless waves — answer questions to reach the next level.';
+      'Pip vs relentless waves and bosses — faster, fiercer, and gated on '
+      'tougher questions.';
 
   @override
   List<Color> get coverColors =>
@@ -141,6 +145,6 @@ class SpaceHunterWebGame extends LearningGame {
 
   @override
   Widget build(BuildContext context, LearningMaterial material) {
-    return ShooterNativeWidget(quiz: material.quiz);
+    return ShooterNativeWidget(quiz: material.quiz, intensity: 1.4);
   }
 }

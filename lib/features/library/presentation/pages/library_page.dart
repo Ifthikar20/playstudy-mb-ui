@@ -1,13 +1,12 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/games/game_registry.dart';
+import '../../../../core/games/game_stage.dart';
 import '../../../../core/games/learning_game.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/pressable.dart';
 import '../../../home/presentation/pages/home_page.dart';
 import '../../../learning/presentation/bloc/learning_bloc.dart';
 
@@ -199,14 +198,7 @@ class _GamesLibraryTab extends StatelessWidget {
       },
     );
     if (material == null || !context.mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: Text(game.name)),
-          body: game.build(context, material),
-        ),
-      ),
-    );
+    launchGameFullscreen(context, game: game, material: material);
   }
 }
 
@@ -233,11 +225,11 @@ class _GameTile extends StatelessWidget {
   }
 }
 
-/// Retro arcade-poster game tile: thick ink frame, sunburst rays radiating
-/// from a chunky cream-on-ink icon medallion, a bottom marquee with a Bungee
-/// display title + mono tagline, star difficulty + round count badges.
-/// Each game's [LearningGame.coverColors] drives the hue, so every tile is
-/// distinct without per-game artwork.
+/// Modern, Airbnb-style game tile: a gradient "cover" header with the game's
+/// icon medallion and small difficulty / round badges, over a clean white body
+/// with the title, description and a Play affordance. Springs on press. Each
+/// game's [LearningGame.coverColors] drives the hue, so every tile is distinct
+/// without per-game artwork.
 class GameTileCard extends StatelessWidget {
   final LearningGame game;
   final int? questionCount;
@@ -254,258 +246,150 @@ class GameTileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = game.coverColors;
-    final bgA = colors.first;
-    final bgB = colors.length > 1 ? colors.last : colors.first;
-    const ink = Color(0xFF1A0E12);          // poster ink (almost-black plum)
-    const cream = Color(0xFFFFF6E1);        // off-white paper stock
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          // Outer thick frame (the poster border).
-          decoration: BoxDecoration(
-            color: ink,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: ink.withOpacity(0.45),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(4),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Stack(children: [
-              // Sunburst-rays background driven by the game's cover colors.
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _SunburstPainter(
-                    base: bgA,
-                    accent: bgB,
-                    rayColor: cream.withOpacity(0.18),
-                    rayCount: 14,
+    final c1 = colors.first;
+    final c2 = colors.length > 1 ? colors.last : colors.first;
+    final isDark = theme.brightness == Brightness.dark;
+    final accent = _readable(c2);
+    return Pressable(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? theme.colorScheme.surface : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.4 : 0.07),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover header.
+            Stack(children: [
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+                child: Container(
+                  height: 94,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [c1, c2],
+                    ),
                   ),
+                  child: Stack(children: [
+                    Positioned(
+                      right: -14,
+                      bottom: -18,
+                      child: Icon(
+                        game.icon ?? Icons.videogame_asset_rounded,
+                        size: 92,
+                        color: Colors.white.withOpacity(0.20),
+                      ),
+                    ),
+                    Center(
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          game.icon ?? Icons.videogame_asset_rounded,
+                          size: 26,
+                          color: accent,
+                        ),
+                      ),
+                    ),
+                  ]),
                 ),
               ),
-              // Top-right star difficulty (arcade-style 1–3 stars).
               Positioned(
                 top: 8,
-                right: 8,
-                child:
-                    _PosterStarRating(difficulty: game.difficulty, color: cream),
+                left: 8,
+                child: _DifficultyPill(difficulty: game.difficulty),
               ),
-              // Top-left round-count badge (skipped when unknown).
               if (questionCount != null)
                 Positioned(
                   top: 8,
-                  left: 8,
-                  child: _PosterRoundBadge(count: questionCount!, color: cream),
+                  right: 8,
+                  child: _CountPill(count: questionCount!),
                 ),
-              // Center medallion holding the game's icon/emoji.
-              const Positioned(
-                left: 0,
-                right: 0,
-                top: 40,
-                child: SizedBox.shrink(),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 38,
-                child: Center(
-                  child: _PosterMedallion(game: game, cream: cream, ink: ink),
-                ),
-              ),
-              // Bottom marquee strip: chunky display title + mono tagline.
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _PosterMarquee(
-                  title: game.name,
-                  tagline: game.description,
-                  ink: ink,
-                  cream: cream,
-                ),
-              ),
             ]),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// Retro-poster helpers (used by GameTileCard only).
-// ─────────────────────────────────────────────────────────────────────────
-
-class _SunburstPainter extends CustomPainter {
-  final Color base;
-  final Color accent;
-  final Color rayColor;
-  final int rayCount;
-  _SunburstPainter({
-    required this.base,
-    required this.accent,
-    required this.rayColor,
-    required this.rayCount,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    // 1. Diagonal base — the printed poster paper.
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [base, Color.lerp(accent, Colors.black, 0.18)!],
-        ).createShader(rect),
-    );
-
-    // 2. Alternating sunburst wedges emanating from the medallion area.
-    final origin = Offset(size.width / 2, size.height * 0.36);
-    final reach =
-        math.sqrt(size.width * size.width + size.height * size.height) * 1.05;
-    final ray = Paint()..color = rayColor;
-    for (int i = 0; i < rayCount; i++) {
-      final wedge = (math.pi * 2) / rayCount;
-      final a1 = i * wedge;
-      final a2 = a1 + wedge / 2;
-      final p = Path()
-        ..moveTo(origin.dx, origin.dy)
-        ..lineTo(origin.dx + reach * math.cos(a1),
-            origin.dy + reach * math.sin(a1))
-        ..lineTo(origin.dx + reach * math.cos(a2),
-            origin.dy + reach * math.sin(a2))
-        ..close();
-      canvas.drawPath(p, ray);
-    }
-
-    // 3. Vignette: darkens edges for a printed-on-paper feel.
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(0, -0.2),
-          radius: 0.95,
-          colors: [Colors.transparent, Colors.black.withOpacity(0.35)],
-        ).createShader(rect),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _SunburstPainter old) =>
-      old.base != base ||
-      old.accent != accent ||
-      old.rayColor != rayColor ||
-      old.rayCount != rayCount;
-}
-
-class _PosterMedallion extends StatelessWidget {
-  final LearningGame game;
-  final Color cream;
-  final Color ink;
-  const _PosterMedallion(
-      {required this.game, required this.cream, required this.ink});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        color: cream,
-        shape: BoxShape.circle,
-        border: Border.all(color: ink, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: ink.withOpacity(0.45),
-            blurRadius: 8,
-            offset: const Offset(2, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Icon(
-          game.icon ?? Icons.videogame_asset_rounded,
-          size: 32,
-          color: ink,
-        ),
-      ),
-    );
-  }
-}
-
-class _PosterMarquee extends StatelessWidget {
-  final String title;
-  final String tagline;
-  final Color ink;
-  final Color cream;
-  const _PosterMarquee({
-    required this.title,
-    required this.tagline,
-    required this.ink,
-    required this.cream,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cream,
-        border: Border(top: BorderSide(color: ink, width: 3)),
-      ),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              title.toUpperCase(),
-              maxLines: 1,
-              style: GoogleFonts.bungee(
-                color: ink,
-                fontSize: 16,
-                letterSpacing: 0.4,
-                height: 1.0,
+            // Body.
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      game.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Expanded(
+                      child: Text(
+                        game.description,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          height: 1.25,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Row(children: [
+                      Text(
+                        'Play',
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, size: 15, color: accent),
+                    ]),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            tagline,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.spaceMono(
-              color: ink.withOpacity(0.78),
-              fontSize: 10.5,
-              height: 1.2,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+  // Nudge a very light accent darker so "Play" stays legible on white.
+  Color _readable(Color c) {
+    final l = c.computeLuminance();
+    return l > 0.6 ? Color.lerp(c, Colors.black, 0.45)! : c;
+  }
 }
 
-class _PosterStarRating extends StatelessWidget {
+class _DifficultyPill extends StatelessWidget {
   final GameDifficulty difficulty;
-  final Color color;
-  const _PosterStarRating(
-      {required this.difficulty, required this.color});
+  const _DifficultyPill({required this.difficulty});
 
   @override
   Widget build(BuildContext context) {
@@ -517,9 +401,8 @@ class _PosterStarRating extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
+        color: Colors.black.withOpacity(0.28),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.55), width: 1),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         for (int i = 0; i < 3; i++)
@@ -527,8 +410,8 @@ class _PosterStarRating extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 1),
             child: Icon(
               i < filled ? Icons.star_rounded : Icons.star_outline_rounded,
-              size: 13,
-              color: color,
+              size: 12,
+              color: Colors.white,
             ),
           ),
       ]),
@@ -536,26 +419,25 @@ class _PosterStarRating extends StatelessWidget {
   }
 }
 
-class _PosterRoundBadge extends StatelessWidget {
+class _CountPill extends StatelessWidget {
   final int count;
-  final Color color;
-  const _PosterRoundBadge({required this.count, required this.color});
+  const _CountPill({required this.count});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
+        color: Colors.white.withOpacity(0.92),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.55), width: 1),
       ),
       child: Text(
-        '$count ROUND${count == 1 ? '' : 'S'}',
-        style: GoogleFonts.bungee(
-          color: color,
-          fontSize: 9,
-          letterSpacing: 0.4,
+        '$count Q',
+        style: const TextStyle(
+          color: Color(0xFF1A1A1A),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2,
         ),
       ),
     );

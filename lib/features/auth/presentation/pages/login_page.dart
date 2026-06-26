@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/auth/auth_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 
 class LoginPage extends StatefulWidget {
@@ -246,7 +245,7 @@ class _AnimatedHeroState extends State<_AnimatedHero>
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: ThemeColors.brandGradient,
+            colors: [Color(0xFF2A2A2E), Color(0xFF1A1A1A)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -392,11 +391,11 @@ class _GradientButton extends StatelessWidget {
       height: 54,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: ThemeColors.brandGradient),
+          color: const Color(0xFF1A1A1A),
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: ThemeColors.brandIndigo.withOpacity(0.32),
+              color: Colors.black.withOpacity(0.22),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),

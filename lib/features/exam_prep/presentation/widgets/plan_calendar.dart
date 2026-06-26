@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exam_plan.dart';
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -102,13 +103,13 @@ class _PlanCalendarState extends State<PlanCalendar> {
       bg = theme.colorScheme.tertiary;
       fg = Colors.white;
     } else if (isSelected) {
-      bg = theme.colorScheme.primary;
+      bg = ThemeColors.brandIndigo;
       fg = Colors.white;
     } else if (isToday) {
-      bg = theme.colorScheme.primary.withOpacity(0.18);
-      fg = theme.colorScheme.primary;
+      bg = ThemeColors.brandIndigo.withOpacity(0.18);
+      fg = ThemeColors.brandIndigo;
     } else if (scheduled) {
-      bg = theme.colorScheme.primary.withOpacity(0.08);
+      bg = ThemeColors.brandIndigo.withOpacity(0.08);
     }
 
     return Container(

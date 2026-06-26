@@ -34,6 +34,11 @@ class GameRegistry {
     _games.add(game);
   }
 
+  /// Remove a game by [LearningGame.id]. Used by the server kill-switch to
+  /// pull a game — including a built-in/native one — at startup. No-op if no
+  /// game with that id is registered.
+  void unregister(String id) => _games.removeWhere((g) => g.id == id);
+
   /// Clear all games. Useful in tests.
   void clear() => _games.clear();
 }

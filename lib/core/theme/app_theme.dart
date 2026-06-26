@@ -15,15 +15,16 @@ class ThemeColors {
   static const Color pastelLavender = Color(0xFFC4C0F5);
   static const Color brandIndigo = Color(0xFF6B5CE7);
 
-  // Light
+  // Light — simplistic, near-black primary + neutral greys. Purple
+  // (brandIndigo) is reserved for the exam area only.
   static const Color lightBackground = Color(0xFFFAFAFA);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightPrimary = brandIndigo;
-  static const Color lightSecondary = Color(0xFF7B6CF6);
+  static const Color lightPrimary = Color(0xFF1A1A1A);
+  static const Color lightSecondary = Color(0xFF3A3A3C);
   static const Color lightAccent = pastelMint;
-  static const Color lightTextPrimary = Color(0xFF1F1B2E);
-  static const Color lightTextSecondary = Color(0xFF6B6880);
-  static const Color lightBorder = Color(0xFFE7E5F0);
+  static const Color lightTextPrimary = Color(0xFF1A1A1A);
+  static const Color lightTextSecondary = Color(0xFF6E6E73);
+  static const Color lightBorder = Color(0xFFE5E5EA);
   static const Color lightError = Color(0xFFE5484D);
 
   // Dark
@@ -143,7 +144,7 @@ class AppTheme {
         primary: primary,
         onPrimary: Colors.white,
         secondary: secondary,
-        onSecondary: brightness == Brightness.light ? textPrimary : Colors.white,
+        onSecondary: Colors.white,
         tertiary: accent,
         onTertiary: Colors.white,
         surface: surface,

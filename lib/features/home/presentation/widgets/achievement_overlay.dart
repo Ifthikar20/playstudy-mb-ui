@@ -95,7 +95,7 @@ class _AchievementCard extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFF6B5CE7), Color(0xFF9D8DFA)]),
+                      colors: [Color(0xFF2A2A2E), Color(0xFF1A1A1A)]),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -166,11 +166,11 @@ class _ConfettiPainter extends CustomPainter {
   final double t; // 0..1
   _ConfettiPainter(this.t);
   static const _colors = [
-    Color(0xFF6B5CE7), // indigo
+    Color(0xFFFF7A59), // coral
     Color(0xFFD6F26C), // lime
     Color(0xFF8FE3B6), // mint
     Color(0xFFA8E6F0), // sky
-    Color(0xFFC4C0F5), // lavender
+    Color(0xFFFFD166), // gold
     Color(0xFFFBC78A), // peach
   ];
 

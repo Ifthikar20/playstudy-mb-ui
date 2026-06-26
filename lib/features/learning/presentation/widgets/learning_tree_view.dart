@@ -4,17 +4,23 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/learning_models.dart';
 
-/// Top-to-bottom learning tree for a study set:
+/// Left-to-right (landscape) learning tree for a study set:
 ///
-///        ┌────── Study set ──────┐
-///        │                        │
-///        ▼          ▼          ▼
-///     ┌──────┐   ┌──────┐   ┌──────┐
-///     │Topic │   │Topic │   │Topic │
-///     └──┬───┘   └──┬───┘   └──┬───┘
-///        │          │          │
-///       leaf       leaf       leaf
-///       leaf       leaf       leaf
+///                     ┌──────┐    leaf leaf
+///        ┌──────────► │Topic │──► leaf
+///        │            └──────┘    leaf
+///   ┌─────────┐       ┌──────┐
+///   │Study set│─────► │Topic │──► leaf leaf
+///   └─────────┘       └──────┘
+///        │            ┌──────┐    leaf
+///        └──────────► │Topic │──► leaf
+///                     └──────┘
+///
+/// Laying the tree on its side makes the trunk → branch → leaf structure (the
+/// "roots" and the connecting lines) much easier to read. As you study:
+///   • a finished section turns green,
+///   • the section you're currently on is light yellow,
+/// so progress through the whole set is visible at a glance.
 ///
 /// Pannable + pinch-zoomable for large sets. Tap a topic node to jump back
 /// to it in the study flow.
@@ -31,6 +37,12 @@ class LearningTreeView extends StatelessWidget {
     this.onJumpToSection,
   });
 
+  // Section state colours, shared with [_TopicNode] and [_EdgePainter].
+  static const Color doneGreen = Color(0xFF22C55E);
+  static const Color doneBorder = Color(0xFF15803D);
+  static const Color currentAmber = Color(0xFFEAB308);
+  static const Color currentFill = Color(0xFFFEF9C3); // light yellow
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -41,18 +53,18 @@ class LearningTreeView extends StatelessWidget {
       );
     }
 
-    // Layout constants tuned to feel compact on phones.
-    const rootW = 220.0;
-    const rootH = 56.0;
-    const topicW = 138.0;
-    const topicH = 68.0;
-    const leafW = 132.0;
-    const leafH = 26.0;
-    const colGap = 18.0;
-    const rowGap = 56.0;
+    // Layout constants — laid out left → right (landscape).
+    const rootW = 152.0;
+    const rootH = 92.0;
+    const topicW = 150.0;
+    const topicH = 74.0;
+    const leafW = 124.0;
+    const leafH = 24.0;
     const leafGap = 6.0;
+    const rowGap = 24.0; // vertical gap between topic rows
+    const hGap = 46.0; // horizontal gap between root/topic/leaf columns
     const padX = 24.0;
-    const padTop = 20.0;
+    const padY = 24.0;
     const maxLeaves = 4;
 
     // Per-topic leaves: key word-game terms that appear in the section's
@@ -77,23 +89,40 @@ class LearningTreeView extends StatelessWidget {
     }
     final maxLeafCount =
         perTopic.fold<int>(0, (a, b) => b.length > a ? b.length : a);
+    final maxLeafBlockH = maxLeafCount > 0
+        ? maxLeafCount * leafH + (maxLeafCount - 1) * leafGap
+        : 0.0;
+    final hasLeaves = maxLeafCount > 0;
 
     final cols = sections.length;
-    final canvasW =
-        math.max(padX * 2 + cols * topicW + (cols - 1) * colGap, 320.0);
-    final canvasH = padTop +
-        rootH +
-        rowGap +
-        topicH +
-        rowGap +
-        (maxLeafCount * leafH +
-            (maxLeafCount > 0 ? (maxLeafCount - 1) * leafGap : 0)) +
-        24;
+    final rowH = math.max(topicH, maxLeafBlockH);
+    final rowStride = rowH + rowGap;
+    final contentH = cols * rowH + (cols - 1) * rowGap;
+    final canvasH = math.max(padY * 2 + contentH, padY * 2 + rootH);
 
-    final rootCx = canvasW / 2;
-    final rootBottomY = padTop + rootH;
-    final topicTopY = padTop + rootH + rowGap;
-    final leafTopY = topicTopY + topicH + rowGap;
+    // Column x positions.
+    final rootRightX = padX + rootW;
+    final topicLeftX = rootRightX + hGap;
+    final topicRightX = topicLeftX + topicW;
+    final leafLeftX = topicRightX + hGap;
+    final canvasW = math.max(
+        hasLeaves ? leafLeftX + leafW + padX : topicRightX + padX, 320.0);
+
+    final rootTop = (canvasH - rootH) / 2;
+    final rootCenterY = canvasH / 2;
+
+    // Vertical layout for each topic row + its leaf block.
+    final topicTopY = <double>[];
+    final leafTops = <List<double>>[];
+    for (var i = 0; i < cols; i++) {
+      final rowTop = padY + i * rowStride;
+      topicTopY.add(rowTop + (rowH - topicH) / 2);
+      final n = perTopic[i].length;
+      final blockH = n > 0 ? n * leafH + (n - 1) * leafGap : 0.0;
+      final blockTop = rowTop + (rowH - blockH) / 2;
+      leafTops.add(
+          [for (var j = 0; j < n; j++) blockTop + j * (leafH + leafGap)]);
+    }
 
     return InteractiveViewer(
       constrained: false,
@@ -108,38 +137,37 @@ class LearningTreeView extends StatelessWidget {
           Positioned.fill(
             child: CustomPaint(
               painter: _EdgePainter(
-                sections: sections,
                 completed: completed,
-                perTopic: perTopic,
-                rootBottomCenter: Offset(rootCx, rootBottomY),
+                currentSection: currentSection,
+                rootRightCenter: Offset(rootRightX, rootCenterY),
+                topicLeftX: topicLeftX,
+                topicRightX: topicRightX,
+                leafLeftX: leafLeftX,
                 topicTopY: topicTopY,
                 topicH: topicH,
-                topicW: topicW,
-                colGap: colGap,
-                padX: padX,
-                leafTopY: leafTopY,
+                leafTops: leafTops,
+                leafH: leafH,
                 primary: theme.colorScheme.primary,
                 divider: theme.dividerColor,
               ),
             ),
           ),
-          // Root.
+          // Root, centred on the left.
           Positioned(
-            left: rootCx - rootW / 2,
-            top: padTop,
+            left: padX,
+            top: rootTop,
             child: _RootNode(
               width: rootW,
               height: rootH,
-              title:
-                  material.title.isEmpty ? 'Study set' : material.title,
+              title: material.title.isEmpty ? 'Study set' : material.title,
               primary: theme.colorScheme.primary,
             ),
           ),
-          // Topics.
+          // Topics, stacked down the middle column.
           for (var i = 0; i < cols; i++)
             Positioned(
-              left: padX + i * (topicW + colGap),
-              top: topicTopY,
+              left: topicLeftX,
+              top: topicTopY[i],
               child: _TopicNode(
                 width: topicW,
                 height: topicH,
@@ -153,12 +181,12 @@ class LearningTreeView extends StatelessWidget {
                     : () => onJumpToSection!(i),
               ),
             ),
-          // Leaves.
+          // Leaves, to the right of each topic.
           for (var i = 0; i < cols; i++)
             for (var j = 0; j < perTopic[i].length; j++)
               Positioned(
-                left: padX + i * (topicW + colGap) + (topicW - leafW) / 2,
-                top: leafTopY + j * (leafH + leafGap),
+                left: leafLeftX,
+                top: leafTops[i][j],
                 child: _LeafChip(
                   width: leafW,
                   height: leafH,
@@ -208,7 +236,7 @@ class _RootNode extends StatelessWidget {
       ),
       child: Text(
         title,
-        maxLines: 2,
+        maxLines: 3,
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
@@ -246,14 +274,14 @@ class _TopicNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color border = current
-        ? primary
+        ? LearningTreeView.currentAmber
         : done
-            ? const Color(0xFF15803D)
+            ? LearningTreeView.doneBorder
             : Colors.black.withOpacity(0.10);
     final Color fill = current
-        ? primary.withOpacity(0.10)
+        ? LearningTreeView.currentFill
         : done
-            ? const Color(0xFF22C55E).withOpacity(0.10)
+            ? LearningTreeView.doneGreen.withOpacity(0.12)
             : Colors.white;
 
     return SizedBox(
@@ -289,8 +317,10 @@ class _TopicNode extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: done
-                          ? const Color(0xFF22C55E)
-                          : primary.withOpacity(0.18),
+                          ? LearningTreeView.doneGreen
+                          : current
+                              ? LearningTreeView.currentAmber
+                              : primary.withOpacity(0.18),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: done
@@ -300,7 +330,7 @@ class _TopicNode extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
-                              color: primary,
+                              color: current ? Colors.white : primary,
                             )),
                   ),
                   if (current) ...[
@@ -309,7 +339,7 @@ class _TopicNode extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
-                        color: primary,
+                        color: LearningTreeView.currentAmber,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text('NOW',
@@ -341,7 +371,11 @@ class _TopicNode extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: primary,
+                    color: done
+                        ? LearningTreeView.doneBorder
+                        : current
+                            ? const Color(0xFF92660A)
+                            : primary,
                   ),
                 ),
               ],
@@ -396,29 +430,29 @@ class _LeafChip extends StatelessWidget {
 // ─── Edges ──────────────────────────────────────────────────────────────
 
 class _EdgePainter extends CustomPainter {
-  final List<StudySection> sections;
   final Set<int> completed;
-  final List<List<String>> perTopic;
-  final Offset rootBottomCenter;
-  final double topicTopY;
+  final int? currentSection;
+  final Offset rootRightCenter;
+  final double topicLeftX;
+  final double topicRightX;
+  final double leafLeftX;
+  final List<double> topicTopY;
   final double topicH;
-  final double topicW;
-  final double colGap;
-  final double padX;
-  final double leafTopY;
+  final List<List<double>> leafTops;
+  final double leafH;
   final Color primary;
   final Color divider;
   _EdgePainter({
-    required this.sections,
     required this.completed,
-    required this.perTopic,
-    required this.rootBottomCenter,
+    required this.currentSection,
+    required this.rootRightCenter,
+    required this.topicLeftX,
+    required this.topicRightX,
+    required this.leafLeftX,
     required this.topicTopY,
     required this.topicH,
-    required this.topicW,
-    required this.colGap,
-    required this.padX,
-    required this.leafTopY,
+    required this.leafTops,
+    required this.leafH,
     required this.primary,
     required this.divider,
   });
@@ -431,8 +465,13 @@ class _EdgePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
     final donePaint = Paint()
-      ..color = const Color(0xFF22C55E)
-      ..strokeWidth = 2
+      ..color = LearningTreeView.doneGreen
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final currentPaint = Paint()
+      ..color = LearningTreeView.currentAmber
+      ..strokeWidth = 2.4
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
     final softPaint = Paint()
@@ -441,38 +480,42 @@ class _EdgePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    // Root → each topic: smooth S-curve (root.bottom → topic.top).
-    for (var i = 0; i < sections.length; i++) {
-      final tx = padX + i * (topicW + colGap) + topicW / 2;
-      final ty = topicTopY;
+    // Root → each topic: smooth horizontal S-curve (root.right → topic.left).
+    final rootMidX = (rootRightCenter.dx + topicLeftX) / 2;
+    for (var i = 0; i < topicTopY.length; i++) {
+      final ty = topicTopY[i] + topicH / 2;
       final p = Path()
-        ..moveTo(rootBottomCenter.dx, rootBottomCenter.dy)
-        ..cubicTo(
-          rootBottomCenter.dx,
-          (rootBottomCenter.dy + ty) / 2,
-          tx,
-          (rootBottomCenter.dy + ty) / 2,
-          tx,
-          ty,
-        );
-      canvas.drawPath(p, completed.contains(i) ? donePaint : brandPaint);
+        ..moveTo(rootRightCenter.dx, rootRightCenter.dy)
+        ..cubicTo(rootMidX, rootRightCenter.dy, rootMidX, ty, topicLeftX, ty);
+      canvas.drawPath(
+          p,
+          completed.contains(i)
+              ? donePaint
+              : currentSection == i
+                  ? currentPaint
+                  : brandPaint);
     }
 
-    // Topic → leaves: straight drop from topic.bottom to first leaf.
-    for (var i = 0; i < sections.length; i++) {
-      if (perTopic[i].isEmpty) continue;
-      final tx = padX + i * (topicW + colGap) + topicW / 2;
-      final topicBottom = topicTopY + topicH;
-      final p = Path()
-        ..moveTo(tx, topicBottom)
-        ..lineTo(tx, leafTopY);
-      canvas.drawPath(p, softPaint);
+    // Topic → its leaves: horizontal branch (topic.right → each leaf.left).
+    final leafMidX = (topicRightX + leafLeftX) / 2;
+    for (var i = 0; i < leafTops.length; i++) {
+      if (leafTops[i].isEmpty) continue;
+      final ty = topicTopY[i] + topicH / 2;
+      final paint = completed.contains(i) ? donePaint : softPaint;
+      for (final lt in leafTops[i]) {
+        final ly = lt + leafH / 2;
+        final p = Path()
+          ..moveTo(topicRightX, ty)
+          ..cubicTo(leafMidX, ty, leafMidX, ly, leafLeftX, ly);
+        canvas.drawPath(p, paint);
+      }
     }
   }
 
   @override
   bool shouldRepaint(covariant _EdgePainter old) =>
-      old.sections.length != sections.length ||
       old.completed != completed ||
-      old.perTopic.length != perTopic.length;
+      old.currentSection != currentSection ||
+      old.topicTopY.length != topicTopY.length ||
+      old.leafTops.length != leafTops.length;
 }

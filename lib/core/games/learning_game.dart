@@ -32,9 +32,9 @@ abstract class LearningGame {
   String get description;
 
   /// Two-stop gradient used as the cover art behind the game's icon when
-  /// no [coverImage] is provided. Defaults to a soft indigo wash so a new
+  /// no [coverImage] is provided. Defaults to a neutral graphite wash so a new
   /// game still looks polished out of the box.
-  List<Color> get coverColors => const [Color(0xFF9D8DFA), Color(0xFF6B5CE7)];
+  List<Color> get coverColors => const [Color(0xFF3A3A3C), Color(0xFF1A1A1A)];
 
   /// Optional asset image path (e.g. 'assets/games/flappy.png'). When set,
   /// the UI shows it as the tile's cover instead of [coverColors] + icon.

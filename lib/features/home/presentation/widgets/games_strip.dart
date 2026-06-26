@@ -22,7 +22,7 @@ class GamesStrip extends StatelessWidget {
           padding: const EdgeInsets.only(left: 2, bottom: 10),
           child: Row(children: [
             Text(
-              'Games included',
+              'Newly added games',
               style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.2),
             ),
@@ -30,20 +30,21 @@ class GamesStrip extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.10),
+                color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(
-                '${games.length}',
+              child: const Text(
+                'NEW',
                 style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontSize: 11,
+                  color: Colors.white,
+                  fontSize: 10,
                   fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
             const Spacer(),
-            Text('Tap any to create a set',
+            Text('Tap any to play',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 )),

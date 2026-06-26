@@ -142,46 +142,35 @@ class ProfilePage extends StatelessWidget {
           // is one tap away rather than hidden under Settings.
           AirbnbCard(
             padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: Container(
-                height: 40,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.family_restroom_rounded,
+            child: Column(children: [
+              ListTile(
+                leading: Icon(Icons.family_restroom_rounded,
                     color: theme.colorScheme.primary),
+                title: const Text('Parental controls'),
+                subtitle: const Text(
+                    'Link a parent, or follow a child\'s study progress'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push('/family'),
               ),
-              title: const Text('Parental controls'),
-              subtitle: const Text(
-                  'Link a parent, or follow a child\'s study progress'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => context.push('/family'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          AirbnbCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: const Icon(Icons.settings_rounded),
-              title: const Text('Settings'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => context.push('/settings'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          AirbnbCard(
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              leading: Icon(Icons.logout_rounded, color: theme.colorScheme.error),
-              title: Text('Sign out',
-                  style: TextStyle(color: theme.colorScheme.error)),
-              onTap: () {
-                context.read<AuthBloc>().add(AuthSignOut());
-                context.go('/login');
-              },
-            ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              ListTile(
+                leading: const Icon(Icons.settings_rounded),
+                title: const Text('Settings'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push('/settings'),
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              ListTile(
+                leading:
+                    Icon(Icons.logout_rounded, color: theme.colorScheme.error),
+                title: Text('Sign out',
+                    style: TextStyle(color: theme.colorScheme.error)),
+                onTap: () {
+                  context.read<AuthBloc>().add(AuthSignOut());
+                  context.go('/login');
+                },
+              ),
+            ]),
           ),
         ],
       ),

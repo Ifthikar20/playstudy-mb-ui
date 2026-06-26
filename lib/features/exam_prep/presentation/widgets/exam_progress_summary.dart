@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exam_plan.dart';
 
 /// Top-of-tab summary: how the user is doing across ALL exam plans they've
@@ -46,7 +47,7 @@ class ExamProgressSummary extends StatelessWidget {
     final overallProgress = totalDays == 0 ? 0.0 : doneDays / totalDays;
     final overallAccuracy =
         totalAttempted == 0 ? 0.0 : totalCorrect / totalAttempted;
-    final primary = theme.colorScheme.primary;
+    final primary = ThemeColors.brandIndigo;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),

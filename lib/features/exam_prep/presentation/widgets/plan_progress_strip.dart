@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exam_plan.dart';
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -110,7 +111,7 @@ class PlanProgressStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
+    final primary = ThemeColors.brandIndigo;
     final accuracy = plan.averageAccuracy;
     final streak = plan.currentStreak;
     final pace = plan.pace;
@@ -156,7 +157,7 @@ class PlanProgressStrip extends StatelessWidget {
               value: '${plan.daysUntilExam}',
               suffix: 'd',
               label: 'To exam',
-              color: theme.colorScheme.secondary,
+              color: ThemeColors.brandIndigo,
               icon: Icons.event_rounded,
             ),
           ),

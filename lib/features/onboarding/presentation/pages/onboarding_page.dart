@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/onboarding/onboarding_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
 
 /// First-login walkthrough of how PlayStudy works. Clean white (Airbnb-style)
 /// background with swipe-driven parallax animations. Shown once, then the
@@ -49,8 +48,8 @@ const _slides = <_Slide>[
     icon: Icons.videogame_asset_rounded,
     title: 'Learn by playing',
     body:
-        'Flappy, Space Hunter, a crossword and more — every game quizzes you on '
-        'your own material, so playing is studying.',
+        'Ride along with Pip in Flappy Pip, Space Hunter, a crossword and more — '
+        'every game quizzes you on your own material, so playing is studying.',
     gradient: [Color(0xFF22C55E), Color(0xFF14B8A6)],
   ),
   _Slide(
@@ -228,11 +227,11 @@ class _OnboardingPageState extends State<OnboardingPage>
                 height: 54,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: ThemeColors.brandGradient),
+                    color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF385C).withOpacity(0.35),
+                        color: Colors.black.withOpacity(0.22),
                         blurRadius: 18,
                         offset: const Offset(0, 8),
                       ),

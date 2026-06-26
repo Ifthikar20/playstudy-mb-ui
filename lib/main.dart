@@ -9,6 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/auth/auth_bloc.dart';
 import 'core/config/app_config.dart';
 import 'core/games/game_registry.dart';
+import 'core/games/game_stage.dart';
 import 'core/navigation/app_router.dart';
 import 'core/network/api_client.dart';
 import 'core/network/token_store.dart';
@@ -150,6 +151,10 @@ class PlayStudyApp extends StatelessWidget {
                             ? ThemeMode.light
                             : ThemeMode.dark,
                         routerConfig: router,
+                        // Hosts the full-screen, pausable game above every
+                        // screen so it survives close/reopen.
+                        builder: (context, child) =>
+                            GameStage(child: child ?? const SizedBox.shrink()),
                       );
                     },
                   );

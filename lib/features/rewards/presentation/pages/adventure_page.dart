@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/rewards/rewards_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../widgets/learning_insights.dart';
 
 /// The rewards / level-up screen. Shows the user's current rank, exact
@@ -79,7 +78,7 @@ class _LevelHero extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: ThemeColors.brandGradient,
+          colors: [Color(0xFF2A2A2E), Color(0xFF1A1A1A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

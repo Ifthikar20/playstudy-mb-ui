@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../learning/data/models/learning_models.dart';
 import '../../../learning/data/quiz_progress_store.dart';
 import '../../../learning/data/repositories/learning_repository.dart';
@@ -148,12 +149,12 @@ class _DailySessionPageState extends State<DailySessionPage> {
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color:
-                                  theme.colorScheme.primary.withOpacity(0.12),
+                                  ThemeColors.brandIndigo.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(_q.topic,
                                 style: TextStyle(
-                                    color: theme.colorScheme.primary,
+                                    color: ThemeColors.brandIndigo,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700)),
                           ),
@@ -255,7 +256,7 @@ class _SessionOverviewState extends State<_SessionOverview> {
     final plan = widget.plan;
     final questions = widget.questions;
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
+    final primary = ThemeColors.brandIndigo;
     final total = questions.length;
     final easy = questions.where((q) => q.difficulty == QuizDifficulty.easy).length;
     final med = questions.where((q) => q.difficulty == QuizDifficulty.medium).length;
@@ -282,7 +283,7 @@ class _SessionOverviewState extends State<_SessionOverview> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [primary, theme.colorScheme.secondary],
+                colors: [primary, const Color(0xFF9D8DFA)],
               ),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
@@ -776,7 +777,7 @@ class _FactPill extends StatelessWidget {
         border: Border.all(color: Colors.black.withOpacity(0.06)),
       ),
       child: Row(children: [
-        Icon(icon, size: 18, color: theme.colorScheme.primary),
+        Icon(icon, size: 18, color: ThemeColors.brandIndigo),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
