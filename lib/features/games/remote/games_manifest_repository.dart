@@ -31,12 +31,20 @@ class GamesManifestRepository {
 
   static const _boxName = 'games_manifest';
   static const _cacheKey = 'entries';
+  static const _flagsBoxName = 'games_flags';
+  static const _flagsCacheKey = 'entries';
 
   /// Loads the manifest (network, falling back to cache) and registers every
-  /// playable game into [registry]. Never throws — a failure here must not
-  /// block app startup; at worst the built-in native games remain.
+  /// playable game into [registry], then applies the server's per-game on/off
+  /// flags. Never throws — a failure here must not block app startup; at worst
+  /// the built-in native games remain and every game stays on (fail-open).
   Future<void> registerInto(GameRegistry registry) async {
-    final defs = await _load();
+    // Fetch the catalog and the on/off flags together so the kill-switch adds
+    // no extra startup latency.
+    final defsFuture = _load();
+    final disabledFuture = _loadDisabledKeys();
+
+    final defs = await defsFuture;
     final appVersion = AppConfig.instance.appVersion;
     final supportedSdk = AppConfig.instance.supportedSdkVersion;
     final registeredDefs = <RemoteGameDef>[];
@@ -53,8 +61,61 @@ class GamesManifestRepository {
     // Pre-download the bundles in the background so they're playable offline
     // before the user opens them. Best-effort; cached versions are skipped.
     unawaited(_prewarm(registeredDefs));
+
+    // Apply per-game on/off switches LAST, so the backend can also disable a
+    // built-in (native) game — not just hide a remote one. Unknown keys no-op.
+    final disabled = await disabledFuture;
+    for (final key in disabled) {
+      registry.unregister(key);
+    }
+
     debugPrint('[games] registered $registered remote game(s) '
-        'from ${defs.length} manifest entr${defs.length == 1 ? "y" : "ies"}');
+        'from ${defs.length} manifest entr${defs.length == 1 ? "y" : "ies"}'
+        '${disabled.isEmpty ? "" : "; disabled ${disabled.length} via flags: $disabled"}');
+  }
+
+  /// Loads the per-game on/off flags (network, falling back to cache) and
+  /// returns the keys the server has switched OFF. Games default to enabled, so
+  /// a fetch failure with no cache returns an empty list — every game stays on.
+  Future<List<String>> _loadDisabledKeys() async {
+    try {
+      final response = await _dio.get('games/flags/');
+      final list = (response.data as List).cast<Map<String, dynamic>>();
+      await _cacheFlags(list);
+      return _disabledFrom(list);
+    } catch (e) {
+      debugPrint('[games] flags fetch failed ($e) — using cache');
+      return _disabledFromCache();
+    }
+  }
+
+  /// Keys whose flag is explicitly `enabled: false`. Anything else (missing or
+  /// true) is treated as enabled, so the switch is opt-in and fail-open.
+  List<String> _disabledFrom(List<Map<String, dynamic>> list) => [
+        for (final m in list)
+          if (m['enabled'] == false) (m['key'] as String? ?? ''),
+      ].where((k) => k.isNotEmpty).toList(growable: false);
+
+  Future<void> _cacheFlags(List<Map<String, dynamic>> raw) async {
+    try {
+      final box = await Hive.openBox<String>(_flagsBoxName);
+      await box.put(_flagsCacheKey, jsonEncode(raw));
+    } catch (e) {
+      debugPrint('[games] flags cache write failed: $e');
+    }
+  }
+
+  Future<List<String>> _disabledFromCache() async {
+    try {
+      final box = await Hive.openBox<String>(_flagsBoxName);
+      final raw = box.get(_flagsCacheKey);
+      if (raw == null) return const [];
+      final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      return _disabledFrom(list);
+    } catch (e) {
+      debugPrint('[games] flags cache read failed: $e');
+      return const [];
+    }
   }
 
   /// Download each registered bundle to disk (sequentially, to avoid a startup
