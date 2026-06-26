@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/games/game_stage.dart';
 import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
 import '../data/game_score_scope.dart';
@@ -76,6 +77,8 @@ class _CrosswordNativeWidgetState extends State<CrosswordNativeWidget> {
       context.read<RewardsBloc>().add(
             const RecordActivity(points: 15, reason: 'Crossword solved'),
           );
+      // Puzzle completed — reopening starts a fresh game.
+      GameStageScope.maybeOf(context)?.markFinished();
     }
   }
 

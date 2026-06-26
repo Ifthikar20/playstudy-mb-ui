@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/games/game_stage.dart';
 import '../../../core/rewards/rewards_bloc.dart';
 import '../../learning/data/models/learning_models.dart';
 import '../data/game_score_scope.dart';
@@ -67,6 +68,8 @@ class _SuperDashWidgetState extends State<SuperDashWidget> {
 
   void _handleGameOver() {
     setState(() => _showingGameOver = true);
+    // Lives ran out — reopening starts a fresh game.
+    GameStageScope.maybeOf(context)?.markFinished();
   }
 
   void _restart() {
