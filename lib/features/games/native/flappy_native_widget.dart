@@ -56,6 +56,9 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
   final List<_Particle> _particles = [];
   final List<_Cloud> _clouds = [];
   final List<_BgBird> _bgBirds = [];
+  final List<_Pop> _pops = []; // floating "+N" feedback
+  final List<Offset> _trail = []; // motion streak behind Pip
+  double _shake = 0; // screen-shake amount, decays each tick
   double _spawnT = 0;
   double _beeT = 0;
   double _bgBirdT = 0;
@@ -92,6 +95,9 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
     _bones.clear();
     _bees.clear();
     _particles.clear();
+    _pops.clear();
+    _trail.clear();
+    _shake = 0;
     _spawnT = 0;
     _beeT = 0;
     _invuln = 0;
@@ -100,8 +106,13 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
     _revives = 0;
     _nextQuizAt = 3;
     _dist = 0;
+    _gate.resetStats();
     _seedDecor();
     _state = 'ready';
+  }
+
+  void _pop(double x, double y, String text, Color color) {
+    _pops.add(_Pop(x: x, y: y, text: text, color: color));
   }
 
   void _seedDecor() {
@@ -225,6 +236,13 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
       p.life -= dt;
       if (p.life <= 0) _particles.removeAt(i);
     }
+    for (var i = _pops.length - 1; i >= 0; i--) {
+      final p = _pops[i];
+      p.y -= 40 * dt;
+      p.life -= dt;
+      if (p.life <= 0) _pops.removeAt(i);
+    }
+    if (_shake > 0) _shake = math.max(0.0, _shake - dt * 2.6);
     _bird.flapKick = math.max(0.0, _bird.flapKick - dt * 2.2);
 
     // Occasionally send a little V of distant birds across the sky.
@@ -249,6 +267,8 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
     _bird.vy += gravity * dt;
     _bird.y += _bird.vy * dt;
     _bird.rot = (_bird.vy / 620).clamp(-0.5, 1.2);
+    _trail.add(Offset(_bird.x, _bird.y));
+    if (_trail.length > 14) _trail.removeAt(0);
 
     _spawnT += dt;
     if (_spawnT >= _pipeEvery) {
@@ -276,6 +296,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
         _bonesEaten++;
         _score += 2;
         GameScoreScope.report(context, _score);
+        _pop(b.x, b.y - 12, '+2 🦴', const Color(0xFFFFD23F));
         for (var k = 0; k < 8; k++) {
           _particles.add(_Particle(
             x: b.x,
@@ -297,6 +318,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
         p.passed = true;
         _score++;
         GameScoreScope.report(context, _score);
+        _pop(_bird.x + 18, _bird.y - 24, '+1', const Color(0xFFFFE08A));
         if (_gate.hasQuestions && _score >= _nextQuizAt) {
           _nextQuizAt = _score + 3;
           _askPlayQuestion();
@@ -366,6 +388,17 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
       _score += 2;
       GameScoreScope.report(context, _score);
       _invuln = 1.6;
+      _pop(_bird.x, _bird.y - 36, 'Correct! +2', const Color(0xFF5BD6A6));
+      for (var i = 0; i < 10; i++) {
+        _particles.add(_Particle(
+          x: _bird.x,
+          y: _bird.y,
+          vx: (_rng.nextDouble() - 0.5) * 240,
+          vy: (_rng.nextDouble() - 0.5) * 240,
+          life: 0.6,
+          color: const Color(0xFF8FE3FF),
+        ));
+      }
     }
     _bird.y = _size.height * 0.4;
     _bird.vy = 0;
@@ -373,6 +406,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
   }
 
   Future<void> _onCrash() async {
+    _shake = math.max(_shake, 1.0);
     for (var i = 0; i < 16; i++) {
       _particles.add(_Particle(
         x: _bird.x,
@@ -398,6 +432,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
         _bird.vy = 0;
         _invuln = 1.8;
         _state = 'play';
+        _pop(_bird.x, _bird.y - 36, 'Revived!', const Color(0xFF5BD6A6));
       } else {
         _gameOver();
       }
@@ -444,12 +479,15 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
                 bones: _bones,
                 bees: _bees,
                 particles: _particles,
+                pops: _pops,
+                trail: _trail,
                 clouds: _clouds,
                 bgBirds: _bgBirds,
                 biome: _biome,
                 score: _score,
                 state: _state,
                 invuln: _invuln,
+                shake: _shake,
                 t: _t,
               ),
             ),
@@ -478,28 +516,16 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
           ),
           if (_state == 'over')
             Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.45),
-                alignment: Alignment.center,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Game over',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Text('Score $_score  ·  Best $_best  ·  🦴 $_bonesEaten',
-                        style: const TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 18),
-                    FilledButton.icon(
-                      onPressed: _flap,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Fly again'),
-                    ),
-                  ],
-                ),
+              child: GameStatScreen(
+                title: 'Game over',
+                score: _score,
+                best: _best,
+                answered: _gate.asked,
+                correct: _gate.correctCount,
+                mastered: _gate.masteredCount,
+                totalQuestions: _gate.total,
+                extraLabel: '🦴 $_bonesEaten bones collected this run',
+                onPlayAgain: _flap,
               ),
             ),
         ]),
@@ -564,6 +590,14 @@ class _Particle {
       required this.vy,
       required this.life,
       required this.color});
+}
+
+class _Pop {
+  double x, y, life = 0.9;
+  final double maxLife = 0.9;
+  final String text;
+  final Color color;
+  _Pop({required this.x, required this.y, required this.text, required this.color});
 }
 
 /// A blendable sky/ground theme. `night` is a 0..1 amount so we can cross-fade
@@ -657,12 +691,15 @@ class _FlappyPainter extends CustomPainter {
   final List<_Bone> bones;
   final List<_Bee> bees;
   final List<_Particle> particles;
+  final List<_Pop> pops;
+  final List<Offset> trail;
   final List<_Cloud> clouds;
   final List<_BgBird> bgBirds;
   final _Biome biome;
   final int score;
   final String state;
   final double invuln;
+  final double shake;
   final double t;
 
   _FlappyPainter({
@@ -671,12 +708,15 @@ class _FlappyPainter extends CustomPainter {
     required this.bones,
     required this.bees,
     required this.particles,
+    required this.pops,
+    required this.trail,
     required this.clouds,
     required this.bgBirds,
     required this.biome,
     required this.score,
     required this.state,
     required this.invuln,
+    required this.shake,
     required this.t,
   });
 
@@ -692,16 +732,24 @@ class _FlappyPainter extends CustomPainter {
     final W = size.width, H = size.height;
     final horizon = H - groundH;
 
-    // Sky.
+    // Screen-shake: nudge the whole world (HUD lives outside the painter).
+    canvas.save();
+    if (shake > 0.02) {
+      canvas.translate(
+          math.sin(t * 80) * shake * 7, math.cos(t * 67) * shake * 7);
+    }
+
+    // Sky (oversized so screen-shake never reveals an edge).
+    final bg = Rect.fromLTWH(-16, -16, W + 32, H + 32);
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, W, H),
+      bg,
       Paint()
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [biome.skyTop, biome.skyMid, biome.skyLow],
           stops: const [0, 0.6, 1],
-        ).createShader(Rect.fromLTWH(0, 0, W, H)),
+        ).createShader(bg),
     );
 
     // Sun / moon cross-fade.
@@ -784,9 +832,11 @@ class _FlappyPainter extends CustomPainter {
       _bee(canvas, b.x, b.y, t);
     }
 
-    // Ground.
-    canvas.drawRect(Rect.fromLTWH(0, horizon, W, groundH), Paint()..color = biome.ground);
-    canvas.drawRect(Rect.fromLTWH(0, horizon, W, 10), Paint()..color = biome.groundTop);
+    // Ground (oversized for screen-shake).
+    canvas.drawRect(Rect.fromLTWH(-16, horizon, W + 32, groundH + 16),
+        Paint()..color = biome.ground);
+    canvas.drawRect(Rect.fromLTWH(-16, horizon, W + 32, 10),
+        Paint()..color = biome.groundTop);
     // little grass tufts that scroll with distance.
     final tuft = Paint()..color = biome.groundTop;
     final off = (t * 60) % 28;
@@ -800,8 +850,23 @@ class _FlappyPainter extends CustomPainter {
       canvas.drawRect(Rect.fromLTWH(pt.x, pt.y, 4, 4), paint);
     }
 
+    // Motion streak behind Pip.
+    for (var i = 0; i < trail.length; i++) {
+      final o = i / trail.length;
+      canvas.drawCircle(trail[i], 3 + o * 5,
+          Paint()..color = Colors.white.withOpacity(o * 0.16));
+    }
+
     // Pip riding the bird.
     _drawSteed(canvas);
+
+    // Floating "+N" score pops.
+    for (final p in pops) {
+      final a = (p.life / p.maxLife).clamp(0.0, 1.0);
+      _text(canvas, p.text, Offset(p.x, p.y), 17 + (1 - a) * 5,
+          FontWeight.w900, p.color.withOpacity(a),
+          center: true, shadow: true);
+    }
 
     // Score (big).
     _text(canvas, '$score', Offset(W / 2, 54), 44, FontWeight.w800, Colors.white,
@@ -815,6 +880,8 @@ class _FlappyPainter extends CustomPainter {
           13, FontWeight.w600, Colors.white70,
           center: true, shadow: true);
     }
+
+    canvas.restore();
   }
 
   void _drawSteed(Canvas canvas) {
@@ -828,6 +895,9 @@ class _FlappyPainter extends CustomPainter {
     canvas.save();
     canvas.translate(bird.x, bird.y);
     canvas.rotate(bird.rot * 0.55);
+    // Squash & stretch: Pip's mount elongates along its motion.
+    final stretch = (bird.vy.abs() / 1500).clamp(0.0, 0.16);
+    canvas.scale(1 - stretch * 0.7, 1 + stretch);
 
     final sw = r * 0.12;
     Paint ink() => Paint()

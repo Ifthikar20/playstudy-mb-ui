@@ -68,6 +68,9 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
   double _rapid = 0; // rapid-fire seconds remaining
   double _shipInvuln = 0; // i-frames after a hit
   int _formDir = 1; // shared formation drift direction
+  int _best = 0; // best score across runs this session
+  final List<_Pop> _pops = []; // floating "+N" feedback
+  double _shake = 0; // screen-shake amount, decays each tick
 
   double get _intensity => widget.intensity;
 
@@ -110,8 +113,20 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
     _lives = 3;
     _rapid = 0;
     _shipInvuln = 0;
+    _pops.clear();
+    _shake = 0;
+    _gate.resetStats();
     _state = 'play';
     _spawnWave();
+  }
+
+  void _pop(double x, double y, String text, Color color) {
+    _pops.add(_Pop(x: x, y: y, text: text, color: color));
+  }
+
+  void _endRun() {
+    _best = math.max(_best, _score);
+    _state = 'over';
   }
 
   _Planet _newPlanet({bool seedTop = false}) {
@@ -202,10 +217,29 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
       p.life -= dt;
       if (p.life <= 0) _particles.removeAt(i);
     }
+    for (var i = _pops.length - 1; i >= 0; i--) {
+      final p = _pops[i];
+      p.y -= 40 * dt;
+      p.life -= dt;
+      if (p.life <= 0) _pops.removeAt(i);
+    }
+    if (_shake > 0) _shake = math.max(0.0, _shake - dt * 2.6);
     if (_state != 'play' || _busy) return;
 
     if (_rapid > 0) _rapid -= dt;
     if (_shipInvuln > 0) _shipInvuln -= dt;
+
+    // Engine thruster trail.
+    if (_rng.nextDouble() < 0.6) {
+      _particles.add(_Particle(
+        x: _ship.x + (_rng.nextDouble() - 0.5) * 6,
+        y: _ship.y + 18,
+        vx: (_rng.nextDouble() - 0.5) * 30,
+        vy: 120 + _rng.nextDouble() * 60,
+        life: 0.4,
+        color: const Color(0xFFFFB04D),
+      ));
+    }
 
     // Auto-fire (twin shots when rapid).
     _fireT += dt;
@@ -287,6 +321,8 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
                 : 10;
     _score += pts;
     GameScoreScope.report(context, _score);
+    _pop(e.x, e.y - 14, '+$pts', _enemyColor(e.kind));
+    if (e.kind == _kBoss) _shake = math.max(_shake, 0.9);
     _boom(e.x, e.y, _enemyColor(e.kind));
     // Drops.
     if (e.kind == _kBoss) {
@@ -452,6 +488,13 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
         }
         _score += 5;
         GameScoreScope.report(context, _score);
+        _pop(
+            p.x,
+            p.y - 14,
+            p.kind == _kPowerHeart ? '+1 ♥' : '⚡ Rapid!',
+            p.kind == _kPowerHeart
+                ? const Color(0xFFFF5A6E)
+                : const Color(0xFFFFC83D));
         for (var k = 0; k < 10; k++) {
           _particles.add(_Particle(
             x: p.x,
@@ -474,9 +517,10 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
     _lives--;
     _shipInvuln = 1.3;
     _rapid = 0;
+    _shake = math.max(_shake, 1.0);
     _boom(_ship.x, _ship.y, const Color(0xFFFF5A6E));
     if (_lives <= 0) {
-      _state = 'over';
+      _endRun();
     }
   }
 
@@ -521,11 +565,22 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
       _wave++;
       _eBullets.clear();
       _spawnWave();
+      _pop(_ship.x, _ship.y - 40, 'Wave $_wave!', const Color(0xFF5BD6A6));
+      for (var i = 0; i < 12; i++) {
+        _particles.add(_Particle(
+          x: _ship.x,
+          y: _ship.y,
+          vx: (_rng.nextDouble() - 0.5) * 260,
+          vy: (_rng.nextDouble() - 0.5) * 260,
+          life: 0.6,
+          color: const Color(0xFF8FE3FF),
+        ));
+      }
     } else {
       // Wrong answer: lose a life; if still alive, replay same wave.
       _lives--;
       if (_lives <= 0) {
-        _state = 'over';
+        _endRun();
       } else {
         _spawnWave();
       }
@@ -567,6 +622,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
                 enemies: _enemies,
                 eBullets: _eBullets,
                 particles: _particles,
+                pops: _pops,
                 stars: _stars,
                 powers: _powers,
                 asteroids: _asteroids,
@@ -574,6 +630,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
                 wave: _wave,
                 rapid: _rapid > 0,
                 shipInvuln: _shipInvuln,
+                shake: _shake,
                 t: _t,
               ),
             ),
@@ -601,28 +658,16 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
           ),
           if (_state == 'over')
             Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.55),
-                alignment: Alignment.center,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Game over',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Text('Reached wave $_wave  ·  Score $_score',
-                        style: const TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 18),
-                    FilledButton.icon(
-                      onPressed: _start,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Fly again'),
-                    ),
-                  ],
-                ),
+              child: GameStatScreen(
+                title: 'Game over',
+                score: _score,
+                best: _best,
+                answered: _gate.asked,
+                correct: _gate.correctCount,
+                mastered: _gate.masteredCount,
+                totalQuestions: _gate.total,
+                extraLabel: 'Reached wave $_wave',
+                onPlayAgain: _start,
               ),
             ),
           if (_state == 'play')
@@ -698,6 +743,14 @@ class _Particle {
       required this.color});
 }
 
+class _Pop {
+  double x, y, life = 0.9;
+  final double maxLife = 0.9;
+  final String text;
+  final Color color;
+  _Pop({required this.x, required this.y, required this.text, required this.color});
+}
+
 class _Star {
   double x, y, z;
   _Star({required this.x, required this.y, required this.z});
@@ -740,6 +793,7 @@ class _ShooterPainter extends CustomPainter {
   final List<_Enemy> enemies;
   final List<_EBullet> eBullets;
   final List<_Particle> particles;
+  final List<_Pop> pops;
   final List<_Star> stars;
   final List<_Power> powers;
   final List<_Asteroid> asteroids;
@@ -747,6 +801,7 @@ class _ShooterPainter extends CustomPainter {
   final int wave;
   final bool rapid;
   final double shipInvuln;
+  final double shake;
   final double t;
 
   _ShooterPainter({
@@ -755,6 +810,7 @@ class _ShooterPainter extends CustomPainter {
     required this.enemies,
     required this.eBullets,
     required this.particles,
+    required this.pops,
     required this.stars,
     required this.powers,
     required this.asteroids,
@@ -762,6 +818,7 @@ class _ShooterPainter extends CustomPainter {
     required this.wave,
     required this.rapid,
     required this.shipInvuln,
+    required this.shake,
     required this.t,
   });
 
@@ -769,16 +826,25 @@ class _ShooterPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final W = size.width, H = size.height;
 
+    // Screen-shake: nudge the whole world (HUD lives outside the painter).
+    canvas.save();
+    if (shake > 0.02) {
+      canvas.translate(
+          math.sin(t * 80) * shake * 7, math.cos(t * 67) * shake * 7);
+    }
+
     // Space background — hue drifts with the wave so the map keeps changing.
+    // Oversized so screen-shake never reveals an edge.
     final tint = _kNebula[(wave - 1) % _kNebula.length];
+    final bg = Rect.fromLTWH(-16, -16, W + 32, H + 32);
     canvas.drawRect(
-        Rect.fromLTWH(0, 0, W, H),
+        bg,
         Paint()
           ..shader = LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [tint, const Color(0xFF0E0E14)],
-          ).createShader(Rect.fromLTWH(0, 0, W, H)));
+          ).createShader(bg));
 
     // Drifting planets.
     for (final pl in planets) {
@@ -834,6 +900,32 @@ class _ShooterPainter extends CustomPainter {
 
     // Pip's ship (the hero).
     _drawHeroShip(canvas);
+
+    // Floating "+N" score pops.
+    for (final p in pops) {
+      final a = (p.life / p.maxLife).clamp(0.0, 1.0);
+      _popText(canvas, p.text, Offset(p.x, p.y), p.color.withOpacity(a), a);
+    }
+
+    canvas.restore();
+  }
+
+  void _popText(Canvas canvas, String s, Offset at, Color color, double a) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(
+          fontSize: 16 + (1 - a) * 5,
+          fontWeight: FontWeight.w900,
+          color: color,
+          shadows: const [
+            Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2)),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(at.dx - tp.width / 2, at.dy - tp.height / 2));
   }
 
   // -- Hero ship: Pip piloting an orange-and-white rocket pod ----------------
