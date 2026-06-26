@@ -11,7 +11,7 @@ import 'quiz_gate.dart';
 /// Native (no WebView) space shooter starring **Pip**, the PlayStudy mascot,
 /// who pilots the hero ship — not a side-kick, the star. Drag to fly, auto-fire,
 /// clear waves of varied invaders (grunts, weavers, tanks, divers and the odd
-/// boss), grab 🦴 power-ups, dodge asteroids, then answer a study-set question
+/// boss), grab power-ups, dodge asteroids, then answer a study-set question
 /// to launch the next wave.
 ///
 /// [intensity] scales the challenge so the same engine can power a relaxed
@@ -491,7 +491,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
         _pop(
             p.x,
             p.y - 14,
-            p.kind == _kPowerHeart ? '+1 ♥' : '⚡ Rapid!',
+            p.kind == _kPowerHeart ? '+1 Life' : 'Rapid fire!',
             p.kind == _kPowerHeart
                 ? const Color(0xFFFF5A6E)
                 : const Color(0xFFFFC83D));
@@ -557,7 +557,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
     _busy = true;
     final boss = _wave % 5 == 0;
     final ok = await _gate.ask(
-      title: boss ? 'Boss down! 🎉' : 'Wave $_wave cleared!',
+      title: boss ? 'Boss down!' : 'Wave $_wave cleared!',
       subtitle: 'Answer correctly to launch the next wave',
     );
     if (!mounted) return;
@@ -677,7 +677,7 @@ class _ShooterNativeWidgetState extends State<ShooterNativeWidget>
               right: 0,
               child: Text(
                   _rapid > 0
-                      ? 'Drag to fly ${Mascot.name} · ⚡ rapid fire!'
+                      ? 'Drag to fly ${Mascot.name} · rapid fire!'
                       : 'Drag to fly ${Mascot.name} · auto-fire',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white38, fontSize: 12)),

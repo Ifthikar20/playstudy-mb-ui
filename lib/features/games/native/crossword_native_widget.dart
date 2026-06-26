@@ -316,7 +316,7 @@ class _Keyboard extends StatelessWidget {
                     _Key(label: ch, onTap: () => onLetter(ch)),
                   if (i == 2)
                     _Key(
-                      label: '⌫',
+                      label: 'DEL',
                       wide: true,
                       onTap: onBackspace,
                     ),

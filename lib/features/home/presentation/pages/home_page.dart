@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/auth/auth_bloc.dart';
 import '../../../../core/rewards/rewards_bloc.dart';
-import '../../../../core/subscription/subscription_bloc.dart';
 import '../../../../core/widgets/airbnb_card.dart';
+import '../../../../core/widgets/pressable.dart';
 import '../../../exam_prep/data/models/exam_plan.dart';
 import '../../../exam_prep/presentation/bloc/exam_prep_bloc.dart';
 import '../../../learning/data/models/learning_models.dart';
@@ -99,15 +99,6 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
               ),
-              BlocBuilder<SubscriptionBloc, SubscriptionState>(
-                builder: (context, sub) {
-                  if (sub.isPremium || !sub.loaded) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: _UsageStrip(remaining: sub.remainingFree),
-                  );
-                },
-              ),
             ],
           ),
         ),
@@ -151,68 +142,69 @@ class _HeroCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        // microtask so the tap visual fires immediately, then nav happens on
-        // the next frame — keeps the button feeling instantly responsive
-        // even if the destination route is heavy.
-        onTap: () => Future.microtask(onTap),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [scheme.primary, scheme.secondary],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: scheme.primary.withOpacity(0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+    return Pressable(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [scheme.primary, scheme.secondary],
           ),
-          padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-          child: Row(children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.20),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.auto_awesome_rounded,
-                  color: Colors.white, size: 24),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: scheme.primary.withOpacity(0.35),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
             ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Create a study set',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                      )),
-                  SizedBox(height: 2),
-                  Text('Paste a link, PDF or notes — we turn it into a quiz + game.',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        height: 1.25,
-                      )),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_rounded,
-                color: Colors.white, size: 22),
-          ]),
+          ],
         ),
+        padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
+        child: Row(children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.22),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(Icons.auto_awesome_rounded,
+                color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Create a study set',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    )),
+                SizedBox(height: 3),
+                Text('Paste a link, PDF or notes — we turn it into a quiz + game.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      height: 1.25,
+                    )),
+              ],
+            ),
+          ),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.arrow_forward_rounded,
+                color: Colors.white, size: 20),
+          ),
+        ]),
       ),
     );
   }
@@ -253,48 +245,6 @@ class _TodayPrepStrip extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               Text('${plan.daysUntilExam}d to exam',
-                  style: theme.textTheme.bodySmall),
-            ],
-          ),
-        ),
-        const Icon(Icons.chevron_right_rounded),
-      ]),
-    );
-  }
-}
-
-class _UsageStrip extends StatelessWidget {
-  final int remaining;
-  const _UsageStrip({required this.remaining});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AirbnbCard(
-      onTap: () => context.push('/paywall'),
-      child: Row(children: [
-        Container(
-          height: 44,
-          width: 44,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(Icons.workspace_premium_rounded,
-              color: theme.colorScheme.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                remaining > 0
-                    ? '$remaining free study set${remaining == 1 ? '' : 's'} left'
-                    : 'Free tier used up',
-                style: theme.textTheme.labelLarge,
-              ),
-              Text('Tap to go unlimited',
                   style: theme.textTheme.bodySmall),
             ],
           ),

@@ -296,7 +296,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
         _bonesEaten++;
         _score += 2;
         GameScoreScope.report(context, _score);
-        _pop(b.x, b.y - 12, '+2 🦴', const Color(0xFFFFD23F));
+        _pop(b.x, b.y - 12, '+2', const Color(0xFFFFD23F));
         for (var k = 0; k < 8; k++) {
           _particles.add(_Particle(
             x: b.x,
@@ -524,7 +524,7 @@ class _FlappyNativeWidgetState extends State<FlappyNativeWidget>
                 correct: _gate.correctCount,
                 mastered: _gate.masteredCount,
                 totalQuestions: _gate.total,
-                extraLabel: '🦴 $_bonesEaten bones collected this run',
+                extraLabel: '$_bonesEaten bones collected this run',
                 onPlayAgain: _flap,
               ),
             ),
@@ -876,7 +876,7 @@ class _FlappyPainter extends CustomPainter {
       _text(canvas, 'Tap to help ${Mascot.name} fly', Offset(W / 2, H * 0.62),
           20, FontWeight.w700, Colors.white,
           center: true, shadow: true);
-      _text(canvas, 'grab 🦴 bones · dodge pipes & bees', Offset(W / 2, H * 0.62 + 28),
+      _text(canvas, 'grab bones · dodge pipes & bees', Offset(W / 2, H * 0.62 + 28),
           13, FontWeight.w600, Colors.white70,
           center: true, shadow: true);
     }

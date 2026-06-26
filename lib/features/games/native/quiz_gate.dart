@@ -264,7 +264,7 @@ class GameStatScreen extends StatelessWidget {
   final int correct; // answered correctly
   final int mastered; // distinct questions mastered
   final int totalQuestions;
-  final String? extraLabel; // e.g. 'Reached wave 4' / '🦴 5 bones'
+  final String? extraLabel; // e.g. 'Reached wave 4' / '5 bones'
   final VoidCallback onPlayAgain;
 
   const GameStatScreen({
@@ -366,7 +366,7 @@ class GameStatScreen extends StatelessWidget {
                   totalQuestions == 0
                       ? 'No quiz on this set'
                       : perfect
-                          ? 'You mastered all $totalQuestions questions 🎉'
+                          ? 'You mastered all $totalQuestions questions'
                           : 'Mastered $mastered / $totalQuestions questions',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
