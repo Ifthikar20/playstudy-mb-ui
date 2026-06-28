@@ -1,0 +1,25 @@
+{
+  "$comment": "CANONICAL PlayStudy design tokens — the single source of truth for brand, flavor, and mascot colors shared across web (PS-UI-WEB), mobile (playstudy-mb-ui), and any other client. Web generates CSS custom properties from this via `npm run gen:tokens`; mobile generates a Dart constants file via `dart run tool/gen_tokens.dart`. Edit colors HERE, then re-run both generators — never hand-edit the generated files. `hsl` is the web representation (H S% L%); `hex` is the mobile/Flutter representation. Keep the two in sync for the same swatch.",
+  "brand": {
+    "primary":   { "hsl": "247 74% 63%", "hex": "#6B5CE7", "name": "Brand purple" },
+    "primaryDark": { "hsl": "250 86% 72%", "hex": "#8A7EFA", "name": "Brand purple (dark mode / on-dark)" },
+    "accent":    { "hsl": "33 90% 54%",  "hex": "#F7941D", "name": "Pip orange accent" }
+  },
+  "flavors": {
+    "focus":   { "label": "College — plain, restrained (default)", "primary": { "hsl": "247 74% 63%", "hex": "#6B5CE7" }, "accent": { "hsl": "33 90% 54%", "hex": "#F7941D" }, "radiusRem": 0.75 },
+    "playful": { "label": "School & younger — vivid, rounder",      "primary": { "hsl": "252 95% 67%", "hex": "#7C5CFB" }, "accent": { "hsl": "28 95% 55%", "hex": "#FB8A1C" }, "radiusRem": 1.25 },
+    "pro":     { "label": "University & above — deeper, tighter",    "primary": { "hsl": "243 47% 48%", "hex": "#414BB4" }, "accent": { "hsl": "33 55% 48%", "hex": "#BC7F38" }, "radiusRem": 0.5 },
+    "rose":    { "label": "Pink alternative to focus",              "primary": { "hsl": "330 81% 60%", "hex": "#EC4899" }, "accent": { "hsl": "270 70% 65%", "hex": "#A06CE4" }, "radiusRem": 0.85 }
+  },
+  "mascot": {
+    "$comment": "Pip the pup palette — used identically by the SVG logo (web) and the canvas/Flutter mascot drawings.",
+    "orange":     "#F7941D",
+    "orangeDark": "#E07A12",
+    "orangeLight":"#FFB24D",
+    "cream":      "#FFFFFF",
+    "creamShade": "#E9ECF0",
+    "paw":        "#DCE0E5",
+    "pawDark":    "#BFC5CC",
+    "ink":        "#1A1A1A"
+  }
+}
