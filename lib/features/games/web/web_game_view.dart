@@ -27,6 +27,11 @@ class WebGameView extends StatefulWidget {
   final List<QuizQuestion> quiz;
   final List<WordChallenge> words;
 
+  /// Extra query params appended to the bundle URL (e.g. {'intensity': '1.4'}
+  /// so Space Hunter reuses the Space Shooter bundle turned up). Lets variants
+  /// share one bundle instead of duplicating it.
+  final Map<String, String> extraParams;
+
   const WebGameView({
     super.key,
     required this.slug,
@@ -35,6 +40,7 @@ class WebGameView extends StatefulWidget {
     this.gameKey = '',
     this.quiz = const [],
     this.words = const [],
+    this.extraParams = const {},
   });
 
   @override
@@ -67,6 +73,8 @@ class _WebGameViewState extends State<WebGameView> {
     final params = <String>[];
     if (_quizList.isNotEmpty) params.add('quiz=${_b64(_quizList)}');
     if (_wordList.isNotEmpty) params.add('words=${_b64(_wordList)}');
+    widget.extraParams.forEach((k, v) =>
+        params.add('${Uri.encodeQueryComponent(k)}=${Uri.encodeQueryComponent(v)}'));
     final query = params.isEmpty ? '' : '?${params.join('&')}';
     return '$base/games/${widget.slug}/${widget.version}/index.html$query';
   }

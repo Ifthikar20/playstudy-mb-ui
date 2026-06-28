@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import '../../../core/games/learning_game.dart';
 import '../../learning/data/models/learning_models.dart';
 import '../native/crossword_native_widget.dart';
-import '../native/flappy_native_widget.dart';
-import '../native/shooter_native_widget.dart';
+import 'web_game_view.dart';
 
-/// These were originally WebView-hosted games. They are now native Flutter
-/// implementations (no hosted server, no WebView) so they work offline and on
-/// every device. The class names are unchanged so registration in main.dart
-/// stays the same.
+/// WebView-hosted games. Each renders the shared HTML5 canvas bundle from
+/// games_host (`/games/<slug>/<version>/index.html`) through [WebGameView] —
+/// the exact same bundle the web app embeds in an <iframe>. One implementation
+/// per game, identical graphics and behaviour on web and mobile; no game logic
+/// is duplicated in Dart. Bundles are cached on disk for offline play.
+///
+/// Crossword stays native for now (no HTML bundle exists yet). The class names
+/// are unchanged so registration in main.dart stays the same.
 
 class FlappyWebGame extends LearningGame {
   @override
@@ -41,7 +44,12 @@ class FlappyWebGame extends LearningGame {
 
   @override
   Widget build(BuildContext context, LearningMaterial material) {
-    return FlappyNativeWidget(quiz: material.quiz);
+    return WebGameView(
+      slug: 'flappy',
+      title: name,
+      gameKey: id,
+      quiz: material.quiz,
+    );
   }
 }
 
@@ -75,7 +83,12 @@ class SpaceShooterWebGame extends LearningGame {
 
   @override
   Widget build(BuildContext context, LearningMaterial material) {
-    return ShooterNativeWidget(quiz: material.quiz, intensity: 1.0);
+    return WebGameView(
+      slug: 'space-shooter',
+      title: name,
+      gameKey: id,
+      quiz: material.quiz,
+    );
   }
 }
 
@@ -113,8 +126,8 @@ class CrosswordWebGame extends LearningGame {
 }
 
 /// Space Hunter is a tougher variant of the space shooter (relentless waves,
-/// faster fire, meaner bosses). Reuses the native shooter — turned up to a
-/// higher [ShooterNativeWidget.intensity] — so it works offline like the rest.
+/// faster fire, meaner bosses). Reuses the Space Shooter bundle turned up via
+/// the `intensity` query param — one bundle, no duplicate game code.
 class SpaceHunterWebGame extends LearningGame {
   @override
   String get id => 'space_hunter_web';
@@ -145,6 +158,13 @@ class SpaceHunterWebGame extends LearningGame {
 
   @override
   Widget build(BuildContext context, LearningMaterial material) {
-    return ShooterNativeWidget(quiz: material.quiz, intensity: 1.4);
+    // Same bundle as Space Shooter, turned up via the intensity param.
+    return WebGameView(
+      slug: 'space-shooter',
+      title: name,
+      gameKey: id,
+      quiz: material.quiz,
+      extraParams: const {'intensity': '1.4'},
+    );
   }
 }
